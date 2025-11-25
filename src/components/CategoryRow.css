@@ -1,0 +1,616 @@
+/* Prevent horizontal page scrolling - lock all pages */
+body, html {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+  width: 100% !important;
+}
+
+/* Ensure main containers don't cause horizontal overflow */
+.main-content, .page-content, .container {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Lock all pages from horizontal movement */
+.home-page, .series-page, .genres-page, .watchlist-page, .profile-page, .home, .movies-page {
+  overflow-x: hidden !important;
+  max-width: 100vw !important;
+  width: 100% !important;
+}
+
+
+/* Movies page specific rules - ensure vertical stacking */
+.movies-page .category-row {
+  display: block !important;
+  width: 100% !important;
+  margin-bottom: 5px !important;
+  clear: both !important;
+  float: none !important;
+}
+
+/* Genre pages specific rules - ensure 5px gap between category rows */
+.genre-page .category-row {
+  margin-bottom: 5px !important;
+}
+
+/* Force Movies page to have same layout as Series page */
+.movies-page {
+  display: block !important;
+}
+
+.movies-page .movies-container {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+}
+
+/* Ensure Movies header is at the top */
+.movies-page .movies-header {
+  order: -1 !important;
+  width: 100% !important;
+  text-align: center !important;
+}
+
+
+/* Amazon Prime-inspired Category Row with Grid Layout */
+.category-row {
+  margin-bottom: 5px;
+  position: relative; /* needed for absolute positioned arrows */
+  display: block !important; /* Ensure each category row is a block element */
+  width: 100% !important; /* Full width */
+  max-width: 100vw !important; /* Prevent overflow */
+  clear: both; /* Clear any floating elements */
+  overflow: visible !important; /* Allow arrows to extend to edges */
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 0 20px !important; /* Reduced padding to minimize black areas */
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box; /* Include padding in width */
+  position: relative; /* For positioning children */
+}
+
+.category-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  position: relative;
+  flex-shrink: 0; /* Prevent title from shrinking */
+  order: 1; /* Ensure it comes first */
+}
+
+.category-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), #ff8533);
+  border-radius: 2px;
+}
+
+/* Show scroll arrows only on category row hover - positioned at page edges */
+.category-controls { 
+  display: none; 
+  position: absolute; /* Position relative to .category-row */
+  top: 90px; /* Position below the category-header (title) to align with movie cards */
+  left: 0;
+  right: 0;
+  z-index: 100; /* High z-index to be above content */
+  width: 100%;
+  height: 255px; /* 2:3 aspect ratio: 170px * 1.5 = 255px */
+  pointer-events: none; /* Allow clicks to pass through container */
+  box-sizing: border-box;
+}
+
+.category-row:hover .category-controls {
+  display: block; /* Use block instead of flex to avoid positioning issues */
+}
+
+.category-controls .scroll-button {
+  position: absolute !important; /* Position relative to .category-controls which is relative to .category-row */
+  width: 30px;
+  height: 130px; /* Adjusted for 255px height container */
+  border-radius: 4px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-size: 16px;
+  backdrop-filter: blur(10px);
+  pointer-events: auto !important; /* Re-enable clicks on buttons */
+  z-index: 1001; /* Ensure buttons are above other elements */
+  top: 62.5px; /* Adjusted for 255px height container: (255 - 130) / 2 = 62.5px */
+}
+
+.category-controls .scroll-button:first-child {
+  left: 0 !important; /* Stick to the absolute left edge of the page/viewport */
+}
+
+.category-controls .scroll-button:last-child {
+  right: 0 !important; /* Stick to the absolute right edge of the page/viewport */
+}
+
+/* Ensure both arrows are always visible and clickable */
+.category-controls .scroll-button {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  user-select: none;
+}
+
+.category-controls .scroll-button:hover {
+  background: var(--primary) !important;
+  color: white !important;
+  border-color: var(--primary) !important;
+}
+
+.category-controls .scroll-button.disabled {
+  opacity: 0.3 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+}
+
+.category-controls .scroll-button:hover:not(.disabled) {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+
+.category-controls .scroll-button.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.scroll-button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-size: 16px;
+  backdrop-filter: blur(10px);
+}
+
+.scroll-button:hover:not(.disabled) {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  transform: scale(1.05);
+}
+
+.scroll-button.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.category-content {
+  padding-left: 20px !important; /* Restore left padding */
+  padding-right: 0 !important; /* Remove right padding */
+  box-sizing: border-box;
+  max-width: 100vw;
+  overflow: visible; /* Allow arrows to extend beyond */
+}
+
+/* Movies page: lock page horizontally, allow only category rows to scroll */
+.movies-page .category-content {
+  overflow-x: auto; /* Allow horizontal scrolling */
+  scrollbar-width: none !important;
+}
+
+.movies-page .category-content::-webkit-scrollbar {
+  display: none !important;
+}
+
+.movies-page .category-row .movies-container {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: 10px; /* Simple gap - flexbox handles spacing automatically */
+  scrollbar-width: none; /* Firefox hide */
+  overflow-x: auto; /* only the row scrolls */
+}
+.movies-page .category-row .movies-container::-webkit-scrollbar { display: none; }
+
+/* All pages: show arrows on hover */
+.movies-page .category-row:hover .category-controls,
+.home-page .category-row:hover .category-controls,
+.series-page .category-row:hover .category-controls,
+.genres-page .category-row:hover .category-controls,
+.watchlist-page .category-row:hover .category-controls,
+.profile-page .category-row:hover .category-controls {
+  display: block;
+}
+
+
+/* Movies container - horizontal layout for movie cards */
+.movies-container {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 10px; /* Simple gap - flexbox handles spacing automatically */
+  padding-bottom: 20px;
+  justify-content: flex-start;
+  overflow-x: auto;
+  scrollbar-width: none;
+  max-width: 100%; /* Prevent overflow */
+  box-sizing: border-box;
+  z-index: 10; /* Ensure movie cards are above overlays */
+  position: relative; /* Required for z-index to work */
+}
+
+/* Ensure Movies page movie cards within categories are horizontal */
+.movies-page .category-row .movies-container {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+    gap: 10px !important; /* Set to 10px gap */
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+}
+
+/* Ensure all pages have horizontal movie card layout */
+.home-page .category-row .movies-container,
+.series-page .category-row .movies-container,
+.genres-page .category-row .movies-container,
+.watchlist-page .category-row .movies-container,
+.profile-page .category-row .movies-container {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 10px; /* Simple gap - flexbox handles spacing automatically */
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+}
+
+.movies-container::-webkit-scrollbar {
+  display: none; /* Hide scrollbars */
+}
+
+.movie-item {
+  width: 170px !important; /* Reduced by 20px from 190px */
+  min-width: 170px !important; /* Prevent shrinking */
+  height: auto; /* allow info text under poster */
+  flex-shrink: 0 !important; /* prevent items from shrinking */
+  display: block !important;
+  box-sizing: border-box; /* Include padding/border in width */
+  margin: 0 !important; /* Remove any margins that could affect gap */
+}
+
+/* Remove conflicting grid rules - categories should stack vertically */
+
+/* Horizontal Scroll Option for Mobile */
+@media (max-width: 767px) {
+  .category-content {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .category-content::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .movies-container {
+    display: flex;
+    gap: 10px; /* Simple gap - flexbox handles spacing automatically */
+    padding-bottom: 8px;
+    width: max-content;
+  }
+  
+  .movie-item {
+    flex-shrink: 0;
+    width: 140px; /* Reduced by 20px from 160px */
+    height: auto;
+  }
+}
+
+/* OVERRIDES for Movies page: always vertical (no horizontal flex on mobile) */
+@media (max-width: 767px) {
+  .movies-page .category-content {
+    overflow: visible !important;
+  }
+  .movies-page .category-row .movies-container {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    gap: 10px; /* Simple gap - flexbox handles spacing automatically */
+    overflow-x: auto !important;
+  }
+  .movies-page .movie-item {
+    flex-shrink: 0 !important;
+    width: 180px !important; /* Reduced by 20px from 200px */
+    height: auto !important;
+  }
+}
+
+/* Featured Series: maintain horizontal layout */
+.category-row.trending .movies-container {
+  display: flex;
+  flex-wrap: nowrap; /* keep cards in horizontal row */
+  gap: 10px; /* Simple gap - flexbox handles spacing automatically */
+  justify-content: flex-start; /* ensure same horizontal alignment */
+  overflow-x: auto; /* enable horizontal scroll */
+}
+
+.category-row.trending .movie-item {
+  width: 170px; /* Reduced by 20px from 190px */
+  height: auto;
+}
+
+@media (max-width: 767px) {
+  .category-row.trending .movies-container {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 100%;
+    overflow-x: auto; /* enable horizontal scroll on mobile */
+  }
+  
+  .category-row.trending .movie-item {
+    width: 170px; /* Reduced by 20px from 190px */
+    height: auto;
+  }
+}
+
+
+.series-page .category-row.trending .movie-item {
+  width: 170px; /* Reduced by 20px from 190px */
+  height: auto;
+}
+
+@media (max-width: 767px) {
+  .series-page .category-row.trending .movie-item {
+    width: 170px; /* Reduced by 20px from 190px */
+    height: auto;
+  }
+}
+
+/* Responsive Design */
+
+/* Large screens - prevent overflow */
+@media (min-width: 1440px) {
+  .category-row {
+    max-width: 1920px; /* Limit max width on very large screens */
+    margin: 0 auto;
+  }
+  
+  .category-content {
+    max-width: 100%;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  
+  .movies-container {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 1200px) {
+  .category-header {
+    padding: 0 20px !important;
+  }
+  
+  .category-content {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .category-header {
+    padding: 0 var(--page-padding) !important;
+  }
+  
+  .category-content {
+    padding-left: var(--page-padding) !important;
+  }
+  
+  .category-controls .scroll-button {
+    width: 38px;
+    height: 130px; /* Adjusted for 255px height container */
+    top: 62.5px; /* Adjusted for 255px height container: (255 - 130) / 2 = 62.5px */
+  }
+}
+
+@media (max-width: 768px) {
+  .category-row {
+    margin-bottom: 20px; /* Reduced section spacing */
+  }
+
+  .category-header {
+    padding: 0 12px !important; /* Reduced horizontal padding */
+    margin-bottom: 6px !important; /* Reduced gap between header and cards */
+  }
+
+  .category-content {
+    padding-left: 12px !important; /* Reduced horizontal padding */
+    padding-right: 0 !important;
+    overflow-x: auto;
+    overflow-y: hidden; /* Prevent vertical scrolling */
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .category-content::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-title {
+    font-size: clamp(16px, 4vw, 18px);
+  }
+
+  /* Hide scroll arrows on mobile */
+  .category-controls {
+    display: none !important;
+  }
+
+  .view-all-button {
+    font-size: clamp(11px, 2.5vw, 12px);
+    padding: 5px 12px;
+    margin-left: auto;
+  }
+  
+  .movies-container {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 10px; /* Simple gap - flexbox handles spacing automatically */
+    padding-bottom: 8px !important; /* Reduced gap under cards */
+    width: max-content;
+    scroll-snap-type: x mandatory;
+    overflow-x: auto !important; /* Ensure horizontal scrolling */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+
+  .movie-item {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    width: calc((100vw - 12px - 10px) / 2) !important; /* Account for left padding (12px) + gap (10px) between 2 cards */
+    min-width: calc((100vw - 12px - 10px) / 2) !important;
+    max-width: 150px !important; /* Increased from 140px for better badge visibility */
+    margin: 0 !important; /* Remove any margins that could affect gap */
+  }
+  
+  .movie-item .movie-card,
+  .movie-item .movie-card-inner {
+    width: 100% !important; /* Make card fill the item width */
+    max-width: 100% !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .category-row {
+    margin-bottom: 10px !important; /* Further reduced spacing between categories */
+  }
+
+  .category-header {
+    padding: 0 10px !important; /* Further reduced padding */
+    margin-bottom: 5px !important; /* Reduced gap between header and cards */
+  }
+
+  .category-content {
+    padding-left: 10px !important; /* Further reduced padding */
+    padding-right: 0 !important;
+    overflow-x: auto;
+    overflow-y: hidden; /* Prevent vertical scrolling */
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .category-content::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-title {
+    font-size: clamp(14px, 4.5vw, 16px);
+  }
+
+  /* Hide scroll arrows on mobile */
+  .category-controls {
+    display: none !important;
+  }
+
+  .view-all-button {
+    font-size: clamp(10px, 3vw, 11px);
+    padding: 4px 10px;
+  }
+  
+  .movies-container {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    gap: 10px; /* Simple gap - flexbox handles spacing automatically */
+    padding-bottom: 6px !important; /* Reduced gap under cards */
+    width: max-content;
+    scroll-snap-type: x mandatory;
+    overflow-x: auto !important; /* Ensure horizontal scrolling */
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+
+  .movie-item {
+    flex-shrink: 0;
+    scroll-snap-align: start;
+    width: calc((100vw - 10px - 10px) / 2) !important; /* Account for left padding (10px) + gap (10px) between 2 cards */
+    min-width: calc((100vw - 10px - 10px) / 2) !important;
+    max-width: 140px !important; /* Increased from 130px for better badge visibility */
+    margin: 0 !important; /* Remove any margins that could affect gap */
+  }
+  
+  .movie-item .movie-card,
+  .movie-item .movie-card-inner {
+    width: 100% !important; /* Make card fill the item width */
+    max-width: 100% !important;
+  }
+}
+
+/* Loading Animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.movie-item.loading {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 12px;
+}
+
+/* Hover Effects for Category Title */
+.category-title:hover {
+  color: var(--primary);
+  transition: color 0.3s ease;
+}
+
+/* View All Button */
+.view-all-button {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-flex !important; /* Force display */
+  align-items: center;
+  gap: 4px;
+  margin-left: auto; /* Push to the right */
+  flex-shrink: 0; /* Prevent shrinking */
+  order: 2; /* Ensure it comes after the title */
+}
+
+.view-all-button:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 106, 0, 0.3);
+}
+

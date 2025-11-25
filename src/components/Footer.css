@@ -1,0 +1,235 @@
+.footer {
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+  margin-top: auto;
+}
+
+.footer-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.footer-content {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  gap: 40px;
+  padding: 40px 0 30px;
+}
+
+.footer-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.footer-logo {
+  font-size: 32px;
+  font-weight: bold;
+  color: var(--primary);
+  margin-bottom: 12px;
+  background: linear-gradient(45deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.footer-description {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+.footer-title {
+  color: var(--text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.footer-links {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.footer-links li a {
+  color: var(--text-muted);
+  text-decoration: none;
+  transition: color 0.3s ease;
+  font-size: 16px;
+}
+
+.footer-links li a:hover {
+  color: var(--primary);
+}
+
+/* Social Links */
+.social-links {
+  display: flex;
+  gap: 16px;
+}
+
+.social-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background-color: var(--bg-primary);
+  color: var(--text-muted);
+  border-radius: 50%;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  font-size: 18px;
+}
+
+.social-link:hover {
+  background-color: var(--primary);
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Footer Bottom */
+.footer-bottom {
+  border-top: 1px solid var(--border-color);
+  padding: 24px 0;
+}
+
+.footer-bottom-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.copyright {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .footer-content {
+    grid-template-columns: 1.5fr 1fr 1fr;
+    gap: 32px;
+    padding: 32px 0 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .footer-content {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 32px 0 24px;
+  }
+
+  .footer-section:first-child {
+    text-align: left;
+    grid-column: 1 / -1;
+  }
+
+  .footer-description {
+    font-size: clamp(13px, 2.5vw, 15px);
+    margin-bottom: 16px;
+  }
+  
+  /* Align Quick Links and Support side by side */
+  .footer-section:nth-child(2),
+  .footer-section:nth-child(3) {
+    align-self: start;
+  }
+
+  .footer-logo {
+    font-size: clamp(24px, 5vw, 28px);
+  }
+
+  .footer-title {
+    font-size: clamp(15px, 3.5vw, 17px);
+    margin-bottom: 12px;
+  }
+
+  .footer-links {
+    gap: 8px;
+  }
+
+  .footer-links li a {
+    font-size: clamp(13px, 3vw, 15px);
+  }
+
+  .footer-bottom {
+    padding: 16px 0;
+  }
+
+  .copyright {
+    font-size: clamp(12px, 2.5vw, 13px);
+  }
+}
+
+@media (max-width: 480px) {
+  .footer-container {
+    padding: 0 12px;
+  }
+
+  .footer-content {
+    padding: 24px 0 16px;
+    gap: 20px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .footer-section:first-child {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+  
+  /* Quick Links and Support side by side on mobile */
+  .footer-section:nth-child(2),
+  .footer-section:nth-child(3) {
+    align-self: start;
+  }
+
+  .footer-logo {
+    font-size: clamp(22px, 6vw, 26px);
+    margin-bottom: 12px;
+  }
+
+  .footer-description {
+    font-size: clamp(12px, 3vw, 14px);
+    margin-bottom: 12px;
+  }
+
+  .social-links {
+    justify-content: center;
+    gap: 12px;
+  }
+
+  .social-link {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .footer-title {
+    font-size: clamp(14px, 4vw, 16px);
+    margin-bottom: 10px;
+  }
+
+  .footer-links {
+    gap: 6px;
+  }
+
+  .footer-links li a {
+    font-size: clamp(12px, 3.5vw, 14px);
+  }
+
+  .footer-bottom {
+    padding: 12px 0;
+  }
+
+  .copyright {
+    font-size: clamp(11px, 3vw, 12px);
+  }
+}

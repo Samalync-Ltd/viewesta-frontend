@@ -1,0 +1,386 @@
+.home {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+}
+
+/* Categories Container */
+.media-sections {
+  background-color: var(--bg-primary);
+  padding: 40px 0 20px;
+}
+
+.media-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px 40px;
+}
+
+.media-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.media-section-title {
+  font-size: clamp(24px, 3.5vw, 30px);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.trending-toggle {
+  display: inline-flex;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.toggle-button {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.toggle-button.active {
+  background-color: var(--primary);
+  color: #fff;
+  box-shadow: 0 10px 20px rgba(255, 106, 0, 0.25);
+}
+
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.media-empty {
+  margin: 0;
+  padding: 12px 0;
+  color: var(--text-muted);
+  font-size: 16px;
+}
+
+/* Sections */
+.section {
+  padding: 60px 0;
+  background-color: var(--bg-primary);
+}
+
+.section-header {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 40px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 28px;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.section-icon {
+  color: var(--primary);
+  font-size: 24px;
+}
+
+.section-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.section-link:hover {
+  background-color: var(--hover-bg);
+}
+
+/* Access Models */
+.access-models {
+  background-color: var(--bg-secondary);
+}
+
+.access-grid {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 32px;
+}
+
+.access-card {
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.access-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 12px 30px rgba(255, 106, 0, 0.2);
+  border-color: var(--primary);
+}
+
+.access-card.featured {
+  border-color: var(--primary);
+  box-shadow: 0 8px 25px rgba(255, 106, 0, 0.2);
+}
+
+.access-card.featured::before {
+  content: 'Most Popular';
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--primary);
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.access-icon {
+  font-size: 48px;
+  margin-bottom: 20px;
+}
+
+.access-card h3 {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.access-card p {
+  color: var(--text-muted);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.access-features {
+  list-style: none;
+  margin-bottom: 32px;
+  text-align: left;
+}
+
+.access-features li {
+  color: var(--text-primary);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+  position: relative;
+  padding-left: 24px;
+}
+
+.access-features li:before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--primary);
+  font-weight: bold;
+}
+
+.access-features li:last-child {
+  border-bottom: none;
+}
+
+/* CTA Section */
+.cta-section {
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  padding: 80px 0;
+  text-align: center;
+}
+
+.cta-content {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.cta-content h2 {
+  font-size: 36px;
+  font-weight: bold;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.cta-content p {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  margin-bottom: 32px;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-large {
+  padding: 16px 32px;
+  font-size: 18px;
+}
+
+/* Loading */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
+  gap: 20px;
+}
+
+.loading-container p {
+  color: var(--text-muted);
+  font-size: 18px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .hero-content {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    text-align: center;
+  }
+
+  .hero-title {
+    font-size: 40px;
+  }
+
+  .access-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .cta-content {
+    padding: 0 var(--page-padding);
+  }
+}
+
+@media (max-width: 768px) {
+  .media-section {
+    padding: 0 var(--page-padding) 32px;
+  }
+
+  .media-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .trending-toggle {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .hero {
+    padding: 60px 0 40px;
+  }
+
+  .hero-title {
+    font-size: 32px;
+  }
+
+  .hero-description {
+    font-size: 18px;
+  }
+
+  .hero-buttons {
+    justify-content: center;
+  }
+
+  .hero-movie-poster {
+    width: 250px;
+    height: 375px;
+  }
+
+  .access-grid {
+    padding: 0 var(--page-padding);
+  }
+
+  .access-card {
+    padding: 24px;
+  }
+
+  .cta-content {
+    padding: 0 var(--page-padding);
+  }
+
+  .cta-content h2 {
+    font-size: 28px;
+  }
+
+  .cta-buttons {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .media-section-header {
+    align-items: stretch;
+  }
+
+  .trending-toggle {
+    flex-direction: column;
+  }
+
+  .toggle-button {
+    width: 100%;
+    text-align: center;
+  }
+
+  .hero-title {
+    font-size: 28px;
+  }
+
+  .hero-description {
+    font-size: 16px;
+  }
+
+  .hero-movie-poster {
+    width: 200px;
+    height: 300px;
+  }
+
+  .access-grid {
+    padding: 0 var(--page-padding);
+  }
+
+  .access-card {
+    padding: 20px;
+  }
+
+  .cta-content {
+    padding: 0 var(--page-padding);
+  }
+
+  .cta-content h2 {
+    font-size: 24px;
+  }
+  
+  .cta-content p {
+    font-size: 16px;
+  }
+}

@@ -1,0 +1,174 @@
+/* Movies Page Styles */
+.movies-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  padding-top: 20px; /* Reduced to show header + first row without scrolling */
+  overflow-x: hidden !important; /* Prevent horizontal overflow */
+  max-width: 100vw !important;
+  width: 100% !important;
+}
+
+.movies-container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0; /* Remove horizontal padding to match Home page layout */
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-x: hidden !important;
+}
+
+.movies-page.loading-state,
+.movies-page.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.movies-inline-error {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 0 auto 20px;
+  border: 1px solid var(--warning);
+  border-radius: 8px;
+  background: rgba(255, 152, 0, 0.1);
+  color: var(--warning);
+  max-width: 960px;
+  width: calc(100% - 40px);
+}
+
+.movies-inline-error .btn-small {
+  padding: 6px 12px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.movies-header {
+  text-align: center;
+  margin-bottom: 5px;
+  padding: 20px 0; /* Reduced from 40px to tighten spacing */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.movies-title {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 12px; /* Reduced from 20px */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  background: linear-gradient(135deg, var(--primary), #ff8533);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.movies-title svg {
+  font-size: 3rem;
+  color: var(--primary);
+  -webkit-text-fill-color: initial;
+}
+
+.movies-subtitle {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+  text-align: center;
+}
+
+
+
+
+
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .movies-title {
+    font-size: 3rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .movies-page {
+    padding-top: 20px;
+  }
+  
+  .movies-header {
+    margin-bottom: 20px;
+    padding: 15px var(--page-padding);
+  }
+  
+  .movies-title {
+    font-size: 2.5rem;
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .movies-title svg {
+    font-size: 2.5rem;
+  }
+  
+  .movies-subtitle {
+    font-size: 1.1rem;
+    padding: 0 var(--page-padding);
+  }
+}
+
+@media (max-width: 480px) {
+  .movies-header {
+    padding: 12px var(--page-padding);
+    margin-bottom: 15px;
+  }
+  
+  .movies-title {
+    font-size: 2rem;
+  }
+  
+  .movies-title svg {
+    font-size: 2rem;
+  }
+  
+  .movies-subtitle {
+    font-size: 1rem;
+    padding: 0 var(--page-padding);
+  }
+}
+
+/* Animation for page load */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.movies-header {
+  animation: fadeInUp 0.8s ease forwards;
+}
+
+.movies-header h1 {
+  animation-delay: 0.2s;
+}
+
+.movies-header p {
+  animation-delay: 0.4s;
+}

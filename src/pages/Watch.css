@@ -1,0 +1,123 @@
+.watch-page {
+  padding: 16px;
+}
+
+.watch-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.watch-details {
+  margin-top: 16px;
+  padding: 12px 2px 24px;
+}
+
+.watch-title {
+  font-size: 1.75rem;
+  margin-bottom: 8px;
+}
+
+.watch-meta {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  color: #ddd;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.meta-item { display: inline-flex; align-items: center; gap: 6px; }
+.meta-item .icon { opacity: 0.9; font-size: 14px; }
+.meta-item.rating .icon { color: #f5c518; }
+
+.watch-genres { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.genre-tag {
+  background: #1f2937;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.watch-description { color: #e5e7eb; margin: 8px 0 12px; }
+
+.watch-specs { display: grid; gap: 6px; color: #cbd5e1; }
+.watch-specs .spec strong { color: #fff; font-weight: 600; margin-right: 6px; }
+
+.watch-not-found, .watch-locked {
+  max-width: 800px;
+  margin: 80px auto;
+  text-align: center;
+}
+
+.watch-locked .actions {
+  margin-top: 16px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .watch-container {
+    padding: 0 var(--page-padding);
+  }
+}
+
+@media (max-width: 768px) {
+  .watch-page {
+    padding: 12px;
+  }
+  
+  .watch-container {
+    padding: 0 var(--page-padding);
+  }
+  
+  .watch-title {
+    font-size: 1.5rem;
+  }
+  
+  .watch-meta {
+    font-size: 11px;
+    gap: 12px;
+  }
+  
+  .watch-description {
+    font-size: 14px;
+  }
+  
+  .watch-locked .actions {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .watch-page {
+    padding: 8px;
+  }
+  
+  .watch-container {
+    padding: 0 var(--page-padding);
+  }
+  
+  .watch-title {
+    font-size: 1.25rem;
+  }
+  
+  .watch-meta {
+    font-size: 10px;
+    flex-wrap: wrap;
+  }
+  
+  .watch-description {
+    font-size: 13px;
+  }
+  
+  .watch-specs {
+    font-size: 12px;
+  }
+}
+
+
