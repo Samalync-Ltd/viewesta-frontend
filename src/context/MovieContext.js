@@ -1,3 +1,6 @@
+/**
+ * Movie/Content context — mock data via movieService. API-ready: swap service calls for apiClient when backend is available.
+ */
 import React, {
   createContext,
   useContext,
@@ -6,24 +9,20 @@ import React, {
   useMemo,
   useCallback,
 } from 'react';
-import apiClient from '../utils/apiClient';
 import { useAuth } from './AuthContext';
-import { describeApiError, unwrapResponse } from '../utils/apiHelpers';
+import * as movieService from '../services/movieService';
 import {
-  DEFAULT_PRICE,
-  normalizeMovie,
-  normalizePricing,
   coerceMovieId,
   coerceArray,
 } from '../utils/mediaHelpers';
 
 const MovieContext = createContext();
+const RATINGS_KEY = 'viewesta_ratings';
+const DOWNLOADS_KEY = 'viewesta_downloads';
 
 export const useMovies = () => {
   const context = useContext(MovieContext);
-  if (!context) {
-    throw new Error('useMovies must be used within a MovieProvider');
-  }
+  if (!context) throw new Error('useMovies must be used within a MovieProvider');
   return context;
 };
 
@@ -36,36 +35,39 @@ export const MovieProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [favorites, setFavorites] = useState([]);
-  const [isSyncingLists, setIsSyncingLists] = useState(false);
+  const [isSyncingLists] = useState(false);
+  const [userRatings, setUserRatings] = useState(() => {
+    try {
+      const raw = localStorage.getItem(RATINGS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+  const [downloads, setDownloads] = useState(() => {
+    try {
+      const raw = localStorage.getItem(DOWNLOADS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const refreshCatalog = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [catalogRes, trendingRes, featuredRes] = await Promise.all([
-        apiClient.get('/movies', { params: { limit: 100 } }),
-        apiClient.get('/movies/trending'),
-        apiClient.get('/movies/featured'),
+      const [catalog, trending, featured] = await Promise.all([
+        movieService.getMovies({ limit: 100 }),
+        movieService.getTrendingMovies(24),
+        movieService.getFeaturedMovies(10),
       ]);
-
-      const catalogPayload = coerceArray(unwrapResponse(catalogRes)?.movies ?? unwrapResponse(catalogRes)?.data ?? unwrapResponse(catalogRes));
-      const trendingPayload = coerceArray(unwrapResponse(trendingRes)?.movies ?? unwrapResponse(trendingRes));
-      const featuredPayload = coerceArray(unwrapResponse(featuredRes)?.movies ?? unwrapResponse(featuredRes));
-
-      const normalizedCatalog = catalogPayload.map(normalizeMovie).filter(Boolean);
-      const normalizedTrending = trendingPayload.map(normalizeMovie).filter(Boolean);
-      const normalizedFeatured = featuredPayload.map(normalizeMovie).filter(Boolean);
-
-      setMovies(normalizedCatalog);
-      setTrendingMovies(
-        normalizedTrending.length ? normalizedTrending : normalizedCatalog.filter((movie) => movie.trending)
-      );
-      setFeaturedMovies(
-        normalizedFeatured.length ? normalizedFeatured : normalizedCatalog.filter((movie) => movie.featured)
-      );
+      setMovies(catalog);
+      setTrendingMovies(trending);
+      setFeaturedMovies(featured);
     } catch (err) {
       console.error('Failed to load catalog', err);
-      setError(describeApiError(err, 'Unable to load movies right now.'));
+      setError(err.message || 'Unable to load movies.');
     } finally {
       setLoading(false);
     }
@@ -75,110 +77,43 @@ export const MovieProvider = ({ children }) => {
     refreshCatalog();
   }, [refreshCatalog]);
 
-  const refreshWatchlist = useCallback(async () => {
-    if (!user) {
-      setWatchlist([]);
-      return { success: true, items: [] };
-    }
-
-    setIsSyncingLists(true);
-    try {
-      const response = await apiClient.get('/watchlist');
-      const payload = unwrapResponse(response);
-      const entries = coerceArray(payload?.items ?? payload?.watchlist ?? payload);
-      const ids = entries
-        .map((entry) => coerceMovieId(entry))
-        .filter(Boolean);
-
-      setWatchlist(ids);
-      return { success: true, items: ids };
-    } catch (err) {
-      console.error('Failed to load watchlist', err);
-      return { success: false, error: describeApiError(err) };
-    } finally {
-      setIsSyncingLists(false);
-    }
-  }, [user]);
-
-  const refreshFavorites = useCallback(async () => {
-    if (!user) {
-      setFavorites([]);
-      return { success: true, items: [] };
-    }
-
-    setIsSyncingLists(true);
-    try {
-      const response = await apiClient.get('/favorites');
-      const payload = unwrapResponse(response);
-      const entries = coerceArray(payload?.items ?? payload?.favorites ?? payload);
-      const ids = entries
-        .map((entry) => coerceMovieId(entry))
-        .filter(Boolean);
-
-      setFavorites(ids);
-      return { success: true, items: ids };
-    } catch (err) {
-      console.error('Failed to load favorites', err);
-      return { success: false, error: describeApiError(err) };
-    } finally {
-      setIsSyncingLists(false);
-    }
-  }, [user]);
-
+  // Hydrate watchlist/favorites from user when logged in (mock: user has watchlist array of ids)
   useEffect(() => {
     if (!user) {
       setWatchlist([]);
       setFavorites([]);
       return;
     }
-    refreshWatchlist();
-    refreshFavorites();
-  }, [user, refreshWatchlist, refreshFavorites]);
+    const wl = coerceArray(user.watchlist).map((id) => (typeof id === 'object' ? coerceMovieId(id) : String(id))).filter(Boolean);
+    const fav = coerceArray(user.favorites || []).map((id) => (typeof id === 'object' ? coerceMovieId(id) : String(id))).filter(Boolean);
+    setWatchlist(wl);
+    setFavorites(fav);
+  }, [user]);
 
   const mutateWatchlist = useCallback(
     async (movieId, action) => {
-      if (!user) {
-        return { success: false, error: 'Please log in first.' };
+      if (!user) return { success: false, error: 'Please log in first.' };
+      if (action === 'add') {
+        setWatchlist((prev) => (prev.includes(movieId) ? prev : [...prev, movieId]));
+      } else {
+        setWatchlist((prev) => prev.filter((id) => id !== movieId));
       }
-
-      try {
-        if (action === 'add') {
-          await apiClient.post(`/watchlist/${movieId}`);
-          setWatchlist((prev) => (prev.includes(movieId) ? prev : [...prev, movieId]));
-        } else {
-          await apiClient.delete(`/watchlist/${movieId}`);
-          setWatchlist((prev) => prev.filter((id) => id !== movieId));
-        }
-
-        return { success: true };
-      } catch (err) {
-        console.error('Watchlist mutation failed', err);
-        return { success: false, error: describeApiError(err) };
-      }
+      // TODO: API - POST/DELETE /watchlist/:id
+      return { success: true };
     },
     [user]
   );
 
   const mutateFavorites = useCallback(
     async (movieId, action) => {
-      if (!user) {
-        return { success: false, error: 'Please log in first.' };
+      if (!user) return { success: false, error: 'Please log in first.' };
+      if (action === 'add') {
+        setFavorites((prev) => (prev.includes(movieId) ? prev : [...prev, movieId]));
+      } else {
+        setFavorites((prev) => prev.filter((id) => id !== movieId));
       }
-
-      try {
-        if (action === 'add') {
-          await apiClient.post(`/favorites/${movieId}`);
-          setFavorites((prev) => (prev.includes(movieId) ? prev : [...prev, movieId]));
-        } else {
-          await apiClient.delete(`/favorites/${movieId}`);
-          setFavorites((prev) => prev.filter((id) => id !== movieId));
-        }
-
-        return { success: true };
-      } catch (err) {
-        console.error('Favorites mutation failed', err);
-        return { success: false, error: describeApiError(err) };
-      }
+      // TODO: API - POST/DELETE /favorites/:id
+      return { success: true };
     },
     [user]
   );
@@ -186,7 +121,7 @@ export const MovieProvider = ({ children }) => {
   const getMovieById = useCallback(
     (id) => {
       if (!id) return undefined;
-      return movies.find((movie) => movie.id === id);
+      return movies.find((m) => String(m.id) === String(id));
     },
     [movies]
   );
@@ -194,12 +129,12 @@ export const MovieProvider = ({ children }) => {
   const searchMovies = useCallback(
     (query) => {
       if (!query) return movies;
-      const q = query.toLowerCase();
+      const q = String(query).toLowerCase();
       return movies.filter(
-        (movie) =>
-          movie.title.toLowerCase().includes(q) ||
-          movie.genres.some((genre) => genre.toLowerCase().includes(q)) ||
-          movie.director.toLowerCase().includes(q)
+        (m) =>
+          (m.title && m.title.toLowerCase().includes(q)) ||
+          (m.genres && m.genres.some((g) => String(g).toLowerCase().includes(q))) ||
+          (m.director && m.director.toLowerCase().includes(q))
       );
     },
     [movies]
@@ -208,37 +143,52 @@ export const MovieProvider = ({ children }) => {
   const getMoviesByGenre = useCallback(
     (genre) => {
       if (!genre) return movies;
-      const normalized = genre.toLowerCase();
-      return movies.filter((movie) =>
-        movie.genres.some((g) => g.toLowerCase() === normalized)
+      const norm = String(genre).toLowerCase();
+      return movies.filter((m) =>
+        m.genres && m.genres.some((g) => String(g).toLowerCase() === norm)
       );
     },
     [movies]
   );
 
-  const addToWatchlist = useCallback(
-    (movieId) => mutateWatchlist(movieId, 'add'),
-    [mutateWatchlist]
+  const addToWatchlist = useCallback((movieId) => mutateWatchlist(movieId, 'add'), [mutateWatchlist]);
+  const removeFromWatchlist = useCallback((movieId) => mutateWatchlist(movieId, 'remove'), [mutateWatchlist]);
+  const addToFavorites = useCallback((movieId) => mutateFavorites(movieId, 'add'), [mutateFavorites]);
+  const removeFromFavorites = useCallback((movieId) => mutateFavorites(movieId, 'remove'), [mutateFavorites]);
+
+  const rateContent = useCallback((contentId, rating) => {
+    const num = Math.min(5, Math.max(1, Number(rating)));
+    if (!contentId || Number.isNaN(num)) return;
+    setUserRatings((prev) => {
+      const next = { ...prev, [String(contentId)]: num };
+      try {
+        localStorage.setItem(RATINGS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    // TODO: API - POST /movies/:id/rate or /series/:id/rate
+  }, []);
+
+  const getUserRating = useCallback(
+    (contentId) => (contentId ? userRatings[String(contentId)] : undefined),
+    [userRatings]
   );
 
-  const removeFromWatchlist = useCallback(
-    (movieId) => mutateWatchlist(movieId, 'remove'),
-    [mutateWatchlist]
-  );
+  const addToDownloads = useCallback((contentId) => {
+    if (!contentId) return;
+    setDownloads((prev) => {
+      const id = String(contentId);
+      if (prev.includes(id)) return prev;
+      const next = [...prev, id];
+      try {
+        localStorage.setItem(DOWNLOADS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+    // TODO: API - POST /downloads/:id
+  }, []);
 
-  const addToFavorites = useCallback(
-    (movieId) => mutateFavorites(movieId, 'add'),
-    [mutateFavorites]
-  );
-
-  const removeFromFavorites = useCallback(
-    (movieId) => mutateFavorites(movieId, 'remove'),
-    [mutateFavorites]
-  );
-
-  const rateMovie = (movieId, rating) => {
-    console.log(`Rating movie ${movieId} with ${rating} stars`);
-  };
+  const rateMovie = rateContent;
 
   const getRecommendations = useCallback(() => {
     return [...trendingMovies, ...featuredMovies].slice(0, 6);
@@ -254,6 +204,8 @@ export const MovieProvider = ({ children }) => {
       watchlist,
       favorites,
       isSyncingLists,
+      userRatings,
+      downloads,
       getMovieById,
       searchMovies,
       getMoviesByGenre,
@@ -262,10 +214,13 @@ export const MovieProvider = ({ children }) => {
       addToFavorites,
       removeFromFavorites,
       rateMovie,
+      rateContent,
+      getUserRating,
+      addToDownloads,
       getRecommendations,
       refreshCatalog,
-      refreshWatchlist,
-      refreshFavorites,
+      refreshWatchlist: () => {},
+      refreshFavorites: () => {},
     }),
     [
       movies,
@@ -276,6 +231,8 @@ export const MovieProvider = ({ children }) => {
       watchlist,
       favorites,
       isSyncingLists,
+      userRatings,
+      downloads,
       getMovieById,
       searchMovies,
       getMoviesByGenre,
@@ -283,11 +240,11 @@ export const MovieProvider = ({ children }) => {
       removeFromWatchlist,
       addToFavorites,
       removeFromFavorites,
-      rateMovie,
+      rateContent,
+      getUserRating,
+      addToDownloads,
       getRecommendations,
       refreshCatalog,
-      refreshWatchlist,
-      refreshFavorites,
     ]
   );
 

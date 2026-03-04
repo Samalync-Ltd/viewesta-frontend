@@ -1,62 +1,139 @@
 .genre-page {
   min-height: 100vh;
   background: var(--bg-primary);
-  padding-top: 20px; /* Reduced to tighten top gap while clearing fixed header */
-  overflow-x: hidden !important; /* Prevent horizontal overflow */
-  max-width: 100vw !important;
-  width: 100% !important;
+  overflow-x: hidden;
 }
 
+/* ── Hero Banner ── */
+.genre-hero {
+  position: relative;
+  height: 260px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--hero-color, #D06224);
+  overflow: hidden;
+}
+
+.genre-hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.3) 0%,
+    rgba(0,0,0,0.75) 60%,
+    var(--bg-primary) 100%
+  );
+}
+
+.genre-hero-content {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: 32px;
+  gap: 6px;
+}
+
+.genre-back-link {
+  position: absolute;
+  top: 20px;
+  left: 0;
+  color: rgba(255,255,255,0.8);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: color 0.2s;
+  padding: 6px 0;
+}
+
+.genre-back-link:hover { color: #fff; }
+
+.genre-hero-icon {
+  font-size: 2.4rem;
+  color: #D06224;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.6));
+  flex-shrink: 0;
+}
+
+.genre-hero-title {
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 0;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.genre-hero-count {
+  color: rgba(255,255,255,0.7);
+  font-size: 15px;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* ── Content ── */
 .genre-container {
   max-width: 100%;
   margin: 0 auto;
-  padding: 0; /* Remove horizontal padding to match Home page layout */
+  padding: 0;
   box-sizing: border-box;
-  overflow-x: hidden !important;
 }
 
-/* Ensure consistent vertical spacing between all category rows on genre pages */
 .genre-page .category-row {
-  margin: 12px 0 !important; /* equal spacing above and below */
+  margin: 12px 0 !important;
 }
 
 .genre-page .category-header {
-  margin-bottom: 12px !important; /* match row spacing for titles */
+  margin-bottom: 12px !important;
 }
 
 .genre-container > .category-row:first-child {
-  margin-top: 12px !important; /* same top spacing as between rows */
+  margin-top: 12px !important;
 }
 
-.genre-loading,
-.no-results {
+/* ── Loading / Empty ── */
+.genre-loading {
   color: var(--text-muted);
   text-align: center;
-  padding: 40px 20px;
+  padding: 60px 20px;
   font-size: 1.1rem;
 }
 
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .genre-container {
-    padding: 0;
-  }
+.genre-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-muted);
 }
 
+.genre-empty-icon { font-size: 3rem; color: #404040; }
+
+.genre-empty p {
+  font-size: 1.1rem;
+  margin: 0;
+  color: #a3a3a3;
+}
+
+.genre-empty strong { color: #fafafa; }
+
+/* ── Responsive ── */
 @media (max-width: 768px) {
-  .genre-page {
-    padding-top: 20px;
-  }
-  
-  .genre-container {
-    padding: 0;
-  }
+  .genre-hero { height: 200px; }
+  .genre-hero-title { font-size: 2rem; }
+  .genre-hero-icon { font-size: 2rem; }
 }
 
 @media (max-width: 480px) {
-  .genre-page {
-    padding-top: 15px;
-  }
+  .genre-hero { height: 170px; }
+  .genre-hero-title { font-size: 1.6rem; }
+  .genre-hero-content { padding-bottom: 20px; }
 }
+
 
 

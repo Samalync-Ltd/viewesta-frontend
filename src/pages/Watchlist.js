@@ -17,11 +17,13 @@ const Watchlist = () => {
     );
   }
 
-  const watchlistMovies = movies.filter(movie => watchlist.includes(movie.id));
+  const watchlistMovies = watchlist
+    .map((id) => movies.find((m) => String(m.id) === String(id)))
+    .filter(Boolean);
 
   return (
     <div className="watchlist-page">
-      <div className="watchlist-container">
+      <div className="watchlist-container layout-container">
         <div className="watchlist-header">
           <h1 className="watchlist-title">
             <FaHeart />

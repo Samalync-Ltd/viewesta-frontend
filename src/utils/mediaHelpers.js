@@ -50,6 +50,42 @@ const normalizePeopleList = (list) => {
     .filter(Boolean);
 };
 
+const normalizeCastCrew = (list) => {
+  return coerceArray(list)
+    .map((entry, index) => {
+      if (!entry) return null;
+
+      if (typeof entry === 'string') {
+        const name = entry.trim();
+        if (!name) return null;
+        return {
+          id: ensureString(`${name}-${index}`),
+          name,
+          role: 'Actor',
+          character: '',
+          photo: '',
+        };
+      }
+
+      const name = entry?.name || entry?.full_name || entry?.fullName;
+      if (!name) return null;
+
+      const role = entry?.role || entry?.job || entry?.type || 'Actor';
+      const character = entry?.character || entry?.character_name || entry?.characterName || '';
+      const photo = entry?.photo || entry?.photo_url || entry?.avatar || entry?.image || '';
+      const rawId = entry?.id || entry?._id || entry?.person_id || entry?.personId;
+
+      return {
+        id: ensureString(rawId || `${name}-${role}-${index}`),
+        name,
+        role,
+        character,
+        photo,
+      };
+    })
+    .filter(Boolean);
+};
+
 export const coerceMovieId = (entry) => {
   if (!entry) return null;
   if (entry.movie_id) return ensureString(entry.movie_id);
@@ -81,6 +117,25 @@ export const normalizeMovie = (rawMovie = {}) => {
 
   const cast = normalizePeopleList(rawMovie.cast);
 
+  const ageRating =
+    rawMovie.age_rating ||
+    rawMovie.ageRating ||
+    rawMovie.rating_certification ||
+    rawMovie.certification ||
+    '';
+  const castCrew = normalizeCastCrew(
+    rawMovie.cast_crew || rawMovie.castCrew || rawMovie.cast_and_crew || rawMovie.castAndCrew
+  );
+  const cover =
+    rawMovie.cover ||
+    rawMovie.cover_url ||
+    rawMovie.backdrop ||
+    rawMovie.backdrop_url ||
+    rawMovie.hero_image ||
+    '';
+  const trailerUrl = rawMovie.trailer_url || rawMovie.trailerUrl || '';
+  const approvalStatus = rawMovie.approval_status || rawMovie.approvalStatus || rawMovie.status || '';
+
   return {
     id: ensureString(rawMovie.id),
     title: rawMovie.title || 'Untitled',
@@ -106,6 +161,12 @@ export const normalizeMovie = (rawMovie = {}) => {
     trending: Boolean(rawMovie.trending || rawMovie.is_trending || rawMovie.isTrending),
     featured: Boolean(rawMovie.featured || rawMovie.is_featured || rawMovie.isFeatured),
     type: rawMovie.type || rawMovie.content_type || rawMovie.media_type || 'Movie',
+    filmmakerId: rawMovie.filmmakerId || rawMovie.filmmaker_id || null,
+    age_rating: ensureString(ageRating),
+    cast_crew: castCrew,
+    cover: ensureString(cover),
+    trailer_url: ensureString(trailerUrl),
+    approval_status: ensureString(approvalStatus),
     raw: rawMovie,
   };
 };

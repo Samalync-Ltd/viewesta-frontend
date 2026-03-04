@@ -9,13 +9,14 @@ const Register = () => {
     name: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    user_type: 'viewer',
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const { register, socialLogin } = useAuth();
   const navigate = useNavigate();
 
@@ -31,7 +32,6 @@ const Register = () => {
     setLoading(true);
     setError('');
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
@@ -39,7 +39,7 @@ const Register = () => {
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
+      setError('Password must be at least 6 characters');
       setLoading(false);
       return;
     }
@@ -48,14 +48,14 @@ const Register = () => {
       const result = await register({
         name: formData.name,
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        user_type: formData.user_type || 'viewer',
       });
-      
+
       if (result.success) {
-        navigate('/');
-      } else {
-        setError(result.error || 'Registration failed');
-      }
+        const isFilmmaker = (result.user?.role || result.user?.user_type || '').toLowerCase() === 'filmmaker';
+        navigate(isFilmmaker ? '/filmmaker-studio' : '/');
+      } else setError(result.error || 'Registration failed');
     } catch (err) {
       setError('An unexpected error occurred');
     } finally {
@@ -66,14 +66,12 @@ const Register = () => {
   const handleSocialLogin = async (provider) => {
     setLoading(true);
     setError('');
-
     try {
       const result = await socialLogin(provider);
       if (result.success) {
-        navigate('/');
-      } else {
-        setError(result.error || 'Social login failed');
-      }
+        const isFilmmaker = (result.user?.role || result.user?.user_type || '').toLowerCase() === 'filmmaker';
+        navigate(isFilmmaker ? '/filmmaker-studio' : '/');
+      } else setError(result.error || 'Social login failed');
     } catch (err) {
       setError('An unexpected error occurred');
     } finally {
@@ -83,22 +81,27 @@ const Register = () => {
 
   return (
     <div className="register-page">
-      <div className="register-container">
-        <div className="register-card">
+      <div className="register-brand">
+        <div className="register-brand-content">
+          <h1 className="register-brand-title">Viewesta</h1>
+          <p className="register-brand-tagline">
+            African cinema on demand. Join as a viewer or filmmaker — stream, subscribe, or upload.
+          </p>
+        </div>
+      </div>
+
+      <div className="register-form-section">
+        <div className="register-form-wrap">
           <div className="register-header">
-            <h1 className="register-title">Join Viewesta</h1>
-            <p className="register-subtitle">Create your account and start streaming</p>
+            <h1 className="register-title">Create account</h1>
+            <p className="register-subtitle">Sign up to start streaming or uploading</p>
           </div>
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
 
           <form onSubmit={handleSubmit} className="register-form">
             <div className="form-group">
-              <label htmlFor="name" className="form-label">Full Name</label>
+              <label htmlFor="name" className="form-label">Full name</label>
               <input
                 type="text"
                 id="name"
@@ -106,13 +109,13 @@ const Register = () => {
                 value={formData.name}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="Enter your full name"
+                placeholder="Your name"
                 required
               />
             </div>
 
             <div className="form-group">
-              <label htmlFor="email" className="form-label">Email Address</label>
+              <label htmlFor="email" className="form-label">Email</label>
               <input
                 type="email"
                 id="email"
@@ -120,9 +123,36 @@ const Register = () => {
                 value={formData.email}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="Enter your email"
+                placeholder="you@example.com"
                 required
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">I am a</label>
+              <div className="role-options">
+                <label className="role-option">
+                  <input
+                    type="radio"
+                    name="user_type"
+                    value="viewer"
+                    checked={formData.user_type === 'viewer'}
+                    onChange={handleChange}
+                  />
+                  <span>Viewer</span>
+                </label>
+                <label className="role-option">
+                  <input
+                    type="radio"
+                    name="user_type"
+                    value="filmmaker"
+                    checked={formData.user_type === 'filmmaker'}
+                    onChange={handleChange}
+                  />
+                  <span>Filmmaker</span>
+                </label>
+              </div>
+              <p className="form-hint">Viewers watch and subscribe. Filmmakers upload and earn.</p>
             </div>
 
             <div className="form-group">
@@ -135,13 +165,14 @@ const Register = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="form-input"
-                  placeholder="Create a password"
+                  placeholder="••••••••"
                   required
                 />
                 <button
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -149,7 +180,7 @@ const Register = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirmPassword" className="form-label">Confirm Password</label>
+              <label htmlFor="confirmPassword" className="form-label">Confirm password</label>
               <div className="password-input">
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
@@ -158,13 +189,14 @@ const Register = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   className="form-input"
-                  placeholder="Confirm your password"
+                  placeholder="••••••••"
                   required
                 />
                 <button
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
                 >
                   {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -174,11 +206,10 @@ const Register = () => {
             <div className="form-group">
               <label className="checkbox-label">
                 <input type="checkbox" required />
-                <span className="checkmark"></span>
-                I agree to the{' '}
-                <Link to="/terms" className="link">Terms of Service</Link>
-                {' '}and{' '}
-                <Link to="/privacy" className="link">Privacy Policy</Link>
+                <span>
+                  I agree to the <Link to="/terms" className="link">Terms</Link> and{' '}
+                  <Link to="/privacy" className="link">Privacy Policy</Link>
+                </span>
               </label>
             </div>
 
@@ -189,11 +220,11 @@ const Register = () => {
             >
               {loading ? (
                 <>
-                  <div className="loading"></div>
-                  Creating Account...
+                  <span className="loading" aria-hidden />
+                  Creating account...
                 </>
               ) : (
-                'Create Account'
+                'Create account'
               )}
             </button>
           </form>
@@ -204,6 +235,7 @@ const Register = () => {
 
           <div className="social-login">
             <button
+              type="button"
               className="social-button google"
               onClick={() => handleSocialLogin('google')}
               disabled={loading}
@@ -212,6 +244,7 @@ const Register = () => {
               Google
             </button>
             <button
+              type="button"
               className="social-button facebook"
               onClick={() => handleSocialLogin('facebook')}
               disabled={loading}
@@ -223,10 +256,7 @@ const Register = () => {
 
           <div className="register-footer">
             <p>
-              Already have an account?{' '}
-              <Link to="/login" className="link">
-                Sign in here
-              </Link>
+              Already have an account? <Link to="/login" className="link">Sign in</Link>
             </p>
           </div>
         </div>

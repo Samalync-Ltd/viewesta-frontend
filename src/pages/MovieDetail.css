@@ -45,26 +45,26 @@
 }
 
 .movie-hero {
-  position: relative;
-  height: 450px; /* fixed hero height for desktop */
-  min-height: 450px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 560px;
   overflow: hidden;
-  padding-bottom: 10px;
 }
 
 .movie-backdrop {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   z-index: 1;
+  height: 100%;
 }
 
 .movie-backdrop img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
+  display: block;
 }
 
 /* Hero/backdrop contrast improvement */
@@ -85,31 +85,29 @@
 
 /* Hero content as a single panel wrapping poster + details */
 .movie-hero-content {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 2;
   max-width: 100%;
-  margin: 0 auto;
-  padding: 20px;
-  height: 450px; /* match hero height */
+  padding: 68px 32px 32px;
   display: flex;
-  align-items: center; /* align to poster center */
-  gap: 24px;
+  align-items: flex-start;
+  gap: 28px;
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  backdrop-filter: blur(6px);
+  overflow-y: auto;
 }
 
 /* Poster uses strict 2:3 portrait and fills panel height */
 .movie-poster {
   flex-shrink: 0;
-  height: 400px; /* fill available hero content height */
-  aspect-ratio: 2 / 3; /* enforce portrait ratio */
-  width: auto; /* width derives from height and aspect ratio */
+  height: 100%;
+  max-height: 440px;
+  aspect-ratio: 2 / 3;
+  width: auto;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  align-self: flex-start;
   display: flex;
 }
 
@@ -123,20 +121,19 @@
 .movie-info {
   flex: 1;
   color: var(--text-primary);
-  background: transparent; /* now the panel is on the parent */
+  background: transparent;
   border: none;
   border-radius: 0;
-  padding: 4px 4px 4px 4px;
+  padding: 0 10px;
   display: flex;
   flex-direction: column;
-  max-height: 400px; /* align with poster height */
-  overflow: hidden; /* keep content within poster height */
+  /* Removed max-height/overflow to allow full description */
   text-align: left;
 }
 
 /* Bigger movie name for visibility (strictly scoped to detail page) */
 .movie-detail .movie-hero-content .movie-info .movie-title {
-  font-size: clamp(3px, 6vw, 32px) !important;
+  font-size: clamp(22px, 5vw, 32px) !important;
   font-weight: 800;
   letter-spacing: 0.2px;
   margin-bottom: 12px;
@@ -216,6 +213,66 @@
   color: var(--primary);
 }
 
+.detail-filmmaker {
+  margin-bottom: 16px;
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.detail-filmmaker-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.detail-filmmaker-link:hover {
+  text-decoration: underline;
+}
+
+.detail-age-rating {
+  margin-bottom: 12px;
+}
+
+.detail-your-rating {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.detail-your-rating-label {
+  font-size: 16px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.detail-stars {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.detail-star-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 22px;
+  transition: color 0.2s;
+}
+
+.detail-star-btn:hover,
+.detail-star-btn.filled {
+  color: var(--primary);
+}
+
+.detail-your-rating-value {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
 /* CTA improvement - scoped to movie detail only */
 .movie-detail .movie-actions .btn.btn-primary,
 .movie-detail .btn.btn-primary {
@@ -242,10 +299,15 @@
 }
 
 /* Shared CTA sizing */
-.movie-actions { --cta-min: 220px; --cta-max: 260px; --cta-height: 48px; }
+.movie-actions { --cta-height: 48px; }
 
-.primary-cta { flex: 0; display: flex; justify-content: center; }
-.primary-cta .btn.btn-primary { min-width: var(--cta-min); max-width: var(--cta-max); width: 100%; height: var(--cta-height); display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; font-size: 16px; font-weight: 600; border-radius: 10px; font-family: inherit; letter-spacing: 0.2px; }
+.primary-cta { flex: 0; display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: nowrap; }
+.primary-cta .btn.btn-primary { flex: 1; min-width: 140px; max-width: 220px; height: var(--cta-height); display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; font-size: 16px; font-weight: 600; border-radius: 10px; font-family: inherit; letter-spacing: 0.2px; white-space: nowrap; }
+.primary-cta .btn.btn-secondary { flex: 0 0 auto; height: var(--cta-height); padding: 0 18px; border: 1px solid var(--border-color); color: var(--text-primary); background: transparent; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 15px; white-space: nowrap; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+.primary-cta .btn.btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+.primary-cta .btn.btn-secondary.active { border-color: var(--primary); color: var(--primary); }
+.primary-cta .btn.btn-secondary.active .heart-beat { animation: heartBeat 0.4s ease; }
+@keyframes heartBeat { 0%,100% { transform: scale(1); } 40% { transform: scale(1.35); } 70% { transform: scale(0.9); } }
 
 .secondary-cta { display: flex; gap: 12px; justify-content: center; flex: 0; }
 .secondary-cta .btn.btn-secondary { min-width: var(--cta-min); max-width: var(--cta-max); width: 100%; height: var(--cta-height); padding: 0 20px; border: 1px solid var(--border-color); color: var(--text-primary); background: transparent; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 16px; font-family: inherit; letter-spacing: 0.2px; }
@@ -315,6 +377,45 @@
 
 .modal-content {
   padding: 0 24px;
+}
+
+.watch-options-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.option-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.option-tab:hover {
+  border-color: var(--primary);
+  background: var(--hover-bg);
+}
+
+.option-tab.active {
+  border-color: var(--primary);
+  background: rgba(255, 106, 0, 0.15);
+  color: var(--primary);
+}
+
+.subscribe-option {
+  padding: 20px 0;
+  text-align: center;
+}
+
+.subscribe-option p {
+  margin-bottom: 16px;
+  color: var(--text-muted);
 }
 
 .quality-options {
@@ -525,7 +626,7 @@
   }
   
   .movie-detail .movie-hero-content .movie-info .movie-title { 
-    font-size: clamp(32px, 5.5vw, 60px) !important; 
+    font-size: clamp(24px, 5.5vw, 42px) !important; 
   }
   
   .related-movies-container {
@@ -674,4 +775,102 @@
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+/* Cast Section moved out of hero */
+.movie-cast-section {
+  max-width: 1100px;
+  margin: 30px auto;
+  padding: 0 20px;
+}
+
+.movie-cast-container {
+  width: 100%;
+}
+
+/* Adjust padding for the whole page content below hero */
+.movie-detail > .related-movies-section,
+.movie-detail > .movie-cast-section {
+  padding-left: max(20px, calc((100vw - 1100px) / 2));
+  padding-right: max(20px, calc((100vw - 1100px) / 2));
+  box-sizing: border-box;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Ensure consistent spacing */
+.movie-cast-section + .related-movies-section {
+  margin-top: 40px;
+}
+
+/* Gallery Section */
+.movie-gallery-section {
+  max-width: 1100px;
+  margin: 0 auto 10px;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.movie-gallery-container {
+  width: 100%;
+}
+
+.movie-detail > .movie-gallery-section {
+  padding-left: max(20px, calc((100vw - 1100px) / 2));
+  padding-right: max(20px, calc((100vw - 1100px) / 2));
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+}
+
+@media (max-width: 768px) {
+  .movie-gallery-section {
+    padding: 0 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .movie-cast-section {
+    padding: 0 20px;
+  }
+}
+
+.trailer-video-player {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+
+.trailer-video-player {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+}
+
+
+@keyframes beat {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.2); }
+  50% { transform: scale(1); }
+  75% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.heart-beat {
+  animation: beat 0.6s ease-in-out;
+  color: #e50914;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: grayscale(1);
 }

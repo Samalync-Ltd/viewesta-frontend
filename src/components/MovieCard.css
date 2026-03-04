@@ -97,6 +97,19 @@
   z-index: 10;
 }
 
+/* Short film type badge variant */
+.movie-card .type-badge--shortfilm {
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+}
+
+/* Age Rating badge on card */
+.movie-card .card-age-rating {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 10;
+}
+
 /* Play Overlay */
 .movie-card .play-overlay {
   position: absolute;

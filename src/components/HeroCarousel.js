@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FaChevronLeft, FaChevronRight, FaPlay, FaPause } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
+import { FaChevronLeft, FaChevronRight, FaPlay } from 'react-icons/fa';
 import './HeroCarousel.css';
 
 const HeroCarousel = ({ items = [] }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(true);
+  const [isPlaying] = useState(true); // Used in effect for auto-scroll; could add pause button later
   const [isHovered, setIsHovered] = useState(false);
   const intervalRef = useRef(null);
 
@@ -35,10 +36,6 @@ const HeroCarousel = ({ items = [] }) => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % items.length);
   };
 
-  const togglePlayPause = () => {
-    setIsPlaying(!isPlaying);
-  };
-
   if (!items.length) return null;
 
   return (
@@ -55,7 +52,7 @@ const HeroCarousel = ({ items = [] }) => {
             style={{ transform: `translateX(-${currentIndex * 100}%)` }}
           >
             {items.map((item, index) => (
-              <div key={index} className="carousel-slide">
+              <div key={item.id || index} className="carousel-slide">
                 <div className="slide-background">
                   <img src={item.backdrop} alt={item.title} />
                   <div className="slide-overlay"></div>
@@ -71,13 +68,13 @@ const HeroCarousel = ({ items = [] }) => {
                       <span className="slide-duration">{item.duration}m</span>
                     </div>
                     <div className="slide-actions">
-                      <button className="btn btn-primary btn-large">
+                      <Link to={item.id ? `/movie/${item.id}` : '#'} className="btn btn-primary btn-large">
                         <FaPlay />
                         Watch Now
-                      </button>
-                      <button className="btn btn-outline">
+                      </Link>
+                      <Link to={item.id ? `/movie/${item.id}` : '#'} className="btn btn-outline">
                         Add to Watchlist
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 </div>

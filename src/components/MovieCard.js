@@ -1,22 +1,26 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { FaPlay, FaHeart, FaStar, FaClock, FaBookmark, FaCalendar } from 'react-icons/fa';
+import { FaPlay, FaHeart, FaClock, FaBookmark, FaCalendar } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useMovies } from '../context/MovieContext';
+import AgeRatingBadge from './AgeRatingBadge';
 import './MovieCard.css';
 
 const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
   const [isHovered, setIsHovered] = useState(false);
-  const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isTrailerPlaying, setIsTrailerPlaying] = useState(false);
   const [imageError, setImageError] = useState(false);
   const videoRef = useRef(null);
   const { user } = useAuth();
+  const { watchlist, addToWatchlist, removeFromWatchlist } = useMovies();
+  const isInWatchlist = movie?.id ? watchlist.includes(movie.id) : false;
 
   const handleWatchlistToggle = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsInWatchlist(!isInWatchlist);
-    // TODO: Implement watchlist functionality
+    if (!user) return;
+    if (isInWatchlist) removeFromWatchlist(movie.id);
+    else addToWatchlist(movie.id);
   };
 
   const handleTrailerPlay = (e) => {
@@ -53,24 +57,6 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
-  };
-
-  const getQualityBadge = (quality) => {
-    const qualityColors = {
-      '4K': '#FF6A00',
-      '1080p': '#4CAF50',
-      '720p': '#2196F3',
-      '480p': '#9C27B0'
-    };
-    
-    return (
-      <span 
-        className="quality-badge" 
-        style={{ backgroundColor: qualityColors[quality] || '#666' }}
-      >
-        {quality}
-      </span>
-    );
   };
 
   const handleCardClick = (e) => {
@@ -119,9 +105,16 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
           )}
           
           {/* Type Badge */}
-          <div className="type-badge">
-            {movie.type || 'Movie'}
+          <div className={`type-badge type-badge--${(movie.type || 'Movie').toLowerCase().replace('_', '-')}`}>
+            {movie.type === 'ShortFilm' ? 'Short' : (movie.type || 'Movie')}
           </div>
+
+          {/* Age Rating Badge */}
+          {movie.age_rating && (
+            <div className="card-age-rating">
+              <AgeRatingBadge rating={movie.age_rating} size="sm" showTooltip={false} />
+            </div>
+          )}
           
           
           {/* Play Overlay */}

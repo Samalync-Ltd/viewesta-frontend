@@ -1,0 +1,357 @@
+/* EpisodeBuilder — Series season and episode management UI */
+
+.episode-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+/* Header */
+.eb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.eb-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.eb-icon {
+  font-size: 1.25rem;
+  color: var(--color-accent, #e50914);
+  flex-shrink: 0;
+}
+
+.eb-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-text-primary, #f1f5f9);
+}
+
+.eb-subtitle {
+  margin: 0;
+  font-size: 0.72rem;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.eb-error {
+  color: #ef4444;
+  font-size: 0.78rem;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  background: rgba(239, 68, 68, 0.08);
+  border-radius: 6px;
+  border-left: 3px solid #ef4444;
+}
+
+/* Add Season */
+.eb-add-season {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-accent, #e50914);
+  background: rgba(229, 9, 20, 0.08);
+  border: 1px solid rgba(229, 9, 20, 0.3);
+  border-radius: 8px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.eb-add-season:hover {
+  background: rgba(229, 9, 20, 0.15);
+  border-color: rgba(229, 9, 20, 0.5);
+}
+
+/* Seasons Container */
+.eb-seasons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.eb-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-text-secondary, #94a3b8);
+  font-size: 0.85rem;
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+/* Season Card */
+.eb-season {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.eb-season-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  gap: 0.75rem;
+}
+
+.eb-season-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-primary, #f1f5f9);
+  flex: 1;
+  text-align: left;
+  padding: 0;
+}
+
+.eb-season-toggle svg {
+  font-size: 0.75rem;
+  flex-shrink: 0;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.eb-season-label {
+  flex: 1;
+}
+
+.eb-season-title-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary, #f1f5f9);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 2px 4px;
+  outline: none;
+  width: 100%;
+  max-width: 180px;
+  transition: border-color 0.2s;
+}
+
+.eb-season-title-input:focus {
+  border-bottom-color: var(--color-accent, #e50914);
+}
+
+.eb-season-count {
+  font-size: 0.68rem;
+  color: var(--color-text-secondary, #94a3b8);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.eb-season-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.eb-year-input {
+  width: 72px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--color-text-primary, #f1f5f9);
+  font-size: 0.78rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.eb-year-input:focus {
+  border-color: rgba(229, 9, 20, 0.4);
+}
+
+.eb-remove-season {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(239, 68, 68, 0.5);
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.2s;
+}
+
+.eb-remove-season:hover {
+  color: #ef4444;
+}
+
+/* Episodes */
+.eb-episodes {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.eb-episode {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 0.875rem;
+}
+
+.eb-episode-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: rgba(229, 9, 20, 0.1);
+  border: 1px solid rgba(229, 9, 20, 0.3);
+  border-radius: 50%;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-accent, #e50914);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.eb-episode-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.eb-row {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.eb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.eb-field label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-secondary, #94a3b8);
+}
+
+.eb-field input,
+.eb-field textarea {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 0.45rem 0.75rem;
+  color: var(--color-text-primary, #f1f5f9);
+  font-size: 0.8rem;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.eb-field input:focus,
+.eb-field textarea:focus {
+  border-color: rgba(229, 9, 20, 0.4);
+}
+
+.eb-field textarea {
+  resize: vertical;
+  min-height: 52px;
+}
+
+.eb-field--title {
+  flex: 2;
+  min-width: 150px;
+}
+
+.eb-field--duration {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.eb-field--desc {
+  flex: 1;
+  min-width: 200px;
+}
+
+.eb-field--video {
+  flex: 1;
+  min-width: 200px;
+}
+
+.eb-remove-episode {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(239, 68, 68, 0.4);
+  padding: 4px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  transition: color 0.2s;
+}
+
+.eb-remove-episode:hover {
+  color: #ef4444;
+}
+
+/* Add Episode */
+.eb-add-episode {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-secondary, #94a3b8);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.2s;
+}
+
+.eb-add-episode:hover {
+  color: var(--color-text-primary, #f1f5f9);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .eb-episode {
+    flex-direction: column;
+  }
+
+  .eb-episode-num {
+    width: 24px;
+    height: 24px;
+    font-size: 0.7rem;
+  }
+
+  .eb-field--duration {
+    width: 90px;
+  }
+}

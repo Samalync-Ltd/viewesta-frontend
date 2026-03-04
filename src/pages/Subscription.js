@@ -1,46 +1,58 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FaCheck, FaCrown, FaStar } from 'react-icons/fa';
+import {
+  FaCheck, FaCrown, FaStar, FaFilm, FaDownload,
+  FaBan, FaHeadset, FaShieldAlt, FaBolt, FaGem,
+} from 'react-icons/fa';
 import './Subscription.css';
+
+const plans = [
+  {
+    id: 'monthly',
+    name: 'Monthly',
+    price: 9.99,
+    period: 'month',
+    icon: <FaBolt />,
+    tag: null,
+    features: [
+      'Unlimited movies & series',
+      'All quality options (4K, 1080p, 720p)',
+      'No ads – pure viewing',
+      'Download for offline viewing',
+      'Cancel anytime',
+    ],
+    popular: false,
+  },
+  {
+    id: 'yearly',
+    name: 'Yearly',
+    price: 99.99,
+    period: 'year',
+    icon: <FaGem />,
+    tag: 'Save 17%',
+    originalPrice: 119.88,
+    features: [
+      'Everything in Monthly',
+      'Priority customer support',
+      'Early access to new releases',
+      'Exclusive filmmaker content',
+      'Free months every year',
+    ],
+    popular: true,
+  },
+];
+
+const trustItems = [
+  { icon: <FaFilm />,     title: 'Unlimited Content',   desc: 'Access thousands of African films and series anytime.' },
+  { icon: <FaDownload />, title: 'Offline Downloads',    desc: 'Save your favourites and watch without internet.' },
+  { icon: <FaBan />,      title: 'Zero Ads',             desc: 'Uninterrupted viewing from start to finish.' },
+  { icon: <FaHeadset />,  title: 'Priority Support',     desc: 'Real humans ready to help whenever you need.' },
+];
 
 const Subscription = () => {
   const { user } = useAuth();
-  const [selectedPlan, setSelectedPlan] = useState('monthly');
-
-  const plans = [
-    {
-      id: 'monthly',
-      name: 'Monthly',
-      price: 9.99,
-      period: 'month',
-      features: [
-        'Unlimited movies',
-        'All quality options (4K, 1080p, 720p, 480p)',
-        'No ads',
-        'Download for offline viewing',
-        'Cancel anytime'
-      ],
-      popular: false
-    },
-    {
-      id: 'yearly',
-      name: 'Yearly',
-      price: 99.99,
-      period: 'year',
-      originalPrice: 119.88,
-      features: [
-        'Everything in Monthly',
-        'Save 17%',
-        'Priority customer support',
-        'Early access to new releases',
-        'Exclusive content'
-      ],
-      popular: true
-    }
-  ];
 
   const handleSubscribe = (planId) => {
-    // TODO: Implement subscription logic
     console.log(`Subscribing to ${planId} plan`);
   };
 
@@ -54,95 +66,94 @@ const Subscription = () => {
 
   return (
     <div className="subscription-page">
-      <div className="subscription-container">
-        <div className="subscription-header">
-          <h1 className="subscription-title">
-            <FaCrown />
-            Choose Your Plan
-          </h1>
-          <p className="subscription-subtitle">
-            Get unlimited access to our entire movie library
-          </p>
-        </div>
 
-        <div className="billing-toggle">
-          <button 
-            className={`toggle-btn ${selectedPlan === 'monthly' ? 'active' : ''}`}
-            onClick={() => setSelectedPlan('monthly')}
-          >
-            Monthly
-          </button>
-          <button 
-            className={`toggle-btn ${selectedPlan === 'yearly' ? 'active' : ''}`}
-            onClick={() => setSelectedPlan('yearly')}
-          >
-            Yearly
-            <span className="save-badge">Save 17%</span>
-          </button>
+      {/* ── Hero ── */}
+      <div className="sub-hero">
+        <div className="sub-hero-glow" />
+        <FaCrown className="sub-hero-crown" />
+        <h1 className="sub-hero-title">Unlimited African Cinema</h1>
+        <p className="sub-hero-subtitle">
+          Stream the best Nollywood, Afrobeats docs, and pan-African originals —
+          in stunning 4K, with no interruptions.
+        </p>
+        <div className="sub-hero-badges">
+          <span><FaShieldAlt /> Secure payments</span>
+          <span><FaBan /> No ads, ever</span>
+          <span><FaCheck /> Cancel anytime</span>
         </div>
+      </div>
 
+      <div className="subscription-container layout-container">
+
+        {/* ── Plan Cards ── */}
         <div className="plans-grid">
           {plans.map(plan => (
-            <div 
-              key={plan.id} 
+            <div
+              key={plan.id}
               className={`plan-card ${plan.popular ? 'popular' : ''}`}
             >
               {plan.popular && (
                 <div className="popular-badge">
-                  <FaStar />
-                  Most Popular
+                  <FaStar /> Most Popular
                 </div>
               )}
-              
+
+              <div className="plan-icon">{plan.icon}</div>
+
               <div className="plan-header">
                 <h3 className="plan-name">{plan.name}</h3>
+                {plan.tag && <span className="plan-tag">{plan.tag}</span>}
                 <div className="plan-price">
                   <span className="price">${plan.price}</span>
                   <span className="period">/{plan.period}</span>
                 </div>
                 {plan.originalPrice && (
-                  <div className="original-price">
-                    <span>${plan.originalPrice}</span>
-                  </div>
+                  <div className="original-price">was ${plan.originalPrice}</div>
                 )}
               </div>
 
               <ul className="plan-features">
-                {plan.features.map((feature, index) => (
-                  <li key={index} className="feature-item">
+                {plan.features.map((feature, i) => (
+                  <li key={i} className="feature-item">
                     <FaCheck className="check-icon" />
                     {feature}
                   </li>
                 ))}
               </ul>
 
-              <button 
-                className={`btn ${plan.popular ? 'btn-primary' : 'btn-outline'} btn-full`}
+              <button
+                className={`btn ${plan.popular ? 'btn-primary' : 'btn-outline'} btn-full sub-btn`}
                 onClick={() => handleSubscribe(plan.id)}
               >
-                {user.subscription?.active ? 'Manage Subscription' : 'Subscribe Now'}
+                {user.subscription?.active ? 'Manage Subscription' : 'Get Started'}
               </button>
             </div>
           ))}
         </div>
 
-        <div className="subscription-info">
-          <h3>Why Choose Viewesta?</h3>
-          <div className="info-grid">
-            <div className="info-item">
-              <h4>Flexible Access</h4>
-              <p>Choose from subscription, pay-per-view, or wallet-based access models.</p>
-            </div>
-            <div className="info-item">
-              <h4>Multiple Quality Options</h4>
-              <p>Watch in 480p, 720p, 1080p, or stunning 4K quality.</p>
-            </div>
-            <div className="info-item">
-              <h4>No Commitment</h4>
-              <p>Cancel your subscription anytime with no penalties.</p>
-            </div>
+        {/* ── Trust Grid ── */}
+        <div className="trust-section">
+          <h2 className="trust-title">Why Viewesta?</h2>
+          <div className="trust-grid">
+            {trustItems.map((item, i) => (
+              <div key={i} className="trust-item">
+                <div className="trust-icon">{item.icon}</div>
+                <h4>{item.title}</h4>
+                <p>{item.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
+
+        {/* ── Guarantee Strip ── */}
+        <div className="guarantee-strip">
+          <FaShieldAlt className="guarantee-icon" />
+          <div>
+            <strong>30-Day Money-Back Guarantee</strong>
+            <p>Not satisfied? We'll refund you in full — no questions asked.</p>
+          </div>
+        </div>
+
       </div>
     </div>
   );

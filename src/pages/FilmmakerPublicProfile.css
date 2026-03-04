@@ -1,0 +1,67 @@
+.filmmaker-public-page {
+  padding: 1.5rem 0;
+  padding-bottom: 90px;
+}
+
+.filmmaker-public-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.filmmaker-public-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--primary, #D06224);
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  color: white;
+}
+
+.filmmaker-public-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.filmmaker-public-name {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.filmmaker-public-bio,
+.filmmaker-public-location {
+  color: var(--muted-foreground, #a3a3a3);
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9375rem;
+}
+
+.filmmaker-public-stats {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin: 1rem 0;
+  font-size: 0.875rem;
+  color: var(--muted-foreground, #a3a3a3);
+}
+
+.filmmaker-public-films h2 {
+  font-size: 1.25rem;
+  margin: 0 0 1rem 0;
+}
+
+.filmmaker-public-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1rem;
+}
+
+.filmmaker-public-empty {
+  color: var(--muted-foreground, #a3a3a3);
+  margin: 0;
+}

@@ -1,0 +1,46 @@
+.edit-profile-page {
+  padding: var(--page-padding, 24px) 0;
+}
+
+.edit-profile-page h1 {
+  font-size: 1.75rem;
+  margin: 0 0 1.5rem 0;
+}
+
+.edit-profile-success {
+  color: var(--success, #22c55e);
+  margin-bottom: 1rem;
+}
+
+.edit-profile-form {
+  max-width: 400px;
+  margin-bottom: 1.5rem;
+}
+
+.edit-profile-form .form-group {
+  margin-bottom: 1rem;
+}
+
+.edit-profile-form .form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.edit-profile-form input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--card, #141414);
+  border: 1px solid var(--border, #262626);
+  border-radius: var(--radius, 8px);
+  color: var(--foreground, #fafafa);
+}
+
+.edit-profile-back {
+  font-size: 0.875rem;
+}
+
+.edit-profile-back a {
+  color: var(--primary, #D06224);
+  text-decoration: none;
+}

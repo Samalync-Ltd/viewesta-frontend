@@ -1,0 +1,103 @@
+.filmmaker-studio-profile {
+  width: 100%;
+  min-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.studio-profile-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  flex-shrink: 0;
+}
+
+.studio-profile-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--primary, #D06224);
+  margin: 0 auto 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+}
+
+.studio-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.studio-profile-name {
+  font-size: 1.25rem;
+  margin: 0 0 0.25rem 0;
+}
+
+.studio-profile-email {
+  color: var(--muted-foreground, #a3a3a3);
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.studio-profile-menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border, #262626);
+  border-radius: var(--radius, 8px);
+  overflow: hidden;
+  flex: 1;
+  width: 100%;
+}
+
+.studio-profile-menu li {
+  border-bottom: 1px solid var(--border, #262626);
+}
+
+.studio-profile-menu li:last-child {
+  border-bottom: none;
+}
+
+.studio-profile-menu a {
+  display: block;
+  padding: 0.875rem 1rem;
+  color: var(--foreground, #fafafa);
+  text-decoration: none;
+  transition: background 0.2s;
+}
+
+.studio-profile-menu a:hover {
+  background: var(--muted, #262626);
+}
+
+.studio-profile-logout {
+  display: block;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border: none;
+  background: none;
+  color: var(--foreground, #fafafa);
+  font-size: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.studio-profile-logout:hover {
+  background: var(--muted, #262626);
+}
+
+.studio-profile-footer {
+  margin-top: auto;
+  padding-top: 2rem;
+  flex-shrink: 0;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground, #a3a3a3);
+  text-align: center;
+}

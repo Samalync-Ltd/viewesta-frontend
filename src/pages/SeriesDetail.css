@@ -41,25 +41,26 @@
 }
 
 .series-hero {
-  position: relative;
-  height: 450px;
-  min-height: 450px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 560px;
   overflow: hidden;
 }
 
 .series-backdrop {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   z-index: 1;
+  height: 100%;
 }
 
 .series-backdrop img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: top center;
+  display: block;
 }
 
 .backdrop-overlay {
@@ -77,31 +78,30 @@
   );
 }
 
+/* Hero content as a single panel wrapping poster + details */
 .series-hero-content {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 2;
   max-width: 100%;
-  margin: 0 auto;
-  padding: 20px;
-  height: 450px;
+  padding: 68px 32px 32px;
   display: flex;
-  align-items: center;
-  gap: 24px;
+  align-items: flex-start;
+  gap: 28px;
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.35);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  backdrop-filter: blur(6px);
+  overflow-y: auto;
 }
 
 .series-poster {
   flex-shrink: 0;
-  height: 400px;
+  height: 100%;
+  max-height: 440px;
   aspect-ratio: 2 / 3;
   width: auto;
   border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+  align-self: flex-start;
 }
 
 .series-poster img {
@@ -114,8 +114,7 @@
   flex: 1;
   color: var(--text-primary);
   text-align: left;
-  max-height: 400px;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -165,7 +164,30 @@
   font-size: 13px;
 }
 
-.series-genres { display: none !important; }
+/* Genre badges row inside the hero */
+.series-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.genre-badge {
+  background-color: rgba(255, 106, 0, 0.15);
+  color: var(--primary);
+  border: 1px solid rgba(255, 106, 0, 0.35);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.series-age-rating {
+  display: inline-flex;
+  align-items: center;
+}
 
 .genre-tag {
   background-color: var(--bg-secondary);
@@ -181,27 +203,111 @@
   font-size: 16px;
   line-height: 1.6;
   color: var(--text-muted);
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   max-width: 600px;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .series-details {
-  margin-bottom: 32px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 24px;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.series-cast-section {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 20px 12px;
+}
+
+.series-cast-container {
+  width: 100%;
+}
+
+/* Gallery Section */
+.series-gallery-section {
+  max-width: 1100px;
+  margin: 0 auto 10px;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.series-gallery-container {
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .series-gallery-section {
+    padding: 0 16px;
+  }
 }
 
 .detail-item {
-  margin-bottom: 8px;
+  margin-bottom: 0;
   color: var(--text-primary);
-  font-size: 16px;
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .detail-item strong {
   color: var(--primary);
+}
+
+.detail-filmmaker {
+  margin-bottom: 16px;
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.detail-filmmaker-link {
+  color: var(--primary);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.detail-filmmaker-link:hover {
+  text-decoration: underline;
+}
+
+.detail-your-rating {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.detail-your-rating-label {
+  font-size: 16px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.detail-stars {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.detail-star-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 22px;
+  transition: color 0.2s;
+}
+
+.detail-star-btn:hover,
+.detail-star-btn.filled {
+  color: var(--primary);
+}
+
+.detail-your-rating-value {
+  font-size: 14px;
+  color: var(--text-muted);
 }
 
 .series-actions { display: flex; gap: 12px; flex-wrap: wrap; }
@@ -533,6 +639,14 @@
     justify-content: center;
   }
 
+  .series-genres {
+    justify-content: center;
+  }
+
+  .series-details {
+    grid-template-columns: 1fr;
+  }
+
   .series-actions {
     justify-content: center;
     flex-wrap: wrap;
@@ -635,4 +749,64 @@
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 12px;
   }
+}
+
+/* ─── Like button ──────────────────────────────────────────── */
+.like-btn.liked {
+  background-color: rgba(255, 106, 0, 0.15) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+/* ─── Trailer video player ─────────────────────────────────── */
+.trailer-video-player {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
+}
+
+/* ─── Watch (episode) modal ────────────────────────────────── */
+.watch-modal .watch-dialog {
+  background: #0a0a0a;
+  border-radius: 16px;
+  overflow: hidden;
+  width: min(960px, 96vw);
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+}
+
+.watch-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #111;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.watch-dialog-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.watch-frame-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.watch-video-player {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #000;
+  display: block;
 }

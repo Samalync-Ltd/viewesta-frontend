@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FaSearch, FaUser, FaHeart, FaBars, FaTimes, FaChevronDown, FaTv } from 'react-icons/fa';
+import { FaSearch, FaUser, FaHeart, FaBars, FaTimes, FaChevronDown, FaFilm, FaDownload } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
+import { useLocale } from '../context/LocaleContext';
 import './Header.css';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isGenresOpen, setIsGenresOpen] = useState(false);
-  const [isMobileGenresOpen, setIsMobileGenresOpen] = useState(false);
   const [isMobileCountryOpen, setIsMobileCountryOpen] = useState(false);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const location = useLocation();
@@ -17,6 +16,7 @@ const Header = () => {
   const [autoHideEnabled, setAutoHideEnabled] = useState(isWatchPage);
   const lastScrollY = useRef(0);
   const { user, logout } = useAuth();
+  const { locale, setLocale, t } = useLocale();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -57,11 +57,6 @@ const Header = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [autoHideEnabled]);
 
-  const genres = [
-    'Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Drama', 
-    'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller'
-  ];
-
   const countries = [
     'United States', 'United Kingdom', 'Canada', 'Australia', 'India',
     'France', 'Germany', 'Japan', 'South Korea', 'Brazil', 'Mexico', 'Spain'
@@ -79,7 +74,6 @@ const Header = () => {
     setIsMenuOpen(!isMenuOpen);
     // Close mobile menu when opening/closing
     if (isMenuOpen) {
-      setIsMobileGenresOpen(false);
       setIsMobileCountryOpen(false);
     }
   };
@@ -89,7 +83,6 @@ const Header = () => {
     const handleClickOutside = (event) => {
       if (isMenuOpen && !event.target.closest('.mobile-menu-drawer') && !event.target.closest('.mobile-menu-button')) {
         setIsMenuOpen(false);
-        setIsMobileGenresOpen(false);
         setIsMobileCountryOpen(false);
       }
     };
@@ -109,7 +102,8 @@ const Header = () => {
 
   const handleLogout = () => {
     logout();
-    navigate('/');
+    // Defer navigation so auth state clears first; then land on viewer home (guest mode)
+    setTimeout(() => navigate('/'), 0);
   };
 
   return (
@@ -117,7 +111,7 @@ const Header = () => {
       <div className="header-container">
         {/* Logo */}
         <Link to="/" className="logo">
-          <span className="logo-text">Viewesta</span>
+          <img src="/viewesta.png" alt="Viewesta" className="logo-img" />
         </Link>
 
         {/* Search Bar */}
@@ -125,7 +119,7 @@ const Header = () => {
           <div className="search-input-container">
             <input
               type="text"
-              placeholder="Search movies..."
+              placeholder={t('searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="search-input"
@@ -138,52 +132,47 @@ const Header = () => {
 
         {/* Navigation */}
         <nav className={`nav ${isMenuOpen ? 'nav-open' : ''}`}>
-          <Link to="/" className={`nav-link ${window.location.pathname === '/' ? 'active' : ''}`}>Home</Link>
-          <Link to="/movies" className={`nav-link ${window.location.pathname.startsWith('/movies') ? 'active' : ''}`}>Movies</Link>
-          <Link to="/series" className={`nav-link ${window.location.pathname.startsWith('/series') ? 'active' : ''}`}>
-            <FaTv />
-            <span>Series</span>
+          <Link to="/" className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}>{t('navHome')}</Link>
+          <Link to="/watch" className={`nav-link ${location.pathname === '/watch' || location.pathname === '/movies' ? 'active' : ''}`}>{t('navMovies')}</Link>
+          <Link to="/series" className={`nav-link ${location.pathname === '/series' ? 'active' : ''}`}>{t('navShows')}</Link>
+          <Link to="/genres" className={`nav-link ${location.pathname.startsWith('/genres') ? 'active' : ''}`}>{t('navGenres')}</Link>
+          <Link to="/watchlist" className={`nav-link ${location.pathname.startsWith('/watchlist') ? 'active' : ''}`}>
+            <FaHeart />
+            <span>{t('navWishlist')}</span>
           </Link>
-          
-          {/* Genres Dropdown */}
-          <div className="genres-dropdown">
-            <button 
-              className="nav-link genres-button"
-              onClick={() => setIsGenresOpen(!isGenresOpen)}
-              onBlur={() => setTimeout(() => setIsGenresOpen(false), 150)}
-            >
-              <span>Genres</span>
-              <FaChevronDown className={`chevron ${isGenresOpen ? 'open' : ''}`} />
-            </button>
-            {isGenresOpen && (
-              <div className="genres-menu" onMouseLeave={() => setIsGenresOpen(false)}>
-                {genres.map(genre => (
-                  <Link 
-                    key={genre} 
-                    to={`/genre/${genre.toLowerCase()}`} 
-                    className="genre-link"
-                    onClick={() => setIsGenresOpen(false)}
-                  >
-                    {genre}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-          
+          <Link to="/downloads" className={`nav-link ${location.pathname.startsWith('/downloads') ? 'active' : ''}`}>
+            <FaDownload />
+            <span>{t('navDownloads')}</span>
+          </Link>
+          {/* Language Toggle */}
+          <button
+            className="lang-toggle"
+            onClick={() => setLocale(locale === 'en' ? 'fr' : 'en')}
+            title="Switch language"
+            aria-label="Switch language"
+          >
+            <span className={locale === 'en' ? 'lang-opt lang-active' : 'lang-opt'}>EN</span>
+            <span className="lang-sep">|</span>
+            <span className={locale === 'fr' ? 'lang-opt lang-active' : 'lang-opt'}>FR</span>
+          </button>
           {user ? (
             <>
-              <Link to="/watchlist" className={`nav-link ${window.location.pathname.startsWith('/watchlist') ? 'active' : ''}`}>
-                <FaHeart />
-                <span>Watchlist</span>
-              </Link>
+              {(user.role || user.user_type || '').toLowerCase() === 'filmmaker' && (
+                <Link to="/filmmaker-studio" className={`nav-link ${location.pathname.startsWith('/filmmaker-studio') ? 'active' : ''}`}>
+                  <FaFilm />
+                  <span>{t('navStudio')}</span>
+                </Link>
+              )}
               <div className="user-menu">
                 <button className="user-button">
                   <FaUser />
                   <span className="user-name">{user.name}</span>
                 </button>
                 <div className="user-dropdown">
-                  <Link to="/profile" className={`dropdown-link ${window.location.pathname.startsWith('/profile') ? 'active' : ''}`}>Profile</Link>
+                  <Link to="/profile" className={`dropdown-link ${location.pathname.startsWith('/profile') ? 'active' : ''}`}>Profile</Link>
+          {(user.role || user.user_type || '').toLowerCase() === 'filmmaker' && (
+            <Link to="/filmmaker-studio" className="dropdown-link">Filmmaker Studio</Link>
+          )}
                   <Link to="/subscription" className="dropdown-link">Subscription</Link>
                   <Link to="/wallet" className="dropdown-link">Wallet</Link>
                   <button onClick={handleLogout} className="dropdown-link">Logout</button>
@@ -192,8 +181,8 @@ const Header = () => {
             </>
           ) : (
             <div className="auth-buttons">
-              <Link to="/login" className="btn btn-ghost">Login</Link>
-              <Link to="/register" className="btn btn-primary">Sign Up</Link>
+              <Link to="/login" className="btn btn-ghost">{t('auth.login')}</Link>
+              <Link to="/register" className="btn btn-primary">{t('auth.register')}</Link>
             </div>
           )}
         </nav>
@@ -215,7 +204,7 @@ const Header = () => {
           <form className="mobile-search-form" onSubmit={handleSearch}>
             <input
               type="text"
-              placeholder="Search movies..."
+              placeholder={t('searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="mobile-search-input"
@@ -241,36 +230,20 @@ const Header = () => {
         </div>
         
         <nav className="mobile-menu-nav">
-          <Link to="/" className="mobile-menu-link" onClick={toggleMenu}>Home</Link>
-          <Link to="/movies" className="mobile-menu-link" onClick={toggleMenu}>Movies</Link>
-          <Link to="/series" className="mobile-menu-link" onClick={toggleMenu}>Series</Link>
-          
-          {/* Mobile Genres Dropdown */}
-          <div className="mobile-menu-dropdown">
-            <button 
-              className="mobile-menu-link mobile-menu-dropdown-toggle"
-              onClick={() => setIsMobileGenresOpen(!isMobileGenresOpen)}
-            >
-              <span>Genre</span>
-              <FaChevronDown className={`mobile-chevron ${isMobileGenresOpen ? 'open' : ''}`} />
-            </button>
-            {isMobileGenresOpen && (
-              <div className="mobile-menu-dropdown-content">
-                <div className="mobile-genres-grid">
-                  {genres.map(genre => (
-                    <Link 
-                      key={genre} 
-                      to={`/genre/${genre.toLowerCase()}`} 
-                      className="mobile-genre-link"
-                      onClick={toggleMenu}
-                    >
-                      {genre}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <Link to="/" className="mobile-menu-link" onClick={toggleMenu}>{t('navHome')}</Link>
+          <Link to="/watch" className="mobile-menu-link" onClick={toggleMenu}>{t('navMovies')}</Link>
+          <Link to="/series" className="mobile-menu-link" onClick={toggleMenu}>{t('navShows')}</Link>
+          <Link to="/genres" className="mobile-menu-link" onClick={toggleMenu}>{t('navGenres')}</Link>
+          <Link to="/watchlist" className="mobile-menu-link" onClick={toggleMenu}>{t('navWishlist')}</Link>
+          <Link to="/downloads" className="mobile-menu-link" onClick={toggleMenu}>{t('navDownloads')}</Link>
+          {/* Mobile Language Toggle */}
+          <button
+            className="mobile-menu-link mobile-lang-toggle"
+            onClick={() => setLocale(locale === 'en' ? 'fr' : 'en')}
+          >
+            <span>Language</span>
+            <span className="mobile-lang-badge">{locale === 'en' ? '🇬🇧 EN' : '🇫🇷 FR'}</span>
+          </button>
 
           {/* Mobile Country Dropdown */}
           <div className="mobile-menu-dropdown">
@@ -301,9 +274,9 @@ const Header = () => {
 
           {user ? (
             <>
-              <Link to="/watchlist" className="mobile-menu-link" onClick={toggleMenu}>
-                Watchlist
-              </Link>
+              {(user.role || user.user_type || '').toLowerCase() === 'filmmaker' && (
+                <Link to="/filmmaker-studio" className="mobile-menu-link" onClick={toggleMenu}>Studio</Link>
+              )}
               <Link to="/profile" className="mobile-menu-link" onClick={toggleMenu}>Profile</Link>
               <Link to="/subscription" className="mobile-menu-link" onClick={toggleMenu}>Subscription</Link>
               <Link to="/wallet" className="mobile-menu-link" onClick={toggleMenu}>Wallet</Link>

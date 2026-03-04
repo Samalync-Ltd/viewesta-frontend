@@ -1,0 +1,33 @@
+/* AgeRatingBadge — compact, colored label for content age ratings */
+
+.age-rating-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-family: var(--font-mono, 'Courier New', monospace);
+  letter-spacing: 0.02em;
+  border: 1.5px solid var(--badge-color, #6b7280);
+  color: var(--badge-color, #6b7280);
+  border-radius: 3px;
+  line-height: 1;
+  white-space: nowrap;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+/* Sizes */
+.age-rating-badge--sm {
+  font-size: 0.6rem;
+  padding: 2px 5px;
+}
+
+.age-rating-badge--md {
+  font-size: 0.72rem;
+  padding: 3px 7px;
+}
+
+.age-rating-badge--lg {
+  font-size: 0.85rem;
+  padding: 4px 10px;
+}

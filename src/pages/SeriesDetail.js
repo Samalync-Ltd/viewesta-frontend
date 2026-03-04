@@ -12,16 +12,34 @@ import {
 } from 'react-icons/fa';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
-import apiClient from '../utils/apiClient';
-import { unwrapResponse, describeApiError } from '../utils/apiHelpers';
-import { normalizeSeries, coerceArray } from '../utils/mediaHelpers';
+import * as seriesService from '../services/seriesService';
 import MovieCard from '../components/MovieCard';
+import CastCrewSection from '../components/CastCrewSection';
+import MovieGallery from '../components/MovieGallery';
+import AgeRatingBadge from '../components/AgeRatingBadge';
 import './SeriesDetail.css';
+
+// Royalty-free sample videos (Google public bucket — always available)
+const SAMPLE_VIDEOS = [
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+  'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4',
+];
+
+const pickVideo = (seed, offset = 0) => {
+  const hash = String(seed).split('').reduce((a, c) => a + c.charCodeAt(0), 0);
+  return SAMPLE_VIDEOS[(hash + offset) % SAMPLE_VIDEOS.length];
+};
 
 const SeriesDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToWatchlist, removeFromWatchlist, watchlist } = useMovies();
+  const { addToWatchlist, removeFromWatchlist, watchlist, rateContent, getUserRating } = useMovies();
   const episodesRef = useRef(null);
   const { user } = useAuth();
   const [isInWatchlist, setIsInWatchlist] = useState(false);
@@ -32,18 +50,21 @@ const SeriesDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const [isWatchVideoOpen, setIsWatchVideoOpen] = useState(false);
+
   const fetchSeriesDetail = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     setError('');
     try {
-      const response = await apiClient.get(`/series/${id}`);
-      const payload = unwrapResponse(response);
-      const normalized = normalizeSeries(payload?.series || payload);
-      setSeriesData(normalized);
-      setExpandedSeason(normalized.seasons?.[0]?.seasonNumber ?? 1);
+      const normalized = await seriesService.getSeriesById(id);
+      setSeriesData(normalized || null);
+      if (normalized?.seasons?.[0]) {
+        setExpandedSeason(normalized.seasons[0].seasonNumber ?? 1);
+      }
+      if (!normalized) setError('Series not found.');
     } catch (err) {
-      setError(describeApiError(err, 'Unable to load this series right now.'));
+      setError(err?.message || 'Unable to load this series right now.');
     } finally {
       setLoading(false);
     }
@@ -58,13 +79,9 @@ const SeriesDetail = () => {
     let active = true;
     (async () => {
       try {
-        const response = await apiClient.get('/series', { params: { limit: 24 } });
-        const payload = unwrapResponse(response);
-        const normalized = coerceArray(payload?.series ?? payload)
-          .map(normalizeSeries)
-          .filter(Boolean);
+        const list = await seriesService.getSeries({ limit: 24 });
         if (!active) return;
-        const filtered = normalized
+        const filtered = list
           .filter((item) => item.id !== seriesData.id)
           .filter((item) =>
             item.genres?.some((genre) => seriesData.genres?.includes(genre))
@@ -88,11 +105,12 @@ const SeriesDetail = () => {
 
   const getTrailerSrc = () => {
     if (!seriesData) return '';
-    if (seriesData.raw?.trailer_url) {
-      return seriesData.raw.trailer_url;
-    }
-    const q = encodeURIComponent(`${seriesData.title} official trailer`);
-    return `https://www.youtube.com/embed?listType=search&list=${q}&autoplay=1&rel=0`;
+    return pickVideo(seriesData.id, 0);
+  };
+
+  const getWatchVideoSrc = () => {
+    if (!seriesData) return '';
+    return pickVideo(seriesData.id, 3);
   };
 
   if (loading && !seriesData) {
@@ -133,25 +151,13 @@ const SeriesDetail = () => {
     );
   }
 
-  const handleWatchEpisode = (seasonNumber, episodeNumber) => {
-    if (user) {
-      if (user.subscription?.active) {
-        console.log(`Starting episode S${seasonNumber}E${episodeNumber}...`);
-      } else {
-        alert('Please subscribe to watch series episodes');
-      }
-    } else {
-      navigate('/login');
-    }
+  const handleWatchEpisode = (_seasonNumber, _episodeNumber) => {
+    setIsWatchVideoOpen(true);
   };
 
-  const handleStartWatchingScroll = () => {
-    const el = episodesRef.current || document.getElementById('episodes');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setTimeout(() => {
-        window.scrollBy({ top: -12, left: 0, behavior: 'instant' });
-      }, 350);
+  const handleStartWatching = () => {
+    if (episodesRef.current) {
+      episodesRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -187,6 +193,55 @@ const SeriesDetail = () => {
     }
   };
 
+  const userRating = seriesData ? getUserRating(seriesData.id) : undefined;
+  const totalEpisodes = (seriesData?.seasons || []).reduce((sum, s) => sum + (s.episodes?.length || 0), 0);
+
+  const handleRate = (stars) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    rateContent(seriesData.id, stars);
+  };
+
+  const buildGallery = (s) => {
+    if (!s) return [];
+    if (s.gallery && s.gallery.length > 0) return s.gallery;
+    const themeMap = {
+      Drama:    ['photo-1528360983277-13d401cdc186', 'photo-1517457373958-b7bdd4587205'],
+      Comedy:   ['photo-1527529482837-4698179dc6ce', 'photo-1492684223066-81342ee5ff30'],
+      Romance:  ['photo-1522673607200-164d1b6ce486', 'photo-1464366400600-7168b8af9bc3'],
+      Crime:    ['photo-1477959858617-67f85cf4f1df', 'photo-1444723121867-7a241cacace9'],
+      Thriller: ['photo-1518331647614-7a1f04cd34cf', 'photo-1542204165-65bf26472b9b'],
+      Action:   ['photo-1547153760-18fc86324498', 'photo-1552319454-0f07c07fc399'],
+      Family:   ['photo-1529156069898-49953e39b3ac', 'photo-1543269664-56d93c1b41a6'],
+      Fantasy:  ['photo-1518709268805-4e9042af9f23', 'photo-1502691876148-a84978e59af8'],
+      Music:    ['photo-1511671782779-c97d3d27a1d4', 'photo-1506157786151-b8491531f063'],
+    };
+    const genres = s.genres || [];
+    const seen = new Set();
+    const extraImages = [];
+    for (const genre of genres) {
+      const ids = themeMap[genre] || [];
+      for (const id of ids) {
+        if (!seen.has(id)) {
+          seen.add(id);
+          extraImages.push({
+            url: `https://images.unsplash.com/${id}?w=900&h=500&fit=crop&auto=format`,
+            caption: `${s.title} — ${genre} scene`
+          });
+        }
+      }
+      if (extraImages.length >= 4) break;
+    }
+    const images = [];
+    const coverUrl = s.cover || s.backdrop;
+    if (coverUrl) images.push({ url: coverUrl, caption: `${s.title} — Featured` });
+    if (s.poster) images.push({ url: s.poster, caption: `${s.title} — Poster` });
+    images.push(...extraImages);
+    return images;
+  };
+
   return (
     <div className="series-detail">
       {error && (
@@ -215,8 +270,14 @@ const SeriesDetail = () => {
             <div className="detail-badges">
               <button onClick={() => setIsTrailerOpen(true)} className="badge badge-ghost">
                 <FaPlay />
-                Trailer
+                Watch
               </button>
+
+              {seriesData.age_rating && (
+                <div className="series-age-rating">
+                  <AgeRatingBadge rating={seriesData.age_rating} size="sm" showTooltip />
+                </div>
+              )}
             </div>
 
             <div className="series-meta">
@@ -235,6 +296,15 @@ const SeriesDetail = () => {
               </div>
             </div>
 
+            {/* Genre Badges */}
+            {seriesData.genres && seriesData.genres.length > 0 && (
+              <div className="series-genres">
+                {seriesData.genres.map((g) => (
+                  <span key={g} className="genre-badge">{g}</span>
+                ))}
+              </div>
+            )}
+
             <p className="series-description">{seriesData.description}</p>
 
             <div className="series-details">
@@ -245,10 +315,48 @@ const SeriesDetail = () => {
                 <strong>Cast:</strong>{' '}
                 {Array.isArray(seriesData.cast) ? seriesData.cast.join(', ') : '—'}
               </div>
+              <div className="detail-item">
+                <strong>Premiered:</strong> {seriesData.raw?.release_date || seriesData.year || '—'}
+              </div>
+              <div className="detail-item">
+                <strong>Seasons:</strong> {seriesData.seasons?.length || '—'}
+              </div>
+              {totalEpisodes > 0 && (
+                <div className="detail-item">
+                  <strong>Episodes:</strong> {totalEpisodes}
+                </div>
+              )}
+              <div className="detail-item">
+                <strong>Language:</strong> English
+              </div>
+              <div className="detail-item">
+                <strong>Country:</strong> Nigeria
+              </div>
+            </div>
+
+            <div className="detail-your-rating">
+              <span className="detail-your-rating-label">Your rating:</span>
+              <div className="detail-stars" role="group" aria-label="Rate this series">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    className={`detail-star-btn ${userRating >= star ? 'filled' : ''}`}
+                    onClick={() => handleRate(star)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleRate(star)}
+                    aria-label={`Rate ${star} star${star !== 1 ? 's' : ''}`}
+                  >
+                    <FaStar />
+                  </button>
+                ))}
+              </div>
+              {userRating != null && (
+                <span className="detail-your-rating-value">{userRating}/5</span>
+              )}
             </div>
 
             <div className="series-actions">
-              <button onClick={handleStartWatchingScroll} className="btn btn-primary">
+              <button onClick={handleStartWatching} className="btn btn-primary">
                 <FaPlay />
                 Start Watching
               </button>
@@ -258,7 +366,7 @@ const SeriesDetail = () => {
                   className={`btn btn-secondary ${isInWatchlist ? 'active' : ''}`}
                 >
                   <FaHeart />
-                  {isInWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
+                  {isInWatchlist ? 'In Wishlist' : 'Add to Wishlist'}
                 </button>
               )}
               <button onClick={handleShare} className="btn btn-secondary">
@@ -270,15 +378,32 @@ const SeriesDetail = () => {
         </div>
       </div>
 
+      {seriesData.cast_crew && seriesData.cast_crew.length > 0 && (
+        <div className="series-cast-section">
+          <div className="series-cast-container">
+            <CastCrewSection castCrew={seriesData.cast_crew} />
+          </div>
+        </div>
+      )}
+
+      {/* Gallery Section */}
+      {seriesData && (
+        <div className="series-gallery-section">
+          <div className="series-gallery-container">
+            <MovieGallery images={buildGallery(seriesData)} title={seriesData.title} />
+          </div>
+        </div>
+      )}
+
       <div className="seasons-section" ref={episodesRef} id="episodes">
         <div className="seasons-container">
           <h2 className="seasons-title">Episodes</h2>
 
-          {seriesData.seasons.length === 0 && (
+          {(!seriesData.seasons || seriesData.seasons.length === 0) && (
             <p className="seasons-empty">Episodes will appear here once they are published.</p>
           )}
 
-          {seriesData.seasons.map((season) => (
+          {(seriesData.seasons || []).map((season) => (
             <div key={season.seasonNumber} className="season-container">
               <div
                 className="season-header"
@@ -351,12 +476,32 @@ const SeriesDetail = () => {
               ×
             </button>
             <div className="trailer-frame-wrap">
-              <iframe
+              <video
+                key={getTrailerSrc()}
                 src={getTrailerSrc()}
-                title={`${seriesData.title} Trailer`}
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
+                autoPlay
+                controls
+                className="trailer-video-player"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isWatchVideoOpen && (
+        <div className="modal-overlay watch-modal" onClick={() => setIsWatchVideoOpen(false)}>
+          <div className="watch-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="watch-dialog-header">
+              <span className="watch-dialog-title">{seriesData.title} — S1 E1</span>
+              <button className="modal-close" onClick={() => setIsWatchVideoOpen(false)}>×</button>
+            </div>
+            <div className="watch-frame-wrap">
+              <video
+                key={getWatchVideoSrc()}
+                src={getWatchVideoSrc()}
+                autoPlay
+                controls
+                className="watch-video-player"
               />
             </div>
           </div>

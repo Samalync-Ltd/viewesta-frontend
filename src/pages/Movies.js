@@ -1,61 +1,74 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { FaFilm } from 'react-icons/fa';
-import CategoryRow from '../components/CategoryRow';
+import MovieCard from '../components/MovieCard';
+import { SkeletonCard } from '../components/Skeleton';
 import { useMovies } from '../context/MovieContext';
 import './Movies.css';
+
+const GENRES = [
+  'All', 'Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Drama',
+  'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'Family', 'Biography', 'History',
+];
+
+const SORT_OPTIONS = [
+  { value: 'popular', label: 'Popular' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'top_rated', label: 'Top Rated' },
+];
 
 const normalizeType = (item) => (item?.type || '').toLowerCase();
 
 const Movies = () => {
-  const { movies, featuredMovies, trendingMovies, loading, error, refreshCatalog } = useMovies();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { movies, loading, error, refreshCatalog } = useMovies();
+
+  const genreParam = searchParams.get('genre') || 'All';
+  const yearParam = searchParams.get('year') || '';
+  const sortParam = searchParams.get('sort') || 'popular';
 
   const movieOnly = useMemo(
-    () => movies.filter((movie) => normalizeType(movie) !== 'series'),
+    () => movies.filter((m) => normalizeType(m) !== 'series'),
     [movies]
   );
 
-  const featured = useMemo(
-    () => featuredMovies.filter((movie) => normalizeType(movie) !== 'series').slice(0, 12),
-    [featuredMovies]
-  );
-
-  const recentlyAdded = useMemo(() => {
-    return [...movieOnly]
-      .sort((a, b) => {
-        const aDate = new Date(a.raw?.release_date || `${a.year || '1970'}-01-01`).getTime();
-        const bDate = new Date(b.raw?.release_date || `${b.year || '1970'}-01-01`).getTime();
-        return bDate - aDate;
-      })
-      .slice(0, 12);
+  const years = useMemo(() => {
+    const set = new Set();
+    movieOnly.forEach((m) => {
+      const y = Number(m.year);
+      if (!Number.isNaN(y)) set.add(y);
+    });
+    return [...set].sort((a, b) => b - a);
   }, [movieOnly]);
 
-  const trendingMoviesOnly = useMemo(
-    () => trendingMovies.filter((movie) => normalizeType(movie) !== 'series').slice(0, 12),
-    [trendingMovies]
-  );
+  const filteredAndSorted = useMemo(() => {
+    let list = [...movieOnly];
+    if (genreParam && genreParam !== 'All') {
+      const g = genreParam.toLowerCase();
+      list = list.filter((m) =>
+        m.genres && m.genres.some((x) => String(x).toLowerCase() === g)
+      );
+    }
+    if (yearParam) {
+      const y = Number(yearParam);
+      if (!Number.isNaN(y)) list = list.filter((m) => Number(m.year) === y);
+    }
+    if (sortParam === 'newest') {
+      list.sort((a, b) => (Number(b.year) || 0) - (Number(a.year) || 0));
+    } else if (sortParam === 'top_rated') {
+      list.sort((a, b) => (Number(b.rating) || 0) - (Number(a.rating) || 0));
+    } else {
+      list.sort((a, b) => (b.trending ? 1 : 0) - (a.trending ? 1 : 0) || (Number(b.rating) || 0) - (Number(a.rating) || 0));
+    }
+    return list;
+  }, [movieOnly, genreParam, yearParam, sortParam]);
 
-  const filterByGenres = useCallback(
-    (genres) => {
-      const normalized = genres.map((g) => g.toLowerCase());
-      return movieOnly
-        .filter((movie) =>
-          movie.genres?.some((genre) => normalized.includes(genre.toLowerCase()))
-        )
-        .slice(0, 12);
-    },
-    [movieOnly]
-  );
-
-  const actionAdventure = useMemo(
-    () => filterByGenres(['Action', 'Adventure', 'Thriller']),
-    [filterByGenres]
-  );
-  const sciFi = useMemo(() => filterByGenres(['Sci-Fi', 'Science Fiction', 'Fantasy']), [filterByGenres]);
-  const drama = useMemo(() => filterByGenres(['Drama', 'Biography', 'History']), [filterByGenres]);
-  const comedyFamily = useMemo(
-    () => filterByGenres(['Comedy', 'Family', 'Animation', 'Kids']),
-    [filterByGenres]
-  );
+  const setFilter = (key, value) => {
+    const next = new URLSearchParams(searchParams);
+    if (value && value !== 'All' && value !== '') next.set(key, value);
+    else next.delete(key);
+    setSearchParams(next);
+  };
 
   if (loading && !movies.length) {
     return (
@@ -79,14 +92,14 @@ const Movies = () => {
 
   return (
     <div className="movies-page">
-      <div className="movies-container">
+      <div className="movies-container layout-container">
         <div className="movies-header">
           <h1 className="movies-title">
             <FaFilm />
             Movies
           </h1>
           <p className="movies-subtitle">
-            Discover the latest blockbusters, timeless classics, and hidden gems
+            Discover African cinema — filter by genre, year, and sort by popularity, newest, or top rated.
           </p>
         </div>
 
@@ -99,55 +112,64 @@ const Movies = () => {
           </div>
         )}
 
-        <CategoryRow
-          title="Recently Added"
-          movies={recentlyAdded}
-          viewAllLink="/movies"
-          showViewAll={true}
-        />
+        <div className="movies-filters">
+          <div className="filter-group">
+            <label htmlFor="genre">Genre</label>
+            <select
+              id="genre"
+              value={genreParam}
+              onChange={(e) => setFilter('genre', e.target.value)}
+              className="filter-select"
+            >
+              {GENRES.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-group">
+            <label htmlFor="year">Year</label>
+            <select
+              id="year"
+              value={yearParam}
+              onChange={(e) => setFilter('year', e.target.value)}
+              className="filter-select"
+            >
+              <option value="">All years</option>
+              {years.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <div className="filter-group">
+            <label htmlFor="sort">Sort</label>
+            <select
+              id="sort"
+              value={sortParam}
+              onChange={(e) => setFilter('sort', e.target.value)}
+              className="filter-select"
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-        <CategoryRow
-          title="Trending Now"
-          movies={trendingMoviesOnly}
-          isTrending
-          viewAllLink="/movies"
-          showViewAll={true}
-        />
-
-        <CategoryRow
-          title="Featured Movies"
-          movies={featured}
-          viewAllLink="/movies"
-          showViewAll={true}
-        />
-
-        <CategoryRow
-          title="Action & Adventure"
-          movies={actionAdventure}
-          viewAllLink="/genre/action"
-          showViewAll={true}
-        />
-
-        <CategoryRow
-          title="Science Fiction"
-          movies={sciFi}
-          viewAllLink="/genre/sci-fi"
-          showViewAll={true}
-        />
-
-        <CategoryRow
-          title="Award-Winning Drama"
-          movies={drama}
-          viewAllLink="/genre/drama"
-          showViewAll={true}
-        />
-
-        <CategoryRow
-          title="Comedy & Family"
-          movies={comedyFamily}
-          viewAllLink="/genre/comedy"
-          showViewAll={true}
-        />
+        {loading ? (
+          <div className="movies-grid">
+            {Array.from({ length: 12 }, (_, i) => (
+              <SkeletonCard key={i} />
+            ))}
+          </div>
+        ) : filteredAndSorted.length === 0 ? (
+          <p className="movies-empty">No movies match your filters. Try changing genre or year.</p>
+        ) : (
+          <div className="movies-grid">
+            {filteredAndSorted.map((movie) => (
+              <MovieCard key={movie.id} movie={movie} showWatchlist />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

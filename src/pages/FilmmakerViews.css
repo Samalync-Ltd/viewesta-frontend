@@ -1,0 +1,28 @@
+.filmmaker-views-page {
+  padding: var(--page-padding, 24px) 0;
+}
+
+.filmmaker-views-back {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: var(--primary, #D06224);
+  text-decoration: none;
+}
+
+.filmmaker-views-back:hover {
+  text-decoration: underline;
+}
+
+.filmmaker-views-page h1 {
+  font-size: 1.5rem;
+  margin: 0 0 1rem 0;
+}
+
+.filmmaker-views-placeholder {
+  background: var(--card, #141414);
+  border: 1px dashed var(--border, #262626);
+  border-radius: var(--radius, 8px);
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted-foreground, #a3a3a3);
+}

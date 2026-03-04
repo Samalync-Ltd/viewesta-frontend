@@ -12,7 +12,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const { login, socialLogin } = useAuth();
   const navigate = useNavigate();
 
@@ -31,7 +31,8 @@ const Login = () => {
     try {
       const result = await login(formData.email, formData.password);
       if (result.success) {
-        navigate('/');
+        const isFilmmaker = (result.user?.role || result.user?.user_type || '').toLowerCase() === 'filmmaker';
+        navigate(isFilmmaker ? '/filmmaker-studio' : '/');
       } else {
         setError(result.error || 'Login failed');
       }
@@ -45,14 +46,12 @@ const Login = () => {
   const handleSocialLogin = async (provider) => {
     setLoading(true);
     setError('');
-
     try {
       const result = await socialLogin(provider);
       if (result.success) {
-        navigate('/');
-      } else {
-        setError(result.error || 'Social login failed');
-      }
+        const isFilmmaker = (result.user?.role || result.user?.user_type || '').toLowerCase() === 'filmmaker';
+        navigate(isFilmmaker ? '/filmmaker-studio' : '/');
+      } else setError(result.error || 'Social login failed');
     } catch (err) {
       setError('An unexpected error occurred');
     } finally {
@@ -62,22 +61,27 @@ const Login = () => {
 
   return (
     <div className="login-page">
-      <div className="login-container">
-        <div className="login-card">
+      <div className="login-brand">
+        <div className="login-brand-content">
+          <h1 className="login-brand-title">Viewesta</h1>
+          <p className="login-brand-tagline">
+            African cinema on demand. Stream the best of Nollywood and beyond — subscribe or pay per view.
+          </p>
+        </div>
+      </div>
+
+      <div className="login-form-section">
+        <div className="login-form-wrap">
           <div className="login-header">
-            <h1 className="login-title">Welcome Back</h1>
-            <p className="login-subtitle">Sign in to your Viewesta account</p>
+            <h1 className="login-title">Welcome back</h1>
+            <p className="login-subtitle">Sign in to your account to continue</p>
           </div>
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
 
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
-              <label htmlFor="email" className="form-label">Email Address</label>
+              <label htmlFor="email" className="form-label">Email</label>
               <input
                 type="email"
                 id="email"
@@ -85,7 +89,7 @@ const Login = () => {
                 value={formData.email}
                 onChange={handleChange}
                 className="form-input"
-                placeholder="Enter your email"
+                placeholder="you@example.com"
                 required
               />
             </div>
@@ -100,13 +104,14 @@ const Login = () => {
                   value={formData.password}
                   onChange={handleChange}
                   className="form-input"
-                  placeholder="Enter your password"
+                  placeholder="••••••••"
                   required
                 />
                 <button
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -116,12 +121,9 @@ const Login = () => {
             <div className="form-options">
               <label className="checkbox-label">
                 <input type="checkbox" />
-                <span className="checkmark"></span>
-                Remember me
+                <span>Remember me</span>
               </label>
-              <Link to="/forgot-password" className="forgot-link">
-                Forgot password?
-              </Link>
+              <Link to="/forgot-password" className="forgot-link">Forgot password?</Link>
             </div>
 
             <button
@@ -131,11 +133,11 @@ const Login = () => {
             >
               {loading ? (
                 <>
-                  <div className="loading"></div>
-                  Signing In...
+                  <span className="loading" aria-hidden />
+                  Signing in...
                 </>
               ) : (
-                'Sign In'
+                'Sign in'
               )}
             </button>
           </form>
@@ -146,6 +148,7 @@ const Login = () => {
 
           <div className="social-login">
             <button
+              type="button"
               className="social-button google"
               onClick={() => handleSocialLogin('google')}
               disabled={loading}
@@ -154,6 +157,7 @@ const Login = () => {
               Google
             </button>
             <button
+              type="button"
               className="social-button facebook"
               onClick={() => handleSocialLogin('facebook')}
               disabled={loading}
@@ -165,10 +169,8 @@ const Login = () => {
 
           <div className="login-footer">
             <p>
-              Don't have an account?{' '}
-              <Link to="/register" className="link">
-                Sign up here
-              </Link>
+              Don&apos;t have an account?{' '}
+              <Link to="/register" className="link">Sign up</Link>
             </p>
           </div>
         </div>

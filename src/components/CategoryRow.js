@@ -11,10 +11,8 @@ const CategoryRow = ({
   viewAllLink = null,
   showViewAll = true 
 }) => {
-  const [scrollPosition, setScrollPosition] = useState(0);
   const [canScrollLeft, setCanScrollLeft] = useState(true);
   const [canScrollRight, setCanScrollRight] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
   const scrollContainerRef = useRef(null);
 
   const checkScrollButtons = () => {
@@ -55,15 +53,9 @@ const CategoryRow = ({
     return () => window.removeEventListener('resize', checkScrollButtons);
   }, [movies]);
 
-  if (!movies.length && !isLoading) return null;
+  if (!movies.length) return null;
 
   const renderMovies = () => {
-    if (isLoading) {
-      return Array.from({ length: 6 }, (_, index) => (
-        <div key={index} className="movie-item loading"></div>
-      ));
-    }
-
     return movies.map((movie, index) => (
       <div key={movie.id || index} className="movie-item">
         <MovieCard 

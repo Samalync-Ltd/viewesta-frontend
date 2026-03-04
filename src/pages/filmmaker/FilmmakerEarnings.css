@@ -1,0 +1,73 @@
+.filmmaker-earnings {
+  padding: var(--page-padding, 24px);
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.filmmaker-earnings .page-header {
+  margin-bottom: 2rem;
+}
+
+.filmmaker-earnings .back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: var(--primary, #D06224);
+  text-decoration: none;
+}
+
+.filmmaker-earnings .back-link:hover {
+  text-decoration: underline;
+}
+
+.filmmaker-earnings h1 {
+  font-size: 1.75rem;
+  margin: 0 0 0.25rem 0;
+}
+
+.filmmaker-earnings .subtitle {
+  color: var(--text-muted, #B3B3B3);
+  margin: 0;
+}
+
+.earnings-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 2rem;
+}
+
+.earnings-card {
+  background: var(--card, #121212);
+  border: 1px solid var(--border-color, #333);
+  border-radius: var(--radius, 0.75rem);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.earnings-icon {
+  font-size: 1.5rem;
+  color: var(--primary, #D06224);
+}
+
+.earnings-label {
+  font-size: 0.875rem;
+  color: var(--text-muted, #B3B3B3);
+}
+
+.earnings-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.earnings-placeholder {
+  background: var(--card, #121212);
+  border: 1px dashed var(--border-color, #333);
+  border-radius: var(--radius, 0.75rem);
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted, #B3B3B3);
+}

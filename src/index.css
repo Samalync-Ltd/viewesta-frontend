@@ -1,28 +1,28 @@
-/* Design tokens */
+/* Design tokens — modern minimal, primary #D06224 */
 :root {
   --font-size: 16px;
-  --background: #0D0D0D;
-  --foreground: #FFFFFF;
-  --card: #121212;
-  --card-foreground: #FFFFFF;
-  --popover: #121212;
-  --popover-foreground: #FFFFFF;
-  --primary: #FF6A00;
-  --primary-foreground: #FFFFFF;
-  --secondary: #333333;
-  --secondary-foreground: #FFFFFF;
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #141414;
+  --card-foreground: #fafafa;
+  --popover: #141414;
+  --popover-foreground: #fafafa;
+  --primary: #D06224;
+  --primary-foreground: #ffffff;
+  --secondary: #262626;
+  --secondary-foreground: #fafafa;
   --muted: #1a1a1a;
-  --muted-foreground: #B3B3B3;
-  --accent: #FFA500;
-  --accent-foreground: #FFFFFF;
-  --destructive: #FF6A00;
-  --destructive-foreground: #FFFFFF;
-  --border: #333333;
+  --muted-foreground: #a3a3a3;
+  --accent: #D06224;
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #262626;
   --input: transparent;
-  --input-background: transparent;
-  --switch-background: #333333;
-  --ring: #FF6A00;
-  --radius: 0.75rem;
+  --input-background: #171717;
+  --switch-background: #262626;
+  --ring: #D06224;
+  --radius: 8px;
 }
 
 html {
@@ -106,3 +106,19 @@ textarea:focus-visible,
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .animate-fadeIn { animation: fadeIn 0.2s ease-in-out; }
+
+/* Light theme (optional) — data-theme set by ThemeContext */
+[data-theme="light"] {
+  --background: #f5f5f5;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --muted: #e5e5e5;
+  --muted-foreground: #666666;
+  --border: #e0e0e0;
+}
+
+[data-theme="light"] body {
+  background-color: var(--background);
+  color: var(--foreground);
+}

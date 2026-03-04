@@ -1,152 +1,183 @@
+/* ── Subscription Page ── */
 .subscription-page {
   min-height: 100vh;
   background-color: var(--bg-primary);
-  padding: 40px 0;
-  overflow-x: hidden !important; /* Prevent horizontal overflow */
-  max-width: 100vw !important;
-  width: 100% !important;
+  overflow-x: hidden;
+  width: 100%;
 }
 
-.subscription-container {
-  max-width: 1000px;
-  margin: 0 auto;
-  padding: 0 40px; /* Increased from 20px to 40px for consistent gap */
-  box-sizing: border-box;
-  overflow-x: hidden !important;
-}
-
-.subscription-header {
+/* ── Hero ── */
+.sub-hero {
+  position: relative;
   text-align: center;
-  margin-bottom: 40px;
+  padding: 80px 24px 64px;
+  overflow: hidden;
 }
 
-.subscription-title {
+.sub-hero-glow {
+  position: absolute;
+  top: -120px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 600px;
+  height: 400px;
+  background: radial-gradient(ellipse at center, rgba(208, 98, 36, 0.22) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.sub-hero-crown {
+  font-size: 48px;
+  color: #D06224;
+  margin-bottom: 20px;
+  filter: drop-shadow(0 0 18px rgba(208, 98, 36, 0.55));
+}
+
+.sub-hero-title {
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+}
+
+.sub-hero-subtitle {
+  max-width: 560px;
+  margin: 0 auto 32px;
+  font-size: 17px;
+  color: var(--text-muted);
+  line-height: 1.65;
+}
+
+.sub-hero-badges {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  font-size: 32px;
-  font-weight: bold;
-  color: var(--text-primary);
-  margin-bottom: 12px;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.subscription-title svg {
-  color: var(--primary);
-}
-
-.subscription-subtitle {
-  color: var(--text-muted);
-  font-size: 18px;
-}
-
-.billing-toggle {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 40px;
-  background-color: var(--bg-secondary);
-  border-radius: 12px;
-  padding: 4px;
-  width: fit-content;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.toggle-btn {
-  position: relative;
-  padding: 12px 24px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
+.sub-hero-badges span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.3s ease;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 7px 16px;
 }
 
-.toggle-btn.active {
-  background-color: var(--primary);
-  color: white;
+.sub-hero-badges span svg {
+  color: #D06224;
 }
 
-.save-badge {
-  position: absolute;
-  top: -8px;
-  right: -8px;
-  background-color: var(--success);
-  color: white;
-  font-size: 10px;
-  padding: 2px 6px;
-  border-radius: 10px;
-  font-weight: bold;
+/* ── Container ── */
+.subscription-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 40px 80px;
+  box-sizing: border-box;
 }
 
+/* ── Plan Cards ── */
 .plans-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 32px;
-  margin-bottom: 60px;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  margin-bottom: 72px;
 }
 
 .plan-card {
   position: relative;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 32px;
-  text-align: center;
-  transition: all 0.3s ease;
+  background: #141414;
+  border: 1px solid #262626;
+  border-radius: 20px;
+  padding: 40px 32px 36px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .plan-card:hover {
-  transform: translateY(-8px);
-  box-shadow: 0 12px 30px rgba(255, 106, 0, 0.2);
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
 }
 
 .plan-card.popular {
-  border-color: var(--primary);
-  box-shadow: 0 8px 25px rgba(255, 106, 0, 0.2);
+  border-color: #D06224;
+  background: linear-gradient(160deg, #1a1209 0%, #141414 60%);
+  box-shadow: 0 8px 32px rgba(208, 98, 36, 0.18);
 }
 
 .popular-badge {
   position: absolute;
-  top: -12px;
+  top: -14px;
   left: 50%;
   transform: translateX(-50%);
-  background: linear-gradient(45deg, var(--primary), var(--secondary));
-  color: white;
-  padding: 8px 16px;
+  background: linear-gradient(90deg, #D06224, #e8773a);
+  color: #fff;
+  padding: 6px 18px;
   border-radius: 20px;
   font-size: 12px;
-  font-weight: bold;
+  font-weight: 700;
+  letter-spacing: 0.4px;
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 
+/* Plan icon */
+.plan-icon {
+  font-size: 32px;
+  color: #D06224;
+  margin-bottom: 20px;
+}
+
+.plan-card.popular .plan-icon {
+  filter: drop-shadow(0 0 10px rgba(208, 98, 36, 0.5));
+}
+
+/* Plan header */
 .plan-header {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .plan-name {
-  font-size: 24px;
-  font-weight: bold;
+  font-size: 22px;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 16px;
+  margin-bottom: 6px;
+}
+
+.plan-tag {
+  display: inline-block;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 10px;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .plan-price {
   display: flex;
   align-items: baseline;
-  justify-content: center;
   gap: 4px;
-  margin-bottom: 8px;
+  margin-top: 8px;
 }
 
 .price {
-  font-size: 48px;
-  font-weight: bold;
-  color: var(--primary);
+  font-size: 52px;
+  font-weight: 800;
+  color: #D06224;
+  line-height: 1;
 }
 
 .period {
@@ -155,24 +186,28 @@
 }
 
 .original-price {
+  font-size: 14px;
   color: var(--text-muted);
   text-decoration: line-through;
-  font-size: 16px;
+  margin-top: 4px;
 }
 
+/* Features */
 .plan-features {
   list-style: none;
-  margin-bottom: 32px;
-  text-align: left;
+  padding: 0;
+  margin: 0 0 32px;
+  flex: 1;
 }
 
 .feature-item {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 0;
+  padding: 11px 0;
+  font-size: 15px;
   color: var(--text-primary);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid #1f1f1f;
 }
 
 .feature-item:last-child {
@@ -180,43 +215,105 @@
 }
 
 .check-icon {
-  color: var(--success);
-  font-size: 16px;
+  color: #22c55e;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
-.subscription-info {
-  background-color: var(--bg-secondary);
-  border-radius: 16px;
-  padding: 40px;
+/* CTA button */
+.sub-btn {
+  margin-top: auto;
+  padding: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 12px;
+  letter-spacing: 0.3px;
+}
+
+/* ── Trust Section ── */
+.trust-section {
+  margin-bottom: 56px;
+}
+
+.trust-title {
   text-align: center;
-}
-
-.subscription-info h3 {
-  font-size: 24px;
-  font-weight: bold;
+  font-size: 26px;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 32px;
+  margin-bottom: 36px;
 }
 
-.info-grid {
+.trust-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 32px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
 }
 
-.info-item h4 {
-  font-size: 18px;
-  font-weight: bold;
+.trust-item {
+  background: #141414;
+  border: 1px solid #1f1f1f;
+  border-radius: 16px;
+  padding: 28px 20px;
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.trust-item:hover {
+  border-color: #D06224;
+}
+
+.trust-icon {
+  font-size: 28px;
+  color: #D06224;
+  margin-bottom: 14px;
+}
+
+.trust-item h4 {
+  font-size: 15px;
+  font-weight: 700;
   color: var(--text-primary);
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
-.info-item p {
+.trust-item p {
+  font-size: 13px;
   color: var(--text-muted);
   line-height: 1.6;
 }
 
+/* ── Guarantee Strip ── */
+.guarantee-strip {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  background: rgba(34, 197, 94, 0.07);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 16px;
+  padding: 28px 32px;
+}
+
+.guarantee-icon {
+  font-size: 36px;
+  color: #22c55e;
+  flex-shrink: 0;
+}
+
+.guarantee-strip strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.guarantee-strip p {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Not Found ── */
 .subscription-not-found {
   display: flex;
   align-items: center;
@@ -224,30 +321,19 @@
   min-height: 50vh;
   text-align: center;
   color: var(--text-primary);
+  font-size: 22px;
 }
 
-.subscription-not-found h2 {
-  font-size: 24px;
-}
-
-/* Responsive Design */
-@media (max-width: 1024px) {
-  .subscription-container {
-    padding: 0 var(--page-padding);
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .trust-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 @media (max-width: 768px) {
-  .subscription-page {
-    padding: 30px 0;
-  }
-  
-  .subscription-container {
-    padding: 0 var(--page-padding);
-  }
-  
-  .subscription-title {
-    font-size: 28px;
+  .sub-hero-title {
+    font-size: 32px;
   }
 
   .plans-grid {
@@ -255,50 +341,38 @@
     gap: 24px;
   }
 
-  .plan-card {
-    padding: 24px;
+  .subscription-container {
+    padding: 0 20px 60px;
   }
 
-  .price {
-    font-size: 36px;
-  }
-
-  .info-grid {
-    grid-template-columns: 1fr;
-    gap: 24px;
-  }
-  
-  .subscription-info {
-    padding: 32px;
+  .guarantee-strip {
+    flex-direction: column;
+    text-align: center;
   }
 }
 
 @media (max-width: 480px) {
-  .subscription-page {
-    padding: 20px 0;
+  .sub-hero {
+    padding: 56px 16px 40px;
   }
-  
-  .subscription-container {
-    padding: 0 var(--page-padding);
+
+  .sub-hero-title {
+    font-size: 26px;
   }
-  
-  .subscription-title {
-    font-size: 24px;
+
+  .sub-hero-badges {
+    gap: 10px;
   }
-  
-  .subscription-subtitle {
-    font-size: 16px;
+
+  .trust-grid {
+    grid-template-columns: 1fr;
   }
-  
+
   .plan-card {
-    padding: 20px;
+    padding: 32px 20px 28px;
   }
-  
+
   .price {
-    font-size: 32px;
-  }
-  
-  .subscription-info {
-    padding: 24px;
+    font-size: 42px;
   }
 }

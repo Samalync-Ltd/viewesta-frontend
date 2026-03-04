@@ -30,6 +30,28 @@
   color: var(--text-primary);
 }
 
+.view-all-link {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.view-all-link:hover {
+  text-decoration: underline;
+}
+
+.skeleton-hero-wrap {
+  padding: 0;
+  margin-bottom: 2rem;
+}
+
+.skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1.25rem;
+}
+
 .trending-toggle {
   display: inline-flex;
   background-color: var(--bg-secondary);
@@ -236,6 +258,30 @@
   gap: 20px;
   justify-content: center;
   flex-wrap: wrap;
+}
+
+/* Override button colors inside CTA so they're visible on the orange gradient */
+.cta-buttons .btn-primary {
+  background-color: #ffffff;
+  color: var(--primary);
+  border: 2px solid #ffffff;
+}
+
+.cta-buttons .btn-primary:hover {
+  background-color: transparent;
+  color: #ffffff;
+  filter: none;
+}
+
+.cta-buttons .btn-outline {
+  background-color: transparent;
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+}
+
+.cta-buttons .btn-outline:hover {
+  background-color: #ffffff;
+  color: var(--primary);
 }
 
 .btn-large {
