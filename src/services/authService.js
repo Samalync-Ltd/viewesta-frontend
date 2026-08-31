@@ -3,6 +3,7 @@
  */
 
 import apiClient from '../utils/apiClient';
+import { initialsAvatar } from '../utils/imageFallbacks';
 
 /**
  * Normalizes user data from the backend to the frontend format.
@@ -17,9 +18,11 @@ export function normalizeUser(raw) {
     ...raw,
     name,
     username: raw.username || raw.user_name || '',
+    // Locally generated initials instead of a ui-avatars.com request: the
+    // avatar is on every signed-in view, and an unreachable third party left
+    // it blank. avatar_url is nullable, which is what makes the fallback load.
     avatar:
-      raw.avatar_url || raw.avatar || raw.profile_image ||
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=D06224&color=fff`,
+      raw.avatar_url || raw.avatar || raw.profile_image || initialsAvatar(name),
     role: raw.user_role || raw.role || raw.user_type || 'viewer',
     subscription: {
       type: raw.subscription?.type || 'none',

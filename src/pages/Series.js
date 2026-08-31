@@ -90,12 +90,17 @@ const Series = () => {
     // Sort
     if (sortParam === 'newest') {
       list.sort((a, b) => {
-        // Prefer full ISO release_date from raw payload (more precise than year)
+        // Shows carry `release_year` (an integer), NOT `release_date` --
+        // verified live 2026-08-31. Reading release_date here always missed,
+        // so every series fell back to whatever `year` held and the newest
+        // sort was effectively arbitrary. `year` is now normalised from
+        // release_year in mediaHelpers, so it is the reliable value; the ISO
+        // fields stay first for anything that does supply them.
         const dateA = new Date(
-          a.raw?.release_date || a.raw?.released_at || String(a.year)
+          a.raw?.release_date || a.raw?.released_at || String(a.raw?.release_year || a.year)
         ).getTime();
         const dateB = new Date(
-          b.raw?.release_date || b.raw?.released_at || String(b.year)
+          b.raw?.release_date || b.raw?.released_at || String(b.raw?.release_year || b.year)
         ).getTime();
         if (!isNaN(dateA) && !isNaN(dateB)) return dateB - dateA;
         return (Number(b.year) || 0) - (Number(a.year) || 0);

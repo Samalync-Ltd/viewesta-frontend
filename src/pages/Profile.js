@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { initialsAvatar } from '../utils/imageFallbacks';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useMovies } from '../context/MovieContext';
@@ -20,7 +21,6 @@ import {
 import MovieCard from '../components/MovieCard';
 import './Profile.css';
 
-const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?background=D06224&color=fff&size=128&name=';
 
 const Profile = () => {
   const { user, updateProfile, changePassword, loading, uploadAvatar } = useAuth();
@@ -52,7 +52,7 @@ const Profile = () => {
 
   const avatarSrc =
     user?.avatar ||
-    `${DEFAULT_AVATAR}${encodeURIComponent(user?.first_name || 'U')}`;
+    initialsAvatar(user?.first_name || 'U');
 
   const handleEditStart = () => {
     setEditFirstName(user?.first_name || '');
@@ -190,7 +190,7 @@ const Profile = () => {
               className="profile-avatar-img"
               onError={(e) => {
                 e.target.src =
-                  `${DEFAULT_AVATAR}${encodeURIComponent(user.first_name || 'U')}`;
+                  initialsAvatar(user.first_name || 'U');
               }}
             />
             {isEditing && (

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { IMAGE_FALLBACK, onImageError } from '../utils/imageFallbacks';
 import { FaTimes, FaChevronLeft, FaChevronRight, FaExpand, FaImages } from 'react-icons/fa';
 import './MovieGallery.css';
 
@@ -70,6 +71,9 @@ const MovieGallery = ({ images = [], title = '' }) => {
               alt={img.caption || `${title} photo ${index + 1}`}
               loading="lazy"
               onLoad={() => handleImgLoad(index)}
+              // Gallery URLs are presigned and expire; without this an old
+              // link renders the browser's broken-image glyph inside the grid.
+              onError={onImageError(IMAGE_FALLBACK)}
               className={`gallery-thumb__img ${loaded[index] ? 'loaded' : ''}`}
             />
             <div className="gallery-thumb__overlay">
@@ -105,6 +109,7 @@ const MovieGallery = ({ images = [], title = '' }) => {
             <img
               key={lightboxIndex}
               src={images[lightboxIndex]?.url}
+              onError={onImageError(IMAGE_FALLBACK)}
               alt={images[lightboxIndex]?.caption || `${title} photo`}
               className="lightbox__img"
             />

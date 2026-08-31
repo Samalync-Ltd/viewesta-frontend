@@ -2,6 +2,7 @@
  * Public filmmaker profile — /filmmaker/:id. Bio, avatar, films grid, Follow button.
  */
 import React, { useEffect, useState } from 'react';
+import { AVATAR_FALLBACK, onImageError } from '../utils/imageFallbacks';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getMovies, getFilmmakerMovies } from '../services/movieService';
@@ -57,7 +58,7 @@ export default function FilmmakerPublicProfile() {
       <div className="filmmaker-public-header">
         <div className="filmmaker-public-avatar">
           {filmmaker.avatar ? (
-            <img src={filmmaker.avatar} alt="" />
+            <img src={filmmaker.avatar} alt="" onError={onImageError(AVATAR_FALLBACK)} />
           ) : (
             <span>{filmmaker.name.charAt(0)}</span>
           )}

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { POSTER_FALLBACK } from '../utils/imageFallbacks';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaPlay, FaHeart, FaClock, FaBookmark, FaCalendar } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
@@ -76,19 +77,15 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
       <div className="movie-card-inner">
         {/* Poster Section */}
         <div className="movie-poster">
-          <img 
-            src={imageError ? 'https://via.placeholder.com/200x300/333333/FFFFFF?text=No+Image' : movie.poster} 
+          {/* Local bundled fallback. This used to point at
+              via.placeholder.com, so a missing poster depended on a third
+              party being reachable -- and rendered nothing when it was not. */}
+          <img
+            src={imageError ? POSTER_FALLBACK : (movie.poster || POSTER_FALLBACK)}
             alt={movie.title}
             className="poster-image"
             loading="lazy"
-            onError={() => {
-              console.log('Image failed to load:', movie.poster);
-              setImageError(true);
-            }}
-            onLoad={() => {
-              console.log('Image loaded successfully:', movie.poster);
-              setImageError(false);
-            }}
+            onError={() => setImageError(true)}
           />
           
           {/* Trailer Video */}

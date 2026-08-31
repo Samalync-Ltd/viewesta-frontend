@@ -5,6 +5,7 @@
  */
 
 import client from '../api/client';
+import { unwrapData } from '../api/unwrap';
 
 /**
  * Fetch available subscription plans from backend.
@@ -59,6 +60,12 @@ export async function subscribe({ plan_id, payment_method = 'wallet' }) {
  * @returns {object} Subscription data
  */
 export async function getMySubscription() {
-  const { data } = await client.get('/subscriptions/me');
-  return data;
+  const res = await client.get('/subscriptions/me');
+  // {data:{active_subscription, subscription_history}}. Returning the envelope
+  // meant callers looked for `.subscription` / `.status` / `.active`, none of
+  // which exist on it, so an active subscriber was always read as inactive.
+  // The record itself carries `is_active` (verified live 2026-08-31).
+  const data = unwrapData(res.data) || {};
+  const active = data.active_subscription ?? null;
+  return active ? { ...active, history: data.subscription_history ?? [] } : null;
 }

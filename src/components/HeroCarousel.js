@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { BACKDROP_FALLBACK, onImageError } from '../utils/imageFallbacks';
 import { useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight, FaPlay, FaCheck } from 'react-icons/fa';
 import { useLocale } from '../context/LocaleContext';
@@ -114,7 +115,7 @@ const HeroCarousel = ({ items = [] }) => {
                 className={`carousel-slide ${index === currentIndex ? 'active' : ''}`}
               >
                 <div className="slide-background">
-                  <img src={item.backdrop} alt={item.title} />
+                  <img src={item.backdrop} alt={item.title} onError={onImageError(BACKDROP_FALLBACK)} />
                   <div className="slide-overlay"></div>
                 </div>
                 

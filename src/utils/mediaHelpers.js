@@ -100,9 +100,19 @@ export const normalizeMovie = (input = {}) => {
   // Handle nested objects from backend (e.g. { movie: {...} } or { show: {...} })
   const rawMovie = input.movie || input.show || input.series || input;
 
+  // Movies and shows date themselves DIFFERENTLY, verified live 2026-08-31:
+  //   movie -> release_date: "2026-01-01T00:00:00.000Z"  (no release_year)
+  //   show  -> release_year: 2026                        (no release_date)
+  // `release_year` therefore has to be checked FIRST. Without it a show fell
+  // through to created_at and displayed its upload year as its release year.
   const releaseDate =
-    rawMovie.release_date || rawMovie.released_at || rawMovie.created_at || rawMovie.published_at;
-  const releaseYear = extractYear(releaseDate) || rawMovie.year;
+    rawMovie.release_date || rawMovie.released_at || rawMovie.published_at;
+  const releaseYear =
+    rawMovie.release_year ||
+    rawMovie.releaseYear ||
+    extractYear(releaseDate) ||
+    rawMovie.year ||
+    extractYear(rawMovie.created_at);
   const durationMinutes =
     Number(rawMovie.duration_minutes ?? rawMovie.duration ?? rawMovie.runtime_minutes) || 0;
 
@@ -188,6 +198,19 @@ export const normalizeMovie = (input = {}) => {
     trailer_url: ensureString(trailerUrl),
     approval_status: ensureString(approvalStatus),
     status: ensureString(approvalStatus),
+    // Entitlement fields, read straight from the API rather than inferred.
+    // `access_type` is 'ppv_only' | 'ppv_and_subscription' -- the older
+    // `monetization_type` name is not returned by any endpoint (verified live
+    // 2026-08-31), so code reading it always fell back to a default that
+    // treated every title as subscription-inclusive.
+    access_type: rawMovie.access_type || rawMovie.monetization_type || null,
+    // Present on movies only; left null for shows, which do not return them.
+    is_playable:
+      typeof rawMovie.is_playable === 'boolean' ? rawMovie.is_playable : null,
+    is_purchasable:
+      typeof rawMovie.is_purchasable === 'boolean'
+        ? rawMovie.is_purchasable
+        : null,
     raw: rawMovie,
   };
 };

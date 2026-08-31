@@ -106,9 +106,10 @@ export const MovieProvider = ({ children }) => {
 
     const fetchPurchases = async () => {
       try {
-        const purchasesData = await paymentService.getPurchases();
-        const items = Array.isArray(purchasesData?.data) ? purchasesData.data : 
-                      (Array.isArray(purchasesData) ? purchasesData : []);
+        // getPurchases returns the array itself now. The old guard tested
+        // Array.isArray(body.data), but `data` is the {purchases,pagination}
+        // OBJECT, so it never matched and purchases silently came back empty.
+        const items = await paymentService.getPurchases();
         // Safely extract movie IDs based on potential structures
         const ids = items.map(p => String(p.movie_id || p.movieId || p.movie?.id || p.id));
         setPurchasedMovies(ids);

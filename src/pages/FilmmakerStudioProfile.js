@@ -5,6 +5,7 @@
  *         and stored locally; backend accepts first_name + last_name confirmed).
  */
 import React, { useState, useRef, useEffect } from 'react';
+import { initialsAvatar } from '../utils/imageFallbacks';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getFilmmakerMovies } from '../services/movieService';
@@ -16,8 +17,6 @@ import {
 } from 'react-icons/fa';
 import './FilmmakerStudioProfile.css';
 
-const DEFAULT_AVATAR =
-  'https://ui-avatars.com/api/?background=D06224&color=fff&size=128&name=';
 
 export default function FilmmakerStudioProfile() {
   const { user, updateProfile, changePassword, logout, loading, uploadAvatar } = useAuth();
@@ -67,7 +66,7 @@ export default function FilmmakerStudioProfile() {
 
   const avatarSrc =
     user?.avatar ||
-    `${DEFAULT_AVATAR}${encodeURIComponent(displayName)}`;
+    initialsAvatar(displayName);
 
   const totalMovies    = loadingCount ? '...' : movieCount;
   const followersCount = user?.followersCount ?? user?.followers_count ?? 0;
@@ -201,7 +200,7 @@ export default function FilmmakerStudioProfile() {
             alt={displayName}
             className="fsp-avatar-img"
             onError={(e) => {
-              e.target.src = `${DEFAULT_AVATAR}${encodeURIComponent(displayName)}`;
+              e.target.src = initialsAvatar(displayName);
             }}
           />
           {isEditing && (

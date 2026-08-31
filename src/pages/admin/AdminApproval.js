@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { POSTER_FALLBACK, onImageError } from '../../utils/imageFallbacks';
 import { FaCheck, FaTimes, FaEdit, FaClock, FaFilm, FaExclamationTriangle, FaSearch } from 'react-icons/fa';
 import {
   getApprovalStats,
@@ -216,7 +217,7 @@ const AdminApproval = () => {
               {/* Poster */}
               <div className="aa-item-poster">
                 {item.poster ? (
-                  <img src={item.poster} alt={item.title} loading="lazy" />
+                  <img src={item.poster} alt={item.title} loading="lazy" onError={onImageError(POSTER_FALLBACK)} />
                 ) : (
                   <div className="aa-item-poster-placeholder">
                     <FaFilm />

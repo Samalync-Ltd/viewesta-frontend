@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { BACKDROP_FALLBACK, POSTER_FALLBACK, onImageError } from '../utils/imageFallbacks';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { FaPlay, FaHeart, FaStar, FaClock, FaCalendar, FaShareAlt } from 'react-icons/fa';
 import { useMovies } from '../context/MovieContext';
@@ -248,7 +249,15 @@ const MovieDetail = () => {
     // Filmmakers should ALWAYS be able to watch THEIR OWN uploaded movies
     // without payment flow, subscription requirement, or unlock modal.
     const isFilmmaker = String(user.id) === String(movie.filmmakerId || movie.raw?.filmmaker_id);
-    const monetizationType = movie.raw?.monetization_type || movie.monetization_type || 'both';
+    // access_type is the real field ('ppv_only' | 'ppv_and_subscription');
+    // monetization_type is returned by no endpoint (verified live 2026-08-31),
+    // so this used to default to 'both' on every title and let a subscriber
+    // stream ppv_only films they were supposed to buy.
+    const accessType =
+      movie.access_type || movie.raw?.access_type || movie.raw?.monetization_type || null;
+    // Subscription grants access only when the title is actually included in
+    // one. Unknown access_type stays conservative: purchase required.
+    const subscriptionCovers = accessType === 'ppv_and_subscription';
     const isSubscribed = user?.subscription?.active;
     
     // Check local expiry if purchased
@@ -256,7 +265,7 @@ const MovieDetail = () => {
     const isExpired = isPurchased && ppvExpiry && Date.now() >= ppvExpiry;
     const hasValidPurchase = isPurchased && !isExpired;
     
-    if (isFilmmaker || hasValidPurchase || (isSubscribed && (monetizationType === 'both' || monetizationType === 'subscription'))) {
+    if (isFilmmaker || hasValidPurchase || (isSubscribed && subscriptionCovers)) {
       // Authorized user bypass: navigate directly to Watch.js
       addToDownloads(movie.id);
       sessionStorage.setItem(`playback_auth_${movie.id}`, 'true');
@@ -264,7 +273,9 @@ const MovieDetail = () => {
       return;
     }
 
-    if (monetizationType === 'subscription') {
+    // is_purchasable comes straight from the API rather than being inferred
+    // from pricing shape; a title that cannot be bought has no quality to pick.
+    if (movie.is_purchasable === false) {
       setSelectedQuality('');
     } else {
       setSelectedQuality(Object.keys(movie.price || {})[0] || '1080p');
@@ -450,14 +461,14 @@ const MovieDetail = () => {
       <div className="movie-hero">
         {movie.title !== 'Interstellar' && (
           <div className="movie-backdrop">
-            <img src={movie.backdrop} alt={movie.title} />
+            <img src={movie.backdrop} alt={movie.title} onError={onImageError(BACKDROP_FALLBACK)} />
             <div className="backdrop-overlay"></div>
           </div>
         )}
         
         <div className="movie-hero-content">
           <div className="movie-poster">
-            <img src={movie.poster} alt={movie.title} />
+            <img src={movie.poster} alt={movie.title} onError={onImageError(POSTER_FALLBACK)} />
           </div>
           
           <div className="movie-info">

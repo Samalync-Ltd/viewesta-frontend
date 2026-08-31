@@ -6,14 +6,19 @@
  */
 
 import client from '../api/client';
+import { unwrapList } from '../api/unwrap';
 
 /**
  * Fetch the current user's purchased movies.
  * @returns {Array} Array of purchased movie objects or IDs
  */
 export async function getPurchases() {
-  const { data } = await client.get('/payments/purchases');
-  return data;
+  const res = await client.get('/payments/purchases');
+  // {data:{purchases:[...],pagination:{...}}}. The caller tested
+  // Array.isArray(body.data) -- which is the OBJECT, not the list -- so it
+  // always fell through to an empty array and a user who had paid for a movie
+  // still saw the paywall. Returns the array directly now, matching the JSDoc.
+  return unwrapList(res.data, 'purchases');
 }
 
 /**

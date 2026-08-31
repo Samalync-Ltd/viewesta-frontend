@@ -70,13 +70,23 @@ export const AuthProvider = ({ children }) => {
       const fetchedUser = res.data?.data?.user || res.data?.data || res.data?.user || res.data;
       
       try {
-        const subRes = await getMySubscription();
-        const subData = subRes?.data?.subscription || subRes?.data || subRes?.subscription || subRes;
+        // getMySubscription now returns the active_subscription record itself
+        // (or null), unwrapped from the envelope. It used to return the whole
+        // {success,message,data} body, so none of the flags below were ever
+        // found on it and every subscriber was treated as inactive.
+        const subData = await getMySubscription();
         if (subData) {
           fetchedUser.subscription = {
-            active: subData.status === 'active' || subData.active === true || subData.is_active === true,
-            ...subData
+            ...subData,
+            // Real records carry is_active (verified live 2026-08-31); the
+            // other two are kept for forward compatibility.
+            active:
+              subData.is_active === true ||
+              subData.active === true ||
+              subData.status === 'active',
           };
+        } else {
+          fetchedUser.subscription = null;
         }
       } catch (subErr) {
         console.log('Could not fetch subscription:', subErr.message);

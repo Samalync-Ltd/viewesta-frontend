@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { POSTER_FALLBACK, onImageError } from '../utils/imageFallbacks';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
@@ -173,7 +174,7 @@ export default function EarningsDetail() {
                 return (
                   <div key={movie.id} className="earnings-table-row">
                     <div className="earnings-film-cell">
-                      <img src={movie.poster} alt={movie.title} className="earnings-film-poster" />
+                      <img src={movie.poster} alt={movie.title} className="earnings-film-poster" onError={onImageError(POSTER_FALLBACK)} />
                       <div>
                         <div className="earnings-film-title">{movie.title}</div>
                         <div className="earnings-film-status">{movie.status || movie.approval_status || 'pending'}</div>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { BACKDROP_FALLBACK, POSTER_FALLBACK, onImageError } from '../utils/imageFallbacks';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   FaPlay, FaHeart, FaStar, FaClock, FaCalendar,
@@ -273,12 +274,12 @@ const SeriesDetail = () => {
       {/* Hero */}
       <div className="series-hero">
         <div className="series-backdrop">
-          <img src={seriesData.backdrop} alt={seriesData.title} />
+          <img src={seriesData.backdrop} alt={seriesData.title} onError={onImageError(BACKDROP_FALLBACK)} />
           <div className="backdrop-overlay" />
         </div>
         <div className="series-hero-content">
           <div className="series-poster">
-            <img src={seriesData.poster} alt={seriesData.title} />
+            <img src={seriesData.poster} alt={seriesData.title} onError={onImageError(POSTER_FALLBACK)} />
           </div>
           <div className="series-info">
             <h1 className="series-title">{seriesData.title}</h1>
@@ -305,7 +306,7 @@ const SeriesDetail = () => {
             <div className="series-details">
               <div className="detail-item"><strong>Creator:</strong> {seriesData.director || seriesData.creator || 'Unknown'}</div>
               <div className="detail-item"><strong>Cast:</strong> {Array.isArray(seriesData.cast) ? seriesData.cast.join(', ') : '—'}</div>
-              <div className="detail-item"><strong>Premiered:</strong> {seriesData.raw?.release_date || seriesData.year || '—'}</div>
+              <div className="detail-item"><strong>Premiered:</strong> {seriesData.raw?.release_year || seriesData.raw?.release_date || seriesData.year || '—'}</div>
               <div className="detail-item"><strong>Seasons:</strong> {seriesData.seasons?.length || '—'}</div>
               {totalEpisodes > 0 && <div className="detail-item"><strong>Episodes:</strong> {totalEpisodes}</div>}
             </div>
