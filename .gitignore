@@ -13,6 +13,10 @@
 
 # misc
 .DS_Store
+# Plain .env holds real API config and is NOT covered by the .env*.local
+# patterns below, which is what left it one `git add -A` away from being
+# committed. Ignored explicitly.
+.env
 .env.local
 .env.development.local
 .env.test.local
