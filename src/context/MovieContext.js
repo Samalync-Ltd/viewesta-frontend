@@ -110,8 +110,11 @@ export const MovieProvider = ({ children }) => {
         // Array.isArray(body.data), but `data` is the {purchases,pagination}
         // OBJECT, so it never matched and purchases silently came back empty.
         const items = await paymentService.getPurchases();
-        // Safely extract movie IDs based on potential structures
-        const ids = items.map(p => String(p.movie_id || p.movieId || p.movie?.id || p.id));
+        // Safely extract movie IDs based on potential structures, supporting flat arrays
+        const ids = items.map(p => {
+          if (typeof p === 'string' || typeof p === 'number') return String(p);
+          return String(p?.movie_id || p?.movieId || p?.movie?.id || p?.id);
+        }).filter(id => id && id !== 'undefined' && id !== 'null');
         setPurchasedMovies(ids);
       } catch (err) {
         console.error('Failed to load purchases:', err);

@@ -30,7 +30,7 @@ export async function getWallet() {
  * @param {{ amount: number, payment_method?: string }} payload
  * @returns {{ balance: number, transaction: object }}
  */
-export async function topUpWallet({ amount, payment_provider = 'flutterwave', payment_method = 'card' }) {
+export async function topUpWallet({ amount, payment_provider = 'pesapal', payment_method = 'card' }) {
   const res = await client.post('/wallet/topup', { amount, payment_provider, payment_method });
   return unwrapData(res.data);
 }
