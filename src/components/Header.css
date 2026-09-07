@@ -688,7 +688,12 @@
 @media (max-width: 768px) {
   .header-container {
     padding: 0 15px;
-    justify-content: space-between;
+    /* Not space-between: with 3 in-flow items (menu, search, and — only
+       when logged in — the notification bell) that always centers the
+       middle one on top of the absolutely-centered logo. flex-start +
+       margin-left:auto on the search button pins menu left and pushes
+       search/bell to the right edge regardless of how many icons show. */
+    justify-content: flex-start;
     position: relative;
   }
 
@@ -729,6 +734,8 @@
     cursor: pointer;
     padding: 8px;
     z-index: 1001;
+    order: 1;
+    margin-left: auto;
   }
 
   /* Mobile Menu Overlay */
@@ -878,6 +885,7 @@
 @media (max-width: 768px) {
   .mobile-notification-bell {
     display: flex;
+    order: 2;
   }
 }
 
