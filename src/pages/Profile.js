@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useMovies } from '../context/MovieContext';
@@ -16,8 +16,12 @@ import {
   FaCheckCircle,
   FaBell,
   FaBellSlash,
+  FaReceipt,
+  FaSpinner,
+  FaExclamationTriangle,
 } from 'react-icons/fa';
 import MovieCard from '../components/MovieCard';
+import { getPurchases } from '../services/paymentService';
 import './Profile.css';
 
 const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?background=D06224&color=fff&size=128&name=';
@@ -45,6 +49,32 @@ const Profile = () => {
   const [saveError, setSaveError] = useState('');
   const [avatarFile, setAvatarFile] = useState(null);
   const fileRef = useRef(null);
+
+  const [purchases, setPurchases] = useState([]);
+  const [purchasesLoading, setPurchasesLoading] = useState(true);
+  const [purchasesError, setPurchasesError] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    setPurchasesLoading(true);
+    setPurchasesError('');
+    getPurchases()
+      .then((data) => {
+        if (cancelled) return;
+        // Confirmed real shape: { data: { purchases: [...] } }
+        const items = Array.isArray(data?.data?.purchases) ? data.data.purchases
+          : Array.isArray(data?.data) ? data.data
+          : Array.isArray(data) ? data
+          : [];
+        setPurchases(items);
+      })
+      .catch((err) => {
+        if (!cancelled) setPurchasesError(err?.message || 'Failed to load purchase history.');
+      })
+      .finally(() => { if (!cancelled) setPurchasesLoading(false); });
+    return () => { cancelled = true; };
+  }, [user]);
 
   const watchlistMovies = watchlist.map((id) => getMovieById(id)).filter(Boolean);
   const watchHistory = (user?.watchHistory || []).slice(0, 6);
@@ -369,6 +399,48 @@ const Profile = () => {
               </div>
               <Link to="/wallet" className="btn btn-primary">Top Up</Link>
             </div>
+          </div>
+
+          {/* ── Purchase History ── */}
+          <div className="profile-section">
+            <h2 className="section-title"><FaReceipt /> Purchase History</h2>
+            <p className="section-desc">Movies and rentals you've paid for.</p>
+            {purchasesLoading ? (
+              <div className="purchase-loading"><FaSpinner className="spin-icon" /> Loading purchases…</div>
+            ) : purchasesError ? (
+              <div className="profile-empty-state">
+                <FaExclamationTriangle className="empty-icon" />
+                <p>{purchasesError}</p>
+              </div>
+            ) : purchases.length === 0 ? (
+              <div className="profile-empty-state">
+                <FaReceipt className="empty-icon" />
+                <p>No purchases yet.</p>
+                <Link to="/movies" className="btn btn-outline btn-small">Browse Movies</Link>
+              </div>
+            ) : (
+              <div className="purchase-list">
+                {purchases.map((p, idx) => {
+                  const isActive = p.is_active !== false && (!p.access_expires_at || new Date(p.access_expires_at) > new Date());
+                  const price = Number(p.price_paid ?? 0);
+                  const date = p.created_at ? new Date(p.created_at).toLocaleDateString() : '';
+                  return (
+                    <div key={p.id ?? idx} className="purchase-item">
+                      <div className="purchase-info">
+                        <span className="purchase-title">{p.movie_title || 'Unknown title'}</span>
+                        <span className="purchase-meta">{p.quality ? `${p.quality} · ` : ''}{date}</span>
+                      </div>
+                      <div className="purchase-right">
+                        <span className="purchase-price">{price > 0 ? `$${price.toFixed(2)}` : 'Free'}</span>
+                        <span className={`status ${isActive ? 'active' : 'inactive'}`}>
+                          {isActive ? 'Active' : 'Expired'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* ── Subscription ── */}

@@ -312,6 +312,65 @@
   color: #737373;
 }
 
+/* ── Purchase History ── */
+.purchase-loading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #a3a3a3;
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+.purchase-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.purchase-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  flex-wrap: wrap;
+}
+
+.purchase-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.purchase-title {
+  color: #fafafa;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.purchase-meta {
+  color: #737373;
+  font-size: 13px;
+}
+
+.purchase-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.purchase-price {
+  color: #fafafa;
+  font-weight: 600;
+  font-size: 15px;
+}
+
 /* ── Subscription ── */
 .subscription-info {
   display: flex;
