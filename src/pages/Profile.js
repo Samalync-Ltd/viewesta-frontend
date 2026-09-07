@@ -122,13 +122,24 @@ const Profile = () => {
       preferences: { quality: qualityPref, notifications: notifPref },
     };
     const result = await updateProfile(updates);
-    
+
     let pwSuccess = true;
-    if (currentPassword && newPassword) {
-      const pwResult = await changePassword(currentPassword, newPassword);
-      if (!pwResult.success) {
+    if (currentPassword || newPassword) {
+      if (!currentPassword || !newPassword) {
         pwSuccess = false;
-        setSaveError(pwResult.error || 'Failed to change password.');
+        setSaveError('Enter both your current and new password to change it.');
+      } else if (newPassword.length < 6) {
+        pwSuccess = false;
+        setSaveError('New password must be at least 6 characters.');
+      } else {
+        const pwResult = await changePassword(currentPassword, newPassword);
+        if (!pwResult.success) {
+          pwSuccess = false;
+          setSaveError(pwResult.error || 'Failed to change password.');
+        } else {
+          setCurrentPassword('');
+          setNewPassword('');
+        }
       }
     }
 
