@@ -14,6 +14,59 @@ import client from '../api/client';
 // ─── Video Files ──────────────────────────────────────────────────────────────
 
 /**
+ * Turn a failed video-files request into an error carrying a `.reason` code,
+ * so callers can show a message that matches what actually happened instead
+ * of collapsing every failure into "the filmmaker hasn't uploaded a file yet".
+ * Live-verified response shapes:
+ *   403 + data.requires_purchase -> access_denied ("Access denied. Please purchase this movie or subscribe.")
+ *   401 -> unauthenticated
+ *   404 -> not_found ("Movie not found")
+ *   no response at all -> network
+ *   5xx -> server
+ */
+function categorizeVideoError(err) {
+  const status = err?.response?.status;
+  const body = err?.response?.data;
+  const wrapped = new Error(body?.message || err?.message || 'Failed to load video');
+  if (!status) {
+    wrapped.reason = 'network';
+  } else if (status === 401) {
+    wrapped.reason = 'unauthenticated';
+  } else if (status === 403) {
+    wrapped.reason = body?.data?.requires_purchase ? 'access_denied' : 'forbidden';
+  } else if (status === 404) {
+    wrapped.reason = 'not_found';
+  } else if (status >= 500) {
+    wrapped.reason = 'server';
+  } else {
+    wrapped.reason = 'unknown';
+  }
+  return wrapped;
+}
+
+/**
+ * Map a categorized video error to a message safe to show a viewer —
+ * distinct from the "no files uploaded yet" case, which is a successful
+ * response with an empty array, not an error at all.
+ */
+export function videoErrorMessage(err) {
+  switch (err?.reason) {
+    case 'access_denied':
+      return 'You need to purchase this title or have an active subscription to watch it.';
+    case 'unauthenticated':
+      return 'Please log in to watch this.';
+    case 'not_found':
+      return 'This title is no longer available.';
+    case 'network':
+      return 'Unable to connect. Please check your internet connection and try again.';
+    case 'server':
+      return "Something went wrong on our end. Please try again in a moment.";
+    default:
+      return 'Unable to load this video right now. Please try again.';
+  }
+}
+
+/**
  * Fetch all video files for a movie.
  * Returns an array of { quality, file_url, duration_seconds, is_processed }
  * GET /movies/:movieId/video-files
@@ -34,7 +87,7 @@ export async function getMovieVideoFiles(movieId) {
     return [];
   } catch (err) {
     console.error(`getMovieVideoFiles(${movieId}):`, err?.message);
-    return [];
+    throw categorizeVideoError(err);
   }
 }
 
@@ -85,7 +138,7 @@ export async function getEpisodeVideoFiles(episodeId) {
     return [];
   } catch (err) {
     console.error(`getEpisodeVideoFiles(${episodeId}):`, err?.message);
-    return [];
+    throw categorizeVideoError(err);
   }
 }
 

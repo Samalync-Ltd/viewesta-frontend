@@ -4,7 +4,7 @@ import { FaStar, FaCalendar, FaClock, FaArrowLeft } from 'react-icons/fa';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
 import * as movieService from '../services/movieService';
-import { getMovieVideoFiles, buildSourcesMap, pickBestSource, updateMovieProgress } from '../services/videoService';
+import { getMovieVideoFiles, buildSourcesMap, pickBestSource, updateMovieProgress, videoErrorMessage } from '../services/videoService';
 import VideoPlayer from '../components/VideoPlayer';
 import './Watch.css';
 
@@ -19,10 +19,12 @@ const Watch = () => {
   const [movie, setMovie] = useState(() => getMovieById(id));
   const [isFetching, setIsFetching] = useState(false);
   const [movieError, setMovieError] = useState('');
+  const [needsAccess, setNeedsAccess] = useState(false);
 
   // Video sources from backend video-files API
   const [sourcesMap, setSourcesMap] = useState({});
   const [sourcesLoading, setSourcesLoading] = useState(true);
+  const [sourcesError, setSourcesError] = useState('');
 
   // ─── Authorization Check ───────────────────────────────────────────────
   const checkAuthorization = useCallback((m) => {
@@ -81,8 +83,10 @@ const Watch = () => {
       const authorized = checkAuthorization(movie);
       setIsAuthorized(authorized);
       if (!authorized) {
-         setMovieError('Unauthorized playback session. Please initiate playback from the movie details page.');
+         setNeedsAccess(true);
+         setMovieError('You need to purchase this title or have an active subscription to watch it.');
       } else {
+         setNeedsAccess(false);
          setMovieError('');
       }
     }
@@ -99,6 +103,7 @@ const Watch = () => {
     let active = true;
     (async () => {
       setSourcesLoading(true);
+      setSourcesError('');
       console.log(`[Watch] Fetching dynamic signed URLs for movie ${id}...`);
       try {
         const files = await getMovieVideoFiles(id);
@@ -108,11 +113,12 @@ const Watch = () => {
         }
       } catch (err) {
         console.error('[Watch] Error fetching signed URLs:', err);
+        if (active) setSourcesError(videoErrorMessage(err));
       } finally {
         if (active) setSourcesLoading(false);
       }
     })();
-    return () => { 
+    return () => {
       active = false;
       setSourcesMap({}); // Clear sources immediately on unmount
     };
@@ -124,9 +130,11 @@ const Watch = () => {
       try {
         const files = await getMovieVideoFiles(id);
         setSourcesMap(buildSourcesMap(files));
+        setSourcesError('');
         console.log('[Watch] Refreshed signed URLs successfully.');
       } catch (err) {
         console.error('[Watch] Failed to refresh signed URLs:', err);
+        setSourcesError(videoErrorMessage(err));
       }
     })();
   }, [id]);
@@ -157,9 +165,14 @@ const Watch = () => {
   if (movieError || !movie) {
     return (
       <div className="watch-not-found">
-        <h2>Movie not found</h2>
+        <h2>{needsAccess ? 'Purchase or subscribe to watch' : 'Movie not found'}</h2>
         <p>{movieError || "The movie you're looking for doesn't exist."}</p>
-        <button onClick={() => navigate('/')} className="btn btn-primary">Go Home</button>
+        <button
+          onClick={() => navigate(needsAccess ? `/movie/${id}` : '/')}
+          className="btn btn-primary"
+        >
+          {needsAccess ? 'View movie details' : 'Go Home'}
+        </button>
       </div>
     );
   }
@@ -186,6 +199,9 @@ const Watch = () => {
           poster={movie.backdrop || movie.poster}
           onRequestRefresh={handleRefreshSource}
           onProgress={handleProgress}
+          {...(sourcesError
+            ? { emptyTitle: sourcesError, emptySubtitle: 'Try refreshing the page in a moment.' }
+            : {})}
           onEnded={() => {
             // Track completion
             if (user && id) {

@@ -7,7 +7,7 @@ import {
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
 import * as seriesService from '../services/seriesService';
-import { getEpisodeVideoFiles, buildSourcesMap, pickBestSource } from '../services/videoService';
+import { getEpisodeVideoFiles, buildSourcesMap, pickBestSource, videoErrorMessage } from '../services/videoService';
 import MovieCard from '../components/MovieCard';
 import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
@@ -34,6 +34,7 @@ const SeriesDetail = () => {
   const [watchEpisode, setWatchEpisode] = useState(null); // { season, episode, seasonIdx, episodeIdx }
   const [episodeSources, setEpisodeSources] = useState({});
   const [episodeSourcesLoading, setEpisodeSourcesLoading] = useState(false);
+  const [episodeSourcesError, setEpisodeSourcesError] = useState('');
 
   // ─── Fetch series data ──────────────────────────────────────────────────────
   const fetchSeriesDetail = useCallback(async () => {
@@ -96,6 +97,7 @@ const SeriesDetail = () => {
     (async () => {
       setEpisodeSourcesLoading(true);
       setEpisodeSources({});
+      setEpisodeSourcesError('');
       console.log(`[SeriesDetail] Fetching dynamic signed URLs for episode ${watchEpisode.episode.id}...`);
       try {
         const files = await getEpisodeVideoFiles(watchEpisode.episode.id);
@@ -105,11 +107,12 @@ const SeriesDetail = () => {
         }
       } catch (err) {
         console.error('[SeriesDetail] Error fetching signed URLs:', err);
-      } finally { 
-        if (active) setEpisodeSourcesLoading(false); 
+        if (active) setEpisodeSourcesError(videoErrorMessage(err));
+      } finally {
+        if (active) setEpisodeSourcesLoading(false);
       }
     })();
-    return () => { 
+    return () => {
       active = false;
       setEpisodeSources({}); // Cleanup on unmount or episode change
     };
@@ -122,9 +125,11 @@ const SeriesDetail = () => {
       try {
         const files = await getEpisodeVideoFiles(watchEpisode.episode.id);
         setEpisodeSources(buildSourcesMap(files));
+        setEpisodeSourcesError('');
         console.log('[SeriesDetail] Refreshed signed URLs successfully.');
       } catch (err) {
         console.error('[SeriesDetail] Failed to refresh signed URLs:', err);
+        setEpisodeSourcesError(videoErrorMessage(err));
       }
     })();
   }, [watchEpisode]);
@@ -481,6 +486,9 @@ const SeriesDetail = () => {
                   poster={seriesData.backdrop || seriesData.poster}
                   onRequestRefresh={handleRefreshSource}
                   onEnded={handleAutoplayNext}
+                  {...(episodeSourcesError
+                    ? { emptyTitle: episodeSourcesError, emptySubtitle: 'Try refreshing the page in a moment.' }
+                    : {})}
                 />
               </div>
             )}

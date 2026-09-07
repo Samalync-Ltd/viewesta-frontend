@@ -53,6 +53,8 @@ const VideoPlayer = ({
   onProgress,
   drmConfig = null,
   onRequestRefresh,
+  emptyTitle = 'No video source available for this title yet.',
+  emptySubtitle = 'The filmmaker may not have uploaded a video file yet.',
 }) => {
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
@@ -366,8 +368,8 @@ const VideoPlayer = ({
         <div className="video-wrapper" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 360, background: '#111', borderRadius: 12 }}>
           <div style={{ textAlign: 'center', color: '#888' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🎬</div>
-            <p style={{ margin: 0 }}>No video source available for this title yet.</p>
-            <p style={{ fontSize: 13, color: '#555', marginTop: 6 }}>The filmmaker may not have uploaded a video file yet.</p>
+            <p style={{ margin: 0 }}>{emptyTitle}</p>
+            <p style={{ fontSize: 13, color: '#555', marginTop: 6 }}>{emptySubtitle}</p>
           </div>
         </div>
       </div>
