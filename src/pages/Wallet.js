@@ -13,7 +13,7 @@ import {
   FaSpinner,
   FaExclamationTriangle,
 } from 'react-icons/fa';
-import { getWallet, topUpWallet } from '../services/walletService';
+import { getWallet, getWalletTransactions, topUpWallet } from '../services/walletService';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
 import './Wallet.css';
 
@@ -22,6 +22,15 @@ const TxIcon = ({ type }) => (
     {type === 'topup' ? <FaArrowUp /> : <FaFilm />}
   </div>
 );
+
+const CREDIT_TRANSACTION_TYPES = ['wallet_topup', 'refund'];
+
+// Wallet transactions always report a positive magnitude in `amount` — direction
+// (credit vs debit) comes from `transaction_type`, not the sign of the amount.
+function isCreditTransaction(tx) {
+  if (tx.transaction_type) return CREDIT_TRANSACTION_TYPES.includes(tx.transaction_type);
+  return tx.positive ?? tx.amount > 0;
+}
 
 const Wallet = () => {
   const { user } = useAuth();
@@ -58,8 +67,11 @@ const Wallet = () => {
     setWalletLoading(true);
     setWalletError('');
     try {
-      const data = await getWallet();
-      setWalletData(data);
+      const [wallet, txResult] = await Promise.all([
+        getWallet(),
+        getWalletTransactions({ limit: 20, offset: 0 }),
+      ]);
+      setWalletData({ ...wallet, transactions: txResult.transactions });
     } catch (err) {
       setWalletError(
         err?.response?.data?.message ||
@@ -148,10 +160,10 @@ const Wallet = () => {
   const balance      = Number(walletData?.balance ?? 0);
   const transactions = walletData?.transactions ?? [];
   const currency     = walletData?.currency ?? 'USD';
-  const spent        = transactions.filter((t) => !t.positive && t.amount < 0)
-                                   .reduce((s, t) => s + Math.abs(t.amount), 0);
-  const topped       = transactions.filter((t) => t.positive || t.amount > 0)
-                                   .reduce((s, t) => s + Math.abs(t.amount), 0);
+  const spent        = transactions.filter((t) => !isCreditTransaction(t))
+                                   .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0);
+  const topped       = transactions.filter((t) => isCreditTransaction(t))
+                                   .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0);
 
   if (!user) {
     return (
@@ -342,9 +354,9 @@ const Wallet = () => {
             ) : (
               <div className="transaction-list">
                 {transactions.map((tx, idx) => {
-                  const isPositive = tx.positive ?? tx.amount > 0;
+                  const isPositive = isCreditTransaction(tx);
                   const type       = isPositive ? 'topup' : 'movie';
-                  const label      = tx.label ?? tx.description ?? tx.type ?? 'Transaction';
+                  const label      = tx.label ?? tx.description ?? tx.transaction_type ?? 'Transaction';
                   const date       = tx.date  ?? tx.created_at
                     ? new Date(tx.date ?? tx.created_at).toLocaleString()
                     : '';

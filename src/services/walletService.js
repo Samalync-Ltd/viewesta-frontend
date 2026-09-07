@@ -1,36 +1,49 @@
 /**
  * Wallet service — backend-connected.
- * GET  /wallet          → fetch balance + transactions
- * POST /wallet/topup    → add funds to wallet
+ * GET  /wallet               → { data: { wallet: { balance, currency, user_id } } }
+ * GET  /wallet/balance       → { data: { balance, currency } }
+ * GET  /wallet/transactions  → { data: { transactions: [...], pagination } }
+ * POST /wallet/topup         → add funds to wallet
+ *
+ * Response shapes above are confirmed against the live production API —
+ * /wallet does NOT embed transactions, they're a separate paginated resource.
  */
 
 import client from '../api/client';
 
 function normalizeWalletPayload(payload) {
-  const root = payload?.data ?? payload ?? {};
-  const balance = Number(root.balance ?? root.wallet_balance ?? root.available_balance ?? 0);
-  const currency = root.currency || root.currency_code || 'USD';
-  const transactions = Array.isArray(root.transactions)
-    ? root.transactions
-    : Array.isArray(root.items)
-      ? root.items
-      : [];
+  const root = payload?.data?.wallet ?? payload?.data ?? payload ?? {};
+  const balance = Number(root.balance ?? 0);
+  const currency = root.currency || 'USD';
 
   return {
     ...root,
     balance,
     currency,
-    transactions,
   };
 }
 
 /**
- * Fetch the current user's wallet (balance + transactions).
- * @returns {{ balance: number, currency: string, transactions: Array }}
+ * Fetch the current user's wallet (balance + currency). Does NOT include transactions.
+ * @returns {{ balance: number, currency: string }}
  */
 export async function getWallet() {
   const { data } = await client.get('/wallet');
   return normalizeWalletPayload(data);
+}
+
+/**
+ * Fetch the current user's wallet transaction history (paginated).
+ * @param {{ limit?: number, offset?: number }} params
+ * @returns {{ transactions: Array, pagination: { limit, offset, count } }}
+ */
+export async function getWalletTransactions({ limit = 20, offset = 0 } = {}) {
+  const { data } = await client.get('/wallet/transactions', { params: { limit, offset } });
+  const root = data?.data ?? data ?? {};
+  return {
+    transactions: Array.isArray(root.transactions) ? root.transactions : [],
+    pagination: root.pagination || { limit, offset, count: 0 },
+  };
 }
 
 /**

@@ -349,7 +349,7 @@ const Profile = () => {
           <div className="pstat-divider" />
           <div className="pstat">
             <span className="pstat-value" style={{ color: '#22c55e' }}>
-              ${Number(user.wallet?.balance ?? 0).toFixed(0)}
+              ${Number(user.wallet_balance ?? 0).toFixed(0)}
             </span>
             <span className="pstat-label">Balance</span>
           </div>
@@ -363,9 +363,9 @@ const Profile = () => {
             <div className="wallet-info">
               <div className="balance">
                 <span className="amount" style={{ color: '#22c55e' }}>
-                  ${Number(user.wallet?.balance ?? 0).toFixed(2)}
+                  ${Number(user.wallet_balance ?? 0).toFixed(2)}
                 </span>
-                <span className="currency">{user.wallet?.currency || 'USD'}</span>
+                <span className="currency">{user.currency || 'USD'}</span>
               </div>
               <Link to="/wallet" className="btn btn-primary">Top Up</Link>
             </div>
