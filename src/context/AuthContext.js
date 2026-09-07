@@ -130,12 +130,27 @@ const login = async (email, password) => {
     return { success: true, user };
 
   } catch (err) {
-    const safeMessage =
-      err.message?.toLowerCase().includes('password')
-        ? 'Invalid email or password'
-        : err.message?.toLowerCase().includes('email')
-        ? 'Invalid email'
-        : 'Something went wrong, please try again';
+    // Map by HTTP status rather than string-matching the backend message —
+    // the backend's invalid-credentials message is "Invalid credentials",
+    // which contains neither "password" nor "email".
+    let safeMessage;
+
+    if (!err.status) {
+      // apiClient only sets `status` from error.response.status, so this
+      // branch is a network failure / timeout, not an auth failure.
+      safeMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+    } else if (err.status === 401) {
+      safeMessage = 'Invalid email or password.';
+    } else if (err.status === 400) {
+      const details = err.data?.error?.details;
+      safeMessage = Array.isArray(details) && details.length > 0
+        ? details.map((d) => d.message?.replace(/"/g, '')).join(' ')
+        : 'Please enter a valid email and password.';
+    } else if (err.status >= 500) {
+      safeMessage = 'Server error. Please try again later.';
+    } else {
+      safeMessage = 'Something went wrong, please try again.';
+    }
 
     return {
       success: false,
