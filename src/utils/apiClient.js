@@ -102,6 +102,12 @@ export const updateUserProfile = (data) =>
 export const changePassword = (data) =>
   put('/auth/change-password', data);
 
+export const requestPasswordReset = (data) =>
+  post('/auth/request-reset', data);
+
+export const resetPassword = (data) =>
+  post('/auth/reset', data);
+
 export const getAvatarUploadUrl = (data) =>
   post('/auth/profile/avatar/upload-url', data);
 
