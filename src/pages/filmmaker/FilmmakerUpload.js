@@ -24,12 +24,12 @@ const GENRES = [
 ];
 
 const AGE_RATINGS = {
-  'G':    { description: 'General audiences â€” all ages admitted.' },
-  'PG':   { description: 'Parental guidance suggested â€” some material may not suit children.' },
-  'PG-13':{ description: 'Parents strongly cautioned â€” some material may be inappropriate for children under 13.' },
-  'R':    { description: 'Restricted â€” under 17 requires accompanying parent or guardian.' },
+  'G':    { description: 'General audiences — all ages admitted.' },
+  'PG':   { description: 'Parental guidance suggested — some material may not suit children.' },
+  'PG-13':{ description: 'Parents strongly cautioned — some material may be inappropriate for children under 13.' },
+  'R':    { description: 'Restricted — under 17 requires accompanying parent or guardian.' },
   '16+':  { description: 'Suitable for viewers aged 16 and above.' },
-  '18+':  { description: 'Adults only â€” not suitable for viewers under 18.' },
+  '18+':  { description: 'Adults only — not suitable for viewers under 18.' },
 };
 
 const ROLE_OPTIONS = [
@@ -495,7 +495,7 @@ const FilmmakerUpload = () => {
         {step === 1 && (
           <div className="fu-step-content">
             <h2 className="fu-step-title">Content Information</h2>
-            <p className="fu-step-desc">Start with the basics â€” type, title, and key details.</p>
+            <p className="fu-step-desc">Start with the basics — type, title, and key details.</p>
 
             {/* Media Type */}
             <div className="fu-field">
@@ -680,7 +680,7 @@ const FilmmakerUpload = () => {
 
             <div className="fu-media-grid">
               <MediaUploadZone
-                label="Poster" required description="Vertical â€” 2:3 aspect ratio"
+                label="Poster" required description="Vertical — 2:3 aspect ratio"
                 accept="image/jpeg,image/png,image/webp" maxSizeMB={10} previewType="image"
                 name="poster" currentFile={form.poster_file} currentUrl={form.poster_url}
                 onFileChange={(f) => setField('poster_file', f)}
@@ -688,7 +688,7 @@ const FilmmakerUpload = () => {
                 error={errors.poster}
               />
               <MediaUploadZone
-                label="Cover Image" required description="Horizontal â€” 16:9 aspect ratio"
+                label="Cover Image" required description="Horizontal — 16:9 aspect ratio"
                 accept="image/jpeg,image/png,image/webp" maxSizeMB={15} previewType="image"
                 name="cover" currentFile={form.cover_file} currentUrl={form.cover_url}
                 onFileChange={(f) => setField('cover_file', f)}
@@ -801,20 +801,20 @@ const FilmmakerUpload = () => {
               </div>
               <div className="fu-review-row">
                 <span className="fu-review-label">Title</span>
-                <span className="fu-review-value">{form.title || 'â€”'}</span>
+                <span className="fu-review-value">{form.title || '—'}</span>
               </div>
               <div className="fu-review-row">
                 <span className="fu-review-label">Director</span>
-                <span className="fu-review-value">{form.director || 'â€”'}</span>
+                <span className="fu-review-value">{form.director || '—'}</span>
               </div>
               <div className="fu-review-row">
                 <span className="fu-review-label">Year</span>
-                <span className="fu-review-value">{form.year || 'â€”'}</span>
+                <span className="fu-review-value">{form.year || '—'}</span>
               </div>
               {form.mediaType !== MEDIA_TYPES.SERIES && (
                 <div className="fu-review-row">
                   <span className="fu-review-label">Duration</span>
-                  <span className="fu-review-value">{form.duration ? `${form.duration} min` : 'â€”'}</span>
+                  <span className="fu-review-value">{form.duration ? `${form.duration} min` : '—'}</span>
                 </div>
               )}
               <div className="fu-review-row">
@@ -822,12 +822,12 @@ const FilmmakerUpload = () => {
                 <span className="fu-review-value">
                   {form.age_rating
                     ? <AgeRatingBadge rating={form.age_rating} size="sm" showTooltip={false} />
-                    : 'â€”'}
+                    : '—'}
                 </span>
               </div>
               <div className="fu-review-row">
                 <span className="fu-review-label">Genres</span>
-                <span className="fu-review-value">{form.genres.join(', ') || 'â€”'}</span>
+                <span className="fu-review-value">{form.genres.join(', ') || '—'}</span>
               </div>
               <div className="fu-review-row">
                 <span className="fu-review-label">Cast</span>
@@ -837,7 +837,7 @@ const FilmmakerUpload = () => {
               {castPreview && (
                 <div className="fu-review-row">
                   <span className="fu-review-label">People</span>
-                  <span className="fu-review-value">{castPreview}{form.cast_crew.length > 6 ? 'â€¦' : ''}</span>
+                  <span className="fu-review-value">{castPreview}{form.cast_crew.length > 6 ? '…' : ''}</span>
                 </div>
               )}
             </div>
@@ -906,7 +906,7 @@ const FilmmakerUpload = () => {
               disabled={submitting}
               style={{ marginLeft: 'auto' }}
             >
-              {submitting ? 'Submittingâ€¦' : 'Submit for Review'}
+              {submitting ? 'Submitting…' : 'Submit for Review'}
             </button>
           )}
         </div>
