@@ -72,6 +72,9 @@ class UploadService {
         headers: {
           'Content-Type': file.type || 'application/octet-stream',
         },
+        // Large video files can legitimately take a while on slow connections —
+        // long enough to allow real progress, short enough to not hang forever.
+        timeout: 600000,
         onUploadProgress: (progressEvent) => {
           if (onProgress && progressEvent.total) {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);

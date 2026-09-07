@@ -13,6 +13,7 @@ const baseURL = `${normalizedApiBase}/api/${apiVersion}`;
 const client = axios.create({
   baseURL,
   headers: { 'Content-Type': 'application/json' },
+  timeout: 30000, // prevent requests from hanging forever with no error/success
 });
 
 client.interceptors.request.use((config) => {

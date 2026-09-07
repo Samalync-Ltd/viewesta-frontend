@@ -372,6 +372,8 @@ const FilmmakerUpload = () => {
          const createdMovie = await createMovie(payload);
          const movieId = createdMovie?.data?.movie?.id || createdMovie?.data?.id;
 
+         if (!movieId) throw new Error('Failed to get Movie ID from response.');
+
          // Attach full video file if one was uploaded
          if (movieId && videoData) {
            await addMovieVideoFile(movieId, {
