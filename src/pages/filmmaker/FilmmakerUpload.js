@@ -306,6 +306,7 @@ const FilmmakerUpload = () => {
              if (isDirect && episode.video_file) {
                const formData = new FormData();
                formData.append('video', episode.video_file);
+               formData.append('quality', '1080p');
                await addEpisodeVideoFile(episodeId, formData);
              }
            }

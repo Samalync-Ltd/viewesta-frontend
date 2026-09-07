@@ -196,9 +196,13 @@ export async function createEpisode(seasonId, payload) {
 
 export async function addEpisodeVideoFile(episodeId, payload, onUploadProgress) {
   try {
+    // This uploads the raw video file through the app server (not a presigned S3
+    // PUT like other assets), so it needs a much longer timeout than the client's
+    // default — a real video file can take a while to relay on a slow connection.
     const response = await client.post(`/episodes/${episodeId}/video-files`, payload, {
       onUploadProgress,
       headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 600000,
     });
     return response.data;
   } catch (err) {
