@@ -58,28 +58,33 @@ export const AuthProvider = ({ children }) => {
         setLoading(false);
         return;
       }
-      const res = await getCurrentUser();
+      // getMySubscription() only needs the auth token, not any field from
+      // getCurrentUser()'s response, so run them in parallel instead of
+      // awaiting one after the other — this was a needless 2-deep waterfall
+      // in front of every page's own data fetch.
+      const [res, subRes] = await Promise.all([
+        getCurrentUser(),
+        getMySubscription().catch((subErr) => {
+          console.log('Could not fetch subscription:', subErr.message);
+          return null;
+        }),
+      ]);
       const fetchedUser = res.data?.data?.user || res.data?.data || res.data?.user || res.data;
-      
-      try {
-        const subRes = await getMySubscription();
-        // Confirmed real shape: { success, data: { active_subscription, subscription_history } }
-        const activeSub = subRes?.data?.active_subscription || null;
-        fetchedUser.subscription = activeSub
-          ? {
-              ...activeSub,
-              status: activeSub.status || 'active',
-              active: activeSub.status ? activeSub.status === 'active' : true,
-              type: activeSub.plan_type || activeSub.type || activeSub.plan?.type || null,
-              planId: activeSub.plan_type || activeSub.plan_id || activeSub.id || activeSub.plan?.id || null,
-              expiresAt: activeSub.end_date || activeSub.expires_at || activeSub.expiresAt || null,
-              startedAt: activeSub.start_date || activeSub.started_at || null,
-              autoRenew: activeSub.auto_renew ?? activeSub.autoRenew ?? null,
-            }
-          : { active: false, status: 'none' };
-      } catch (subErr) {
-        console.log('Could not fetch subscription:', subErr.message);
-      }
+
+      // Confirmed real shape: { success, data: { active_subscription, subscription_history } }
+      const activeSub = subRes?.data?.active_subscription || null;
+      fetchedUser.subscription = activeSub
+        ? {
+            ...activeSub,
+            status: activeSub.status || 'active',
+            active: activeSub.status ? activeSub.status === 'active' : true,
+            type: activeSub.plan_type || activeSub.type || activeSub.plan?.type || null,
+            planId: activeSub.plan_type || activeSub.plan_id || activeSub.id || activeSub.plan?.id || null,
+            expiresAt: activeSub.end_date || activeSub.expires_at || activeSub.expiresAt || null,
+            startedAt: activeSub.start_date || activeSub.started_at || null,
+            autoRenew: activeSub.auto_renew ?? activeSub.autoRenew ?? null,
+          }
+        : { active: false, status: 'none' };
 
       persistUser(fetchedUser);
       return fetchedUser;

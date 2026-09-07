@@ -369,24 +369,48 @@ export async function searchMovies(query, limit = 20) {
 /**
  * Fetch filmmaker's own movies.
  * GET /movies/filmmaker/movies
+ *
+ * Dashboard, My Movies, and Studio Profile each call this independently on
+ * mount with no shared cache, so navigating between them re-issued the same
+ * full-list request every time. This dedupes concurrent calls and reuses the
+ * result for a short window; `invalidateFilmmakerMoviesCache()` is called
+ * after create/update/delete so a filmmaker never sees stale content.
  */
-export async function getFilmmakerMovies() {
-  try {
-    const response = await client.get('/movies/filmmaker/movies');
-    if (response.data?.success && response.data?.data) {
-      const data = response.data.data;
-      if (data.movies && Array.isArray(data.movies)) {
-        return data.movies.map(normalizeMovie);
-      }
-      if (Array.isArray(data)) {
-        return data.map(normalizeMovie);
-      }
+const FILMMAKER_MOVIES_CACHE_TTL_MS = 20000;
+let filmmakerMoviesCache = null; // { promise, expiresAt }
+
+async function fetchFilmmakerMovies() {
+  const response = await client.get('/movies/filmmaker/movies');
+  if (response.data?.success && response.data?.data) {
+    const data = response.data.data;
+    if (data.movies && Array.isArray(data.movies)) {
+      return data.movies.map(normalizeMovie);
     }
-    return [];
-  } catch (err) {
-    console.error('Failed to fetch filmmaker movies:', err);
-    throw err;
+    if (Array.isArray(data)) {
+      return data.map(normalizeMovie);
+    }
   }
+  return [];
+}
+
+export function invalidateFilmmakerMoviesCache() {
+  filmmakerMoviesCache = null;
+}
+
+export async function getFilmmakerMovies() {
+  const now = Date.now();
+  if (filmmakerMoviesCache && filmmakerMoviesCache.expiresAt > now) {
+    return filmmakerMoviesCache.promise;
+  }
+
+  const promise = fetchFilmmakerMovies().catch((err) => {
+    console.error('Failed to fetch filmmaker movies:', err);
+    filmmakerMoviesCache = null; // don't cache a failure
+    throw err;
+  });
+
+  filmmakerMoviesCache = { promise, expiresAt: now + FILMMAKER_MOVIES_CACHE_TTL_MS };
+  return promise;
 }
 
 /**
@@ -396,6 +420,7 @@ export async function getFilmmakerMovies() {
 export async function createMovie(payload) {
   try {
     const response = await client.post('/movies', payload);
+    invalidateFilmmakerMoviesCache();
     return response.data;
   } catch (err) {
     // Log the full backend error so we can read the exact validation messages
@@ -416,6 +441,7 @@ export async function createMovie(payload) {
 export async function updateMovie(id, payload) {
   try {
     const response = await client.put(`/movies/${id}`, payload);
+    invalidateFilmmakerMoviesCache();
     return response.data;
   } catch (err) {
     console.error(`Failed to update movie ${id}:`, err);
@@ -430,6 +456,7 @@ export async function updateMovie(id, payload) {
 export async function deleteMovie(id) {
   try {
     const response = await client.delete(`/movies/${id}`);
+    invalidateFilmmakerMoviesCache();
     return response.data;
   } catch (err) {
     console.error(`Failed to delete movie ${id}:`, err);
