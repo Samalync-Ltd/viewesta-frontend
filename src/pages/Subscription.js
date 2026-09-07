@@ -247,12 +247,12 @@ const Subscription = () => {
                   <button
                     className={`btn ${popular ? 'btn-primary' : 'btn-outline'} btn-full sub-btn`}
                     onClick={() => handlePlanSelect(plan)}
-                    disabled={isBusy || (user.subscription?.active && (user.subscription?.plan_id === plan.id || user.subscription?.plan?.id === plan.id))}
+                    disabled={isBusy || (user.subscription?.active && user.subscription?.planId === plan.id)}
                   >
                     {isBusy
                       ? <><FaSpinner className="btn-spinner" /> Processing…</>
                       : user.subscription?.active
-                        ? ((user.subscription?.plan_id === plan.id || user.subscription?.plan?.id === plan.id) ? 'Current Plan' : 'Change Plan')
+                        ? (user.subscription?.planId === plan.id ? 'Current Plan' : 'Change Plan')
                         : 'Get Started'}
                   </button>
                 </div>

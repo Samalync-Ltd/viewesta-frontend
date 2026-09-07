@@ -63,13 +63,20 @@ export const AuthProvider = ({ children }) => {
       
       try {
         const subRes = await getMySubscription();
-        const subData = subRes?.data?.subscription || subRes?.data || subRes?.subscription || subRes;
-        if (subData) {
-          fetchedUser.subscription = {
-            active: subData.status === 'active' || subData.active === true || subData.is_active === true,
-            ...subData
-          };
-        }
+        // Confirmed real shape: { success, data: { active_subscription, subscription_history } }
+        const activeSub = subRes?.data?.active_subscription || null;
+        fetchedUser.subscription = activeSub
+          ? {
+              ...activeSub,
+              status: activeSub.status || 'active',
+              active: activeSub.status ? activeSub.status === 'active' : true,
+              type: activeSub.plan_type || activeSub.type || activeSub.plan?.type || null,
+              planId: activeSub.plan_type || activeSub.plan_id || activeSub.id || activeSub.plan?.id || null,
+              expiresAt: activeSub.end_date || activeSub.expires_at || activeSub.expiresAt || null,
+              startedAt: activeSub.start_date || activeSub.started_at || null,
+              autoRenew: activeSub.auto_renew ?? activeSub.autoRenew ?? null,
+            }
+          : { active: false, status: 'none' };
       } catch (subErr) {
         console.log('Could not fetch subscription:', subErr.message);
       }
