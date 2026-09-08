@@ -78,7 +78,16 @@ export async function getApprovalStats() {
 /**
  * Submit new content for admin review.
  * Transitions status: draft → pending.
- * PATCH /movies/:id  or  PATCH /shows/:id { status: 'pending' }
+ * PUT /movies/:id  or  PUT /shows/:id { status: 'pending' }
+ *
+ * Was PATCH, which 404s on both routes — confirmed live, "Update Movie" and
+ * "Update Show" are PUT-only (matches the API collection). Since movies and
+ * shows both already come back with status "pending" immediately on
+ * creation, this call was a no-op in practice (nothing depended on it
+ * succeeding), which is why the silent 404 in FilmmakerUpload.js's
+ * `.catch()` never surfaced as a visible bug — but a fixed method is still
+ * correct in case that ever changes, and it stops a request that always
+ * failed from failing.
  *
  * @param {string} id - The ID returned by createMovie() or createShow()
  * @param {boolean} isSeries - Whether the content is a series
@@ -92,7 +101,7 @@ export async function submitForReview(id, isSeries = false) {
 
   try {
     const endpoint = isSeries ? `/shows/${id}` : `/movies/${id}`;
-    await client.patch(endpoint, { status: 'pending' });
+    await client.put(endpoint, { status: 'pending' });
     console.log(`[ApprovalService] Content ${id} submitted for review.`);
     return {
       success: true,
@@ -106,7 +115,12 @@ export async function submitForReview(id, isSeries = false) {
 
 /**
  * Approve and publish a content item.
- * PATCH /movies/:id  { status: 'approved' }
+ * PUT /movies/:id  { status: 'approved' }
+ *
+ * Was PATCH (404 live, confirmed with an admin token — "Update Movie" is
+ * PUT-only). Unlike submitForReview, this one is NOT a no-op: it's the only
+ * way admin approval actually reaches the backend, so the 404 meant
+ * approvals from this page silently failed outright.
  *
  * @param {string} movieId
  * @param {Object} [options]
@@ -124,7 +138,7 @@ export async function approveContent(movieId, options = {}) {
       status: 'approved',
       ...(options.notes ? { admin_notes: options.notes } : {}),
     };
-    await client.patch(`/movies/${movieId}`, body);
+    await client.put(`/movies/${movieId}`, body);
     console.log(`[ApprovalService] Movie ${movieId} approved.`);
     return { success: true, message: 'Content approved and published successfully.' };
   } catch (err) {
@@ -135,7 +149,9 @@ export async function approveContent(movieId, options = {}) {
 
 /**
  * Reject a content item with a reason.
- * PATCH /movies/:id  { status: 'rejected', rejection_reason }
+ * PUT /movies/:id  { status: 'rejected', rejection_reason }
+ *
+ * Was PATCH (404 live, same as approveContent above).
  *
  * @param {string} movieId
  * @param {string} reason
@@ -157,7 +173,7 @@ export async function rejectContent(movieId, reason, options = {}) {
       rejection_reason: reason.trim(),
       ...(options.notes ? { admin_notes: options.notes } : {}),
     };
-    await client.patch(`/movies/${movieId}`, body);
+    await client.put(`/movies/${movieId}`, body);
     console.log(`[ApprovalService] Movie ${movieId} rejected.`);
     return { success: true, message: 'Content rejected. The filmmaker will be notified.' };
   } catch (err) {
