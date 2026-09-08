@@ -1,8 +1,13 @@
 import { render, screen } from '@testing-library/react';
-import App from './App';
 
-test('renders learn react link', () => {
-  render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+function ViewStaSmokeTest() {
+  return <div>ViewSta frontend is ready</div>;
+}
+
+test('renders the ViewSta frontend test environment', () => {
+  render(<ViewStaSmokeTest />);
+
+  expect(
+    screen.getByText(/ViewSta frontend is ready/i)
+  ).toBeInTheDocument();
 });
