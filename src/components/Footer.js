@@ -65,8 +65,8 @@ const Footer = () => {
             <ul className="footer-links">
               <li><Link to="/help"><FaQuestionCircle className="footer-link-icon" />{t('helpCenter')}</Link></li>
               <li><Link to="/contact"><FaEnvelope className="footer-link-icon" />{t('contactUs')}</Link></li>
-              <li><span className="footer-plain-item"><FaFileAlt className="footer-link-icon" />{t('footerTerms')}</span></li>
-              <li><span className="footer-plain-item"><FaShieldAlt className="footer-link-icon" />{t('footerPrivacy')}</span></li>
+              <li><Link to="/terms"><FaFileAlt className="footer-link-icon" />{t('footerTerms')}</Link></li>
+              <li><Link to="/privacy"><FaShieldAlt className="footer-link-icon" />{t('footerPrivacy')}</Link></li>
             </ul>
           </div>
         </div>

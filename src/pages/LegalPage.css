@@ -1,0 +1,105 @@
+/* ── Shared Legal Page (Terms of Service / Privacy Policy) ── */
+.legal-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  padding-bottom: 80px;
+}
+
+.legal-hero {
+  text-align: center;
+  padding: 64px 24px 40px;
+  background: linear-gradient(180deg, rgba(208, 98, 36, 0.08) 0%, transparent 100%);
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.legal-hero-title {
+  font-size: 38px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 10px;
+  letter-spacing: -0.4px;
+}
+
+.legal-hero-sub {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.legal-container {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 40px 24px 0;
+}
+
+.legal-pending-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: rgba(208, 98, 36, 0.08);
+  border: 1px solid rgba(208, 98, 36, 0.35);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 40px;
+}
+
+.legal-pending-icon {
+  flex-shrink: 0;
+  font-size: 20px;
+  color: #D06224;
+  margin-top: 2px;
+}
+
+.legal-pending-notice p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+.legal-pending-notice p + p {
+  margin-top: 6px;
+  color: var(--text-muted);
+}
+
+.legal-section {
+  padding: 26px 0;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.legal-section:last-of-type {
+  border-bottom: none;
+}
+
+.legal-section-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+}
+
+.legal-section-body {
+  font-size: 14.5px;
+  line-height: 1.7;
+  color: var(--text-muted);
+  margin: 0;
+  font-style: italic;
+}
+
+.legal-cta {
+  margin-top: 40px;
+  padding: 24px;
+  border-radius: 12px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  text-align: center;
+}
+
+.legal-cta p {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 14.5px;
+}
+
+.legal-cta .btn {
+  display: inline-block;
+}

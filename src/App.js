@@ -29,6 +29,8 @@ import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Contact from './pages/Contact';
 import Help from './pages/Help';
+import TermsOfService from './pages/TermsOfService';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 import Notifications from './pages/Notifications';
 import EditProfile from './pages/EditProfile';
 import Following from './pages/Following';
@@ -264,6 +266,8 @@ function AppRoutes() {
             <Route path="/search" element={<Search />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/help" element={<Help />} />
+            <Route path="/terms" element={<TermsOfService />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/film/:id" element={<MovieDetail />} />
             <Route path="/movie/:id" element={<MovieDetail />} />
