@@ -163,10 +163,27 @@ export async function searchSeries(query, limit = 20) {
 /**
  * Create a new show (series).
  * POST /shows
+ *
+ * Accepts either a plain object (sent as JSON) or a FormData instance (sent
+ * as multipart/form-data — required when attaching poster/backdrop/trailer
+ * files directly, since POST /shows rejects poster_url/backdrop_url/
+ * thumbnail_url/trailer_url/trailer_video entirely, confirmed live).
+ *
+ * `client` sets a default `Content-Type: application/json` header on the
+ * axios instance. Axios's transformRequest checks that header BEFORE
+ * inspecting the body: if it resolves to application/json and the body is a
+ * FormData, axios actually calls JSON.stringify(formDataToJSON(data)) and
+ * sends mangled JSON instead of multipart — silently dropping the files.
+ * Explicitly unsetting Content-Type (not hardcoding a boundary) for FormData
+ * requests is what lets axios/the browser compute the real multipart
+ * boundary instead.
  */
 export async function createShow(payload) {
   try {
-    const response = await client.post('/shows', payload);
+    const isMultipart = typeof FormData !== 'undefined' && payload instanceof FormData;
+    const response = await client.post('/shows', payload, isMultipart
+      ? { headers: { 'Content-Type': undefined } }
+      : undefined);
     return response.data;
   } catch (err) {
     console.error('Failed to create show:', err);

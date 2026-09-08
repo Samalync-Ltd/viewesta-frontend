@@ -200,6 +200,7 @@ const FilmmakerUpload = () => {
 
     try {
       const isDirect = form.mode === MODES.DIRECT;
+      const isSeries = form.mediaType === MEDIA_TYPES.SERIES;
 
       // Ensure required files are present
       if (!form.poster_file || !form.cover_file || (isDirect && !form.trailer_file)) {
@@ -207,20 +208,36 @@ const FilmmakerUpload = () => {
       }
 
       // Step 1: Upload assets sequentially using uploadService
+      //
+      // Series (shows) are the exception: POST /shows rejects poster_url,
+      // backdrop_url, thumbnail_url, trailer_url and trailer_video outright
+      // (confirmed live — 400 "URL media fields cannot be mixed with a
+      // multipart upload", returned even for a plain JSON request with no
+      // multipart involved at all). The backend wants the actual files sent
+      // as multipart/form-data directly on the show-creation request itself
+      // using field names poster/backdrop/thumbnail/trailer — there is no
+      // presigned-upload step for shows. Movies keep the existing
+      // presigned-S3-then-JSON-with-url flow below, which the backend still
+      // accepts for POST /movies.
       const uploadAsset = async (file, assetType) => {
         if (!file) return null;
         return await uploadService.uploadFileFlow(file, assetType);
       };
 
-      const posterData = await uploadAsset(form.poster_file, 'poster');
-      const coverData = await uploadAsset(form.cover_file, 'backdrop');
+      let posterData = null;
+      let coverData = null;
       let trailerData = null;
       let videoData = null;
 
-      if (isDirect) {
-        trailerData = await uploadAsset(form.trailer_file, 'trailer');
-        if (form.mediaType !== MEDIA_TYPES.SERIES && form.video_file) {
-          videoData = await uploadAsset(form.video_file, 'video');
+      if (!isSeries) {
+        posterData = await uploadAsset(form.poster_file, 'poster');
+        coverData = await uploadAsset(form.cover_file, 'backdrop');
+
+        if (isDirect) {
+          trailerData = await uploadAsset(form.trailer_file, 'trailer');
+          if (form.video_file) {
+            videoData = await uploadAsset(form.video_file, 'video');
+          }
         }
       }
 
@@ -238,39 +255,36 @@ const FilmmakerUpload = () => {
 
       // Set progress to 99% — all assets uploaded, final API call next
 
-      if (form.mediaType === MEDIA_TYPES.SERIES) {
+      if (isSeries) {
          // Only include category_id when we have a real UUID from the backend.
          // A fake placeholder UUID causes 400.
          const seriesCategoryId = categories.find(c => c.name === form.genres[0])?.id || null;
+         const seriesReleaseDate = form.releaseDate ? `${form.releaseDate}-01` : new Date().toISOString().split('T')[0];
 
-         const payload = {
-           content_type: 'series',
-           title: form.title,
-           description: form.description || '',
-           age_rating: form.age_rating || 'PG-13',
-           director_name: form.director || '',
-           producer_name: form.producer || '',
-           cast: castPayload,
-           poster_url: posterData?.file_url || form.poster_url || '',
-           backdrop_url: coverData?.file_url || form.cover_url || '',
-           thumbnail_url: coverData?.file_url || form.cover_url || '',
-           duration_minutes: 45,
-           release_date: form.releaseDate ? `${form.releaseDate}-01` : new Date().toISOString().split('T')[0],
-         };
-         if (seriesCategoryId) payload.category_id = seriesCategoryId;
+         // Multipart, not JSON — see the note above uploadAsset(). No
+         // poster_url/backdrop_url/thumbnail_url/trailer_url/trailer_video
+         // fields here; the backend derives those itself from the uploaded
+         // files (it even falls back thumbnail_url to the poster when no
+         // separate thumbnail is sent, confirmed live).
+         const seriesFormData = new FormData();
+         seriesFormData.append('content_type', 'series');
+         seriesFormData.append('title', form.title);
+         seriesFormData.append('description', form.description || '');
+         seriesFormData.append('age_rating', form.age_rating || 'PG-13');
+         seriesFormData.append('director_name', form.director || '');
+         seriesFormData.append('producer_name', form.producer || '');
+         seriesFormData.append('cast', JSON.stringify(castPayload));
+         seriesFormData.append('duration_minutes', '45');
+         seriesFormData.append('release_date', seriesReleaseDate);
+         if (seriesCategoryId) seriesFormData.append('category_id', seriesCategoryId);
 
-         if (trailerData) {
-           payload.trailer_url = trailerData.file_url;
-           payload.trailer_video = {
-             file_url: trailerData.file_url,
-             file_size: trailerData.file_size,
-             duration_seconds: 120,
-             s3_key: trailerData.s3_key,
-             is_processed: false,
-           };
+         seriesFormData.append('poster', form.poster_file);
+         seriesFormData.append('backdrop', form.cover_file);
+         if (isDirect && form.trailer_file) {
+           seriesFormData.append('trailer', form.trailer_file);
          }
 
-         const createdShow = await createShow(payload);
+         const createdShow = await createShow(seriesFormData);
          const seriesId =
            createdShow?.data?.series?.id ||
            createdShow?.data?.show?.id ||
@@ -284,7 +298,7 @@ const FilmmakerUpload = () => {
            const seasonPayload = {
              season_number: season.season_number,
              title: season.title || `Season ${season.season_number}`,
-             release_date: season.year ? `${season.year}-01-01` : payload.release_date,
+             release_date: season.year ? `${season.year}-01-01` : seriesReleaseDate,
            };
            const createdSeason = await createSeason(seriesId, seasonPayload);
            const seasonId = createdSeason?.data?.season?.id || createdSeason?.data?.id || createdSeason?.id;
