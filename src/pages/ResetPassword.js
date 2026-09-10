@@ -19,8 +19,8 @@ export default function ResetPassword() {
     if (loading) return;
     setError('');
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setError('Password is too short — use at least 8 characters');
       return;
     }
     if (password !== confirmPassword) {
@@ -78,8 +78,8 @@ export default function ResetPassword() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
-                  placeholder="At least 6 characters"
+                  minLength={8}
+                  placeholder="At least 8 characters"
                   disabled={loading}
                 />
               </div>
@@ -91,7 +91,7 @@ export default function ResetPassword() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
-                  minLength={6}
+                  minLength={8}
                   placeholder="Re-enter your new password"
                   disabled={loading}
                 />

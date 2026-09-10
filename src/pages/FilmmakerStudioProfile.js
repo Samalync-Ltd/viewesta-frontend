@@ -141,9 +141,9 @@ export default function FilmmakerStudioProfile() {
       if (!currentPassword || !newPassword) {
         pwSuccess = false;
         setSaveError('Enter both your current and new password to change it.');
-      } else if (newPassword.length < 6) {
+      } else if (newPassword.length < 8) {
         pwSuccess = false;
-        setSaveError('New password must be at least 6 characters.');
+        setSaveError('New password is too short — use at least 8 characters.');
       } else {
         const pwResult = await changePassword(currentPassword, newPassword);
         if (!pwResult.success) {
