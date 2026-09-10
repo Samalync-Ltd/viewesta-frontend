@@ -99,10 +99,12 @@ const Wallet = () => {
         payment_method: selectedMethod,
       });
 
-      if (result && result.redirect_url) {
+      // Support nested redirect_url in result.data or top-level redirect_url
+      const redirectUrl = result?.data?.redirect_url || result?.redirect_url;
+      if (redirectUrl) {
         // Append return_to so the callback can route us back to Wallet
         const returnTo = encodeURIComponent(`/wallet`);
-        const url = new URL(result.redirect_url);
+        const url = new URL(redirectUrl);
         url.searchParams.append('return_to', returnTo);
         window.location.href = url.toString();
         return; // Don't stop topping, we are redirecting
