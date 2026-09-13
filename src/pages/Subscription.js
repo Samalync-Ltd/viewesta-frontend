@@ -4,11 +4,19 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   FaCheck, FaCrown, FaStar, FaFilm, FaDownload,
   FaBan, FaHeadset, FaShieldAlt, FaBolt, FaGem, FaSpinner,
+  FaExclamationTriangle, FaCalendarAlt,
 } from 'react-icons/fa';
-import { getSubscriptionPlans, subscribe } from '../services/subscriptionService';
+import { getSubscriptionPlans, subscribe, cancelSubscription } from '../services/subscriptionService';
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
 import './Subscription.css';
+
+function formatDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+}
 
 /* ── Static plan display helpers (icons / tags by id / interval) ── */
 const planMeta = {
@@ -47,6 +55,11 @@ const Subscription = () => {
   /* ── Payment Modal State ── */
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState(null);
+
+  /* ── Cancel Subscription State ── */
+  const [cancelModalOpen, setCancelModalOpen] = useState(false);
+  const [cancelling, setCancelling]           = useState(false);
+  const [cancelError, setCancelError]         = useState('');
 
   /* ── fetch plans ── */
   useEffect(() => {
@@ -142,6 +155,65 @@ const Subscription = () => {
     }
   };
 
+  /* ── cancel handler ── */
+  const openCancelModal = () => {
+    setCancelError('');
+    setCancelModalOpen(true);
+  };
+
+  const handleCancelSubscription = async () => {
+    const subscriptionId = user.subscription?.id;
+    if (!subscriptionId) {
+      setCancelError('Could not find your subscription. Please refresh the page and try again.');
+      return;
+    }
+
+    setCancelling(true);
+    setCancelError('');
+
+    try {
+      const res = await cancelSubscription(subscriptionId);
+      const sub = res?.data?.subscription;
+
+      setCancelModalOpen(false);
+      setSubError('');
+      setSubSuccess(
+        sub?.already_cancelled
+          ? `Your subscription was already set to end on ${formatDate(sub.access_ends_at)}.`
+          : `Subscription cancelled — you'll keep full access until ${formatDate(sub?.access_ends_at)}.`
+      );
+      setTimeout(() => setSubSuccess(''), 6000);
+
+      // is_active stays true after a cancel (access continues), so this just
+      // re-syncs auto_renew / access_ends_at into user.subscription.
+      if (refreshProfile) await refreshProfile();
+    } catch (err) {
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+
+      if (status === 409) {
+        // Nothing left to cancel — the period already ended. This changes
+        // what the page should show (no more active plan), so refresh state
+        // and surface it as a page-level banner rather than an inline modal error.
+        setCancelModalOpen(false);
+        setSubError(
+          data?.data?.access_ends_at
+            ? `Your access already ended on ${formatDate(data.data.access_ends_at)}. You can resubscribe anytime.`
+            : 'Your subscription has already ended.'
+        );
+        if (refreshProfile) await refreshProfile();
+      } else if (status === 404) {
+        setCancelError('Subscription not found. Please refresh the page and try again.');
+      } else if (status === 403) {
+        setCancelError("You don't have permission to cancel this subscription.");
+      } else {
+        setCancelError(data?.message || err?.message || 'Failed to cancel subscription. Please try again.');
+      }
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   if (!user) {
     return (
       <div className="subscription-not-found">
@@ -180,6 +252,37 @@ const Subscription = () => {
         {subError && (
           <div className="sub-feedback sub-feedback--error">
             ⚠ {subError}
+          </div>
+        )}
+
+        {/* ── Current Plan ── */}
+        {user.subscription?.active && (
+          <div className="current-plan-card">
+            <div className="current-plan-info">
+              <span className={`current-plan-badge ${user.subscription.autoRenew === false ? 'current-plan-badge--ending' : ''}`}>
+                {user.subscription.autoRenew === false ? <FaExclamationTriangle /> : <FaCheck />}
+                {user.subscription.autoRenew === false ? 'Ending — auto-renew off' : 'Active'}
+              </span>
+              <h3 className="current-plan-name">
+                {plans.find((p) => p.id === user.subscription.planId)?.name
+                  || `${user.subscription.type || user.subscription.planId || 'Subscription'} Plan`}
+              </h3>
+              <p className="current-plan-detail">
+                <FaCalendarAlt />
+                {user.subscription.autoRenew === false
+                  ? <>You'll keep full access until <strong>{formatDate(user.subscription.expiresAt)}</strong> — no further payment will be taken.</>
+                  : <>Renews on <strong>{formatDate(user.subscription.expiresAt)}</strong></>}
+              </p>
+            </div>
+            {user.subscription.autoRenew !== false && (
+              <button
+                className="btn btn-danger-outline current-plan-cancel-btn"
+                onClick={openCancelModal}
+                disabled={cancelling}
+              >
+                <FaBan /> Cancel Subscription
+              </button>
+            )}
           </div>
         )}
 
@@ -293,6 +396,59 @@ const Subscription = () => {
         amount={selectedPlan?.finalAmount || 0}
         title={`Subscribe to ${selectedPlan?.name || 'Plan'}`}
       />
+
+      {cancelModalOpen && (
+        <div className="modal-overlay" onClick={() => !cancelling && setCancelModalOpen(false)}>
+          <div className="purchase-modal cancel-sub-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Cancel Subscription</h3>
+              <button
+                className="modal-close"
+                onClick={() => setCancelModalOpen(false)}
+                disabled={cancelling}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <p>
+                You'll keep full access to everything until{' '}
+                <strong>{formatDate(user.subscription?.expiresAt)}</strong>.
+                After that date, no further payment will be taken and your subscription will end.
+              </p>
+              <p className="cancel-sub-note">
+                <FaShieldAlt /> No refunds are issued for time already paid for.
+              </p>
+
+              {cancelError && (
+                <div className="sub-feedback sub-feedback--error cancel-sub-error">
+                  ⚠ {cancelError}
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button
+                className="btn btn-ghost"
+                onClick={() => setCancelModalOpen(false)}
+                disabled={cancelling}
+              >
+                Keep Subscription
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={handleCancelSubscription}
+                disabled={cancelling}
+              >
+                {cancelling
+                  ? <><FaSpinner className="btn-spinner" /> Cancelling…</>
+                  : 'Confirm Cancellation'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

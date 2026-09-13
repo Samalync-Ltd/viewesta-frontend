@@ -79,3 +79,16 @@ export async function getMySubscription() {
   const { data } = await client.get('/subscriptions/me');
   return data;
 }
+
+/**
+ * Cancel a subscription. Stops the *next* payment only — access continues
+ * until `data.subscription.access_ends_at`; `is_active` intentionally stays
+ * true and `auto_renew` flips to false. Safe to call more than once
+ * (repeat calls come back 200 with `already_cancelled: true`).
+ * @param {string} subscriptionId
+ * @returns {{ data: { subscription: { access_ends_at, is_active, auto_renew, already_cancelled } } }}
+ */
+export async function cancelSubscription(subscriptionId) {
+  const { data } = await client.put(`/subscriptions/${subscriptionId}/cancel`);
+  return data;
+}
