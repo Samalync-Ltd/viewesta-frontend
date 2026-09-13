@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCircle } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { generateUsername } from '../utils/usernameUtils';
 import './Register.css';
 
-// here I added the firsname and lastname instead of name to be applicable with the backend 
+const MIN_PASSWORD_LENGTH = 8;
+
+// here I added the firsname and lastname instead of name to be applicable with the backend
 const Register = () => {
   const [formData, setFormData] = useState({
     firstname: '',
@@ -19,6 +21,7 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [touched, setTouched] = useState({ password: false, confirmPassword: false });
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -30,22 +33,34 @@ const Register = () => {
     });
   };
 
+  const handleBlur = (e) => {
+    setTouched((prev) => ({ ...prev, [e.target.name]: true }));
+  };
+
+  // Live, per-field validation state so the UI can point at the exact problem
+  // instead of relying on the single submit-time banner below.
+  const passwordTooShort = formData.password.length > 0 && formData.password.length < MIN_PASSWORD_LENGTH;
+  const passwordsMismatch = formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
+    setTouched({ password: true, confirmPassword: true });
     setError('');
+
+    // Password length must be checked before the confirm-password match check —
+    // otherwise a short password with an empty/different confirm field always
+    // reports "Passwords do not match" and hides the real problem.
+    if (formData.password.length < MIN_PASSWORD_LENGTH) {
+      setError(`Password is too short — use at least ${MIN_PASSWORD_LENGTH} characters`);
+      return;
+    }
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      setLoading(false);
       return;
     }
 
-    if (formData.password.length < 8) {
-      setError('Password is too short — use at least 8 characters');
-      setLoading(false);
-      return;
-    }
+    setLoading(true);
 
     try {
       // Automatically generate a unique username from the email
@@ -179,15 +194,19 @@ const Register = () => {
 
             <div className="form-group">
               <label htmlFor="password" className="form-label">Password</label>
-              <div className="password-input">
+              <div className={`password-input ${touched.password && passwordTooShort ? 'input-invalid' : ''}`}>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   id="password"
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   className="form-input"
                   placeholder="••••••••"
+                  minLength={MIN_PASSWORD_LENGTH}
+                  aria-invalid={touched.password && passwordTooShort}
+                  aria-describedby="password-hint"
                   required
                 />
                 <button
@@ -199,19 +218,35 @@ const Register = () => {
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>
+              <p
+                id="password-hint"
+                className={`field-hint ${touched.password && passwordTooShort ? 'field-hint--error' : ''} ${formData.password.length >= MIN_PASSWORD_LENGTH ? 'field-hint--ok' : ''}`}
+              >
+                {formData.password.length >= MIN_PASSWORD_LENGTH ? (
+                  <><FaCheckCircle /> Meets the minimum length</>
+                ) : touched.password ? (
+                  <><FaExclamationCircle /> {`Use at least ${MIN_PASSWORD_LENGTH} characters (${formData.password.length}/${MIN_PASSWORD_LENGTH})`}</>
+                ) : (
+                  `At least ${MIN_PASSWORD_LENGTH} characters`
+                )}
+              </p>
             </div>
 
             <div className="form-group">
               <label htmlFor="confirmPassword" className="form-label">Confirm password</label>
-              <div className="password-input">
+              <div className={`password-input ${touched.confirmPassword && passwordsMismatch ? 'input-invalid' : ''}`}>
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
                   id="confirmPassword"
                   name="confirmPassword"
                   value={formData.confirmPassword}
                   onChange={handleChange}
+                  onBlur={handleBlur}
                   className="form-input"
                   placeholder="••••••••"
+                  minLength={MIN_PASSWORD_LENGTH}
+                  aria-invalid={touched.confirmPassword && passwordsMismatch}
+                  aria-describedby="confirm-password-hint"
                   required
                 />
                 <button
@@ -223,6 +258,18 @@ const Register = () => {
                   {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>
+              {touched.confirmPassword && formData.confirmPassword.length > 0 && (
+                <p
+                  id="confirm-password-hint"
+                  className={`field-hint ${passwordsMismatch ? 'field-hint--error' : 'field-hint--ok'}`}
+                >
+                  {passwordsMismatch ? (
+                    <><FaExclamationCircle /> Passwords do not match</>
+                  ) : (
+                    <><FaCheckCircle /> Passwords match</>
+                  )}
+                </p>
+              )}
             </div>
 
             <div className="form-group">

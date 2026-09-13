@@ -135,6 +135,28 @@
   position: relative;
 }
 
+.register-page .password-input.input-invalid .form-input {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+}
+
+.register-page .field-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground, #737373);
+  margin: 0.4rem 0 0 0;
+}
+
+.register-page .field-hint--error {
+  color: #fca5a5;
+}
+
+.register-page .field-hint--ok {
+  color: #4ade80;
+}
+
 .register-page .password-toggle {
   position: absolute;
   right: 12px;

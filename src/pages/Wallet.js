@@ -162,10 +162,14 @@ const Wallet = () => {
   const balance      = Number(walletData?.balance ?? 0);
   const transactions = walletData?.transactions ?? [];
   const currency     = walletData?.currency ?? 'USD';
-  const spent        = transactions.filter((t) => !isCreditTransaction(t))
-                                   .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0);
-  const topped       = transactions.filter((t) => isCreditTransaction(t))
-                                   .reduce((s, t) => s + Math.abs(t.amount ?? 0), 0);
+
+  // "Total Topped Up" / "Total Spent" / total transaction count are NOT shown here.
+  // Viewesta_API_Collection.json exposes no wallet stats/summary endpoint — only
+  // GET /wallet (balance), GET /wallet/transactions (a paginated page, default 20),
+  // and POST /wallet/topup. Summing just the fetched page would silently under-report
+  // real lifetime totals for any user with more than one page of history, so rather
+  // than show numbers that look precise but are quietly wrong, this section is omitted
+  // until the backend adds a real aggregate endpoint.
 
   if (!user) {
     return (
@@ -221,23 +225,8 @@ const Wallet = () => {
             </div>
           )}
 
-          {/* ── Quick Stats ── */}
-          {!walletLoading && !walletError && (
-            <div className="quick-stats">
-              <div className="stat-card">
-                <span className="stat-label">Total Topped Up</span>
-                <span className="stat-value stat-value--green">${topped.toFixed(2)}</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">Total Spent</span>
-                <span className="stat-value stat-value--red">${spent.toFixed(2)}</span>
-              </div>
-              <div className="stat-card">
-                <span className="stat-label">Transactions</span>
-                <span className="stat-value stat-value--neutral">{transactions.length}</span>
-              </div>
-            </div>
-          )}
+          {/* Quick Stats (Total Topped Up / Total Spent / Transactions) removed —
+              see comment above `transactions` derivation for why. */}
 
           {/* ── Top Up ── */}
           <div className="wallet-card">
