@@ -6,6 +6,7 @@ import { generateUsername } from '../utils/usernameUtils';
 import './Register.css';
 
 const MIN_PASSWORD_LENGTH = 8;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // here I added the firsname and lastname instead of name to be applicable with the backend
 const Register = () => {
@@ -21,7 +22,7 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [touched, setTouched] = useState({ password: false, confirmPassword: false });
+  const [touched, setTouched] = useState({ email: false, password: false, confirmPassword: false });
 
   const { register } = useAuth();
   const navigate = useNavigate();
@@ -39,13 +40,19 @@ const Register = () => {
 
   // Live, per-field validation state so the UI can point at the exact problem
   // instead of relying on the single submit-time banner below.
+  const emailInvalid = formData.email.length > 0 && !EMAIL_REGEX.test(formData.email);
   const passwordTooShort = formData.password.length > 0 && formData.password.length < MIN_PASSWORD_LENGTH;
   const passwordsMismatch = formData.confirmPassword.length > 0 && formData.password !== formData.confirmPassword;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setTouched({ password: true, confirmPassword: true });
+    setTouched({ email: true, password: true, confirmPassword: true });
     setError('');
+
+    if (!EMAIL_REGEX.test(formData.email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
 
     // Password length must be checked before the confirm-password match check —
     // otherwise a short password with an empty/different confirm field always
@@ -156,10 +163,25 @@ const Register = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                className="form-input"
+                onBlur={handleBlur}
+                className={`form-input ${touched.email && emailInvalid ? 'input-invalid' : ''}`}
                 placeholder="you@example.com"
+                aria-invalid={touched.email && emailInvalid}
+                aria-describedby="email-hint"
                 required
               />
+              {touched.email && formData.email.length > 0 && (
+                <p
+                  id="email-hint"
+                  className={`field-hint ${emailInvalid ? 'field-hint--error' : 'field-hint--ok'}`}
+                >
+                  {emailInvalid ? (
+                    <><FaExclamationCircle /> Enter a valid email address (e.g. you@example.com)</>
+                  ) : (
+                    <><FaCheckCircle /> Looks good</>
+                  )}
+                </p>
+              )}
             </div>
 
             <div className="form-group">

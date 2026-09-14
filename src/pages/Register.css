@@ -135,7 +135,8 @@
   position: relative;
 }
 
-.register-page .password-input.input-invalid .form-input {
+.register-page .password-input.input-invalid .form-input,
+.register-form .form-input.input-invalid {
   border-color: #ef4444;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
 }

@@ -7,19 +7,27 @@
  *
  * Response shapes above are confirmed against the live production API —
  * /wallet does NOT embed transactions, they're a separate paginated resource.
+ *
+ * /wallet and /wallet/balance can also carry `balance_explanation` — set when
+ * a top-up has been reversed, so a negative balance isn't shown unexplained.
+ * Its exact nesting (inside `wallet` vs. alongside it under `data`) isn't
+ * pinned down yet, so both spots are checked.
  */
 
 import client from '../api/client';
 
 function normalizeWalletPayload(payload) {
-  const root = payload?.data?.wallet ?? payload?.data ?? payload ?? {};
+  const dataLevel = payload?.data ?? payload ?? {};
+  const root = dataLevel.wallet ?? dataLevel;
   const balance = Number(root.balance ?? 0);
   const currency = root.currency || 'USD';
+  const balanceExplanation = root.balance_explanation ?? dataLevel.balance_explanation ?? null;
 
   return {
     ...root,
     balance,
     currency,
+    balanceExplanation,
   };
 }
 

@@ -116,6 +116,36 @@
   color: rgba(255, 255, 255, 0.75) !important;
 }
 
+.balance-explanation {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 13px;
+  line-height: 1.5;
+  max-width: 340px;
+}
+
+.balance-explanation--negative {
+  background: rgba(127, 29, 29, 0.35);
+  border-color: rgba(252, 165, 165, 0.5);
+}
+
+.balance-explanation-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #fde68a;
+}
+
+.balance-explanation--negative .balance-explanation-icon {
+  color: #fca5a5;
+}
+
 .balance-icon {
   position: relative;
   z-index: 1;

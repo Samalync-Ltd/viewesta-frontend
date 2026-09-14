@@ -163,6 +163,21 @@ const Wallet = () => {
   const transactions = walletData?.transactions ?? [];
   const currency     = walletData?.currency ?? 'USD';
 
+  // Set by the backend when a top-up has been reversed, so a negative
+  // balance is never shown without an explanation. Accept either a plain
+  // string or an { amount, message } object, since the exact shape isn't
+  // pinned down yet.
+  const balanceExplanation = walletData?.balanceExplanation ?? null;
+  const explanationMessage = typeof balanceExplanation === 'string'
+    ? balanceExplanation
+    : balanceExplanation?.message || balanceExplanation?.reason || balanceExplanation?.text || null;
+  const explanationAmountRaw = typeof balanceExplanation === 'object' && balanceExplanation !== null
+    ? (balanceExplanation.amount ?? balanceExplanation.reversed_amount ?? balanceExplanation.reversal_amount)
+    : null;
+  const explanationAmount = explanationAmountRaw !== null && explanationAmountRaw !== undefined && !isNaN(explanationAmountRaw)
+    ? Number(explanationAmountRaw)
+    : null;
+
   // "Total Topped Up" / "Total Spent" / total transaction count are NOT shown here.
   // Viewesta_API_Collection.json exposes no wallet stats/summary endpoint — only
   // GET /wallet (balance), GET /wallet/transactions (a paginated page, default 20),
@@ -205,14 +220,25 @@ const Wallet = () => {
                   <span className="balance-error-text">—</span>
                 ) : (
                   <>
-                    <span className="balance-currency">$</span>
-                    <span className="balance-value">{balance.toFixed(2)}</span>
+                    <span className="balance-currency">{balance < 0 ? '-$' : '$'}</span>
+                    <span className="balance-value">{Math.abs(balance).toFixed(2)}</span>
                   </>
                 )}
               </div>
               <p className="balance-subtitle">
                 {currency} · Available for purchases &amp; rentals
               </p>
+              {!walletLoading && !walletError && explanationMessage && (
+                <div className={`balance-explanation ${balance < 0 ? 'balance-explanation--negative' : ''}`}>
+                  <FaExclamationTriangle className="balance-explanation-icon" />
+                  <span>
+                    {explanationMessage}
+                    {explanationAmount !== null && (
+                      <strong> (${Math.abs(explanationAmount).toFixed(2)})</strong>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="balance-icon" aria-hidden="true"><FaWallet /></div>
           </div>
