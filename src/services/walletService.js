@@ -3,6 +3,9 @@
  * GET  /wallet               → { data: { wallet: { balance, currency, user_id } } }
  * GET  /wallet/balance       → { data: { balance, currency } }
  * GET  /wallet/transactions  → { data: { transactions: [...], pagination } }
+ * GET  /wallet/summary       → totals computed server-side in SQL (added on
+ *                              feat/wallet-summary @ b24cf28) — replaces the
+ *                              old client-side "sum the first page" approach.
  * POST /wallet/topup         → add funds to wallet
  *
  * Response shapes above are confirmed against the live production API —
@@ -15,6 +18,16 @@
  */
 
 import client from '../api/client';
+
+// Returns the first key in `obj` (from `keys`, in order) that is present and
+// not null/undefined — used where a response field's exact name isn't
+// confirmed yet, so a naming mismatch doesn't get treated as "value is 0".
+function firstDefined(obj, keys) {
+  for (const key of keys) {
+    if (obj?.[key] !== undefined && obj?.[key] !== null) return obj[key];
+  }
+  return undefined;
+}
 
 function normalizeWalletPayload(payload) {
   const dataLevel = payload?.data ?? payload ?? {};
@@ -51,6 +64,41 @@ export async function getWalletTransactions({ limit = 20, offset = 0 } = {}) {
   return {
     transactions: Array.isArray(root.transactions) ? root.transactions : [],
     pagination: root.pagination || { limit, offset, count: 0 },
+  };
+}
+
+/**
+ * Fetch lifetime wallet totals, computed server-side (not just the current
+ * transaction page). Field names in the response aren't pinned down yet, so
+ * each stat tries a few plausible spellings; a stat that matches none of them
+ * comes back `null` — the caller should render that as "unavailable", never
+ * as 0, so a naming mismatch can't masquerade as a real zero total.
+ * @returns {{ totalToppedUp: number|null, totalSpent: number|null, transactionCount: number|null }}
+ */
+export async function getWalletSummary() {
+  const { data } = await client.get('/wallet/summary');
+  const root = data?.data?.summary ?? data?.data ?? data ?? {};
+
+  const totalToppedUpRaw = firstDefined(root, [
+    'total_topped_up', 'total_topup', 'total_top_up', 'totalToppedUp', 'topped_up', 'total_topups',
+  ]);
+  const totalSpentRaw = firstDefined(root, [
+    'total_spent', 'totalSpent', 'spent',
+  ]);
+  const transactionCountRaw = firstDefined(root, [
+    'transaction_count', 'total_transactions', 'transactions_count', 'transactionCount', 'count',
+  ]);
+
+  const toNumberOrNull = (raw) => {
+    if (raw === undefined) return null;
+    const n = Number(raw);
+    return Number.isNaN(n) ? null : n;
+  };
+
+  return {
+    totalToppedUp: toNumberOrNull(totalToppedUpRaw),
+    totalSpent: toNumberOrNull(totalSpentRaw),
+    transactionCount: toNumberOrNull(transactionCountRaw),
   };
 }
 

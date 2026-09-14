@@ -13,7 +13,7 @@ import {
   FaSpinner,
   FaExclamationTriangle,
 } from 'react-icons/fa';
-import { getWallet, getWalletTransactions, topUpWallet } from '../services/walletService';
+import { getWallet, getWalletTransactions, getWalletSummary, topUpWallet } from '../services/walletService';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
 import './Wallet.css';
 
@@ -24,6 +24,7 @@ const TxIcon = ({ type }) => (
 );
 
 const CREDIT_TRANSACTION_TYPES = ['wallet_topup', 'refund'];
+const TX_PAGE_SIZE = 20;
 
 // Wallet transactions always report a positive magnitude in `amount` — direction
 // (credit vs debit) comes from `transaction_type`, not the sign of the amount.
@@ -39,6 +40,19 @@ const Wallet = () => {
   const [walletData, setWalletData]     = useState(null);
   const [walletLoading, setWalletLoading] = useState(true);
   const [walletError, setWalletError]   = useState('');
+
+  /* ── Transaction list + pagination state ── */
+  const [transactions, setTransactions]     = useState([]);
+  const [txOffset, setTxOffset]             = useState(0);
+  const [txHasMore, setTxHasMore]           = useState(false);
+  const [txLoadingMore, setTxLoadingMore]   = useState(false);
+  const [txLoadMoreError, setTxLoadMoreError] = useState('');
+
+  /* ── Wallet summary (GET /wallet/summary) — fetched separately so a slow or
+     failing summary call never blocks the balance/transactions above it ── */
+  const [summary, setSummary]               = useState(null);
+  const [summaryLoading, setSummaryLoading] = useState(true);
+  const [summaryError, setSummaryError]     = useState('');
 
   /* ── Top-up form state ── */
   const [topUpAmount, setTopUpAmount]   = useState(25);
@@ -62,16 +76,23 @@ const Wallet = () => {
 
   const finalAmount = customValue !== '' ? Number(customValue) : topUpAmount;
 
-  /* ── Fetch wallet ── */
+  /* ── Fetch wallet (always resets the transaction list back to page 1) ── */
   const fetchWallet = useCallback(async () => {
     setWalletLoading(true);
     setWalletError('');
+    setTxLoadMoreError('');
     try {
       const [wallet, txResult] = await Promise.all([
         getWallet(),
-        getWalletTransactions({ limit: 20, offset: 0 }),
+        getWalletTransactions({ limit: TX_PAGE_SIZE, offset: 0 }),
       ]);
-      setWalletData({ ...wallet, transactions: txResult.transactions });
+      setWalletData(wallet);
+      setTransactions(txResult.transactions);
+      setTxOffset(txResult.transactions.length);
+      // A page shorter than the requested size means we've hit the end.
+      // Pagination metadata is left unused here since its "count" field
+      // isn't documented as page-count vs. lifetime-total.
+      setTxHasMore(txResult.transactions.length === TX_PAGE_SIZE);
     } catch (err) {
       setWalletError(
         err?.response?.data?.message ||
@@ -83,9 +104,51 @@ const Wallet = () => {
     }
   }, []);
 
+  /* ── Fetch wallet summary (Total Topped Up / Total Spent / Transactions) ── */
+  const fetchSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    setSummaryError('');
+    try {
+      const result = await getWalletSummary();
+      setSummary(result);
+    } catch (err) {
+      setSummaryError(
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to load wallet summary.'
+      );
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (user) fetchWallet();
-  }, [user, fetchWallet]);
+    if (user) {
+      fetchWallet();
+      fetchSummary();
+    }
+  }, [user, fetchWallet, fetchSummary]);
+
+  /* ── Load the next page of transactions ── */
+  const handleLoadMoreTransactions = async () => {
+    if (txLoadingMore || !txHasMore) return;
+    setTxLoadingMore(true);
+    setTxLoadMoreError('');
+    try {
+      const result = await getWalletTransactions({ limit: TX_PAGE_SIZE, offset: txOffset });
+      setTransactions((prev) => [...prev, ...result.transactions]);
+      setTxOffset((prev) => prev + result.transactions.length);
+      setTxHasMore(result.transactions.length === TX_PAGE_SIZE);
+    } catch (err) {
+      setTxLoadMoreError(
+        err?.response?.data?.message ||
+        err?.message ||
+        'Failed to load more transactions. Please try again.'
+      );
+    } finally {
+      setTxLoadingMore(false);
+    }
+  };
 
   const handleTopUp = async () => {
     if (!finalAmount || finalAmount < 1) return;
@@ -116,8 +179,8 @@ const Wallet = () => {
         return;
       }
 
-      await fetchWallet();
-      
+      await Promise.all([fetchWallet(), fetchSummary()]);
+
       if (result && (result.status === 'pending' || result.data?.status === 'pending')) {
         setTopError('Top-up initiated. Please complete the payment on your device.');
         setTopSuccess(false);
@@ -160,7 +223,6 @@ const Wallet = () => {
 
   /* ── Derive display values ── */
   const balance      = Number(walletData?.balance ?? 0);
-  const transactions = walletData?.transactions ?? [];
   const currency     = walletData?.currency ?? 'USD';
 
   // Set by the backend when a top-up has been reversed, so a negative
@@ -178,13 +240,13 @@ const Wallet = () => {
     ? Number(explanationAmountRaw)
     : null;
 
-  // "Total Topped Up" / "Total Spent" / total transaction count are NOT shown here.
-  // Viewesta_API_Collection.json exposes no wallet stats/summary endpoint — only
-  // GET /wallet (balance), GET /wallet/transactions (a paginated page, default 20),
-  // and POST /wallet/topup. Summing just the fetched page would silently under-report
-  // real lifetime totals for any user with more than one page of history, so rather
-  // than show numbers that look precise but are quietly wrong, this section is omitted
-  // until the backend adds a real aggregate endpoint.
+  // Sourced from GET /wallet/summary (SQL-computed lifetime totals), not from
+  // summing the loaded transaction page — that was the old, silently-wrong
+  // approach. Each figure is `null` if the backend didn't send a field this
+  // parser recognizes, which the UI renders as "—", never as a fabricated 0.
+  const totalToppedUp    = summary?.totalToppedUp ?? null;
+  const totalSpent       = summary?.totalSpent ?? null;
+  const transactionCount = summary?.transactionCount ?? null;
 
   if (!user) {
     return (
@@ -251,8 +313,43 @@ const Wallet = () => {
             </div>
           )}
 
-          {/* Quick Stats (Total Topped Up / Total Spent / Transactions) removed —
-              see comment above `transactions` derivation for why. */}
+          {/* ── Quick Stats ── */}
+          {summaryLoading ? (
+            <div className="quick-stats">
+              {['Total Topped Up', 'Total Spent', 'Transactions'].map((label) => (
+                <div className="stat-card" key={label}>
+                  <span className="stat-label">{label}</span>
+                  <span className="stat-value stat-value--neutral"><FaSpinner className="spin-icon" /></span>
+                </div>
+              ))}
+            </div>
+          ) : summaryError ? (
+            <div className="wallet-fetch-error">
+              <FaExclamationTriangle /> {summaryError}
+              <button className="btn btn-ghost btn-small" onClick={fetchSummary}>Retry</button>
+            </div>
+          ) : (
+            <div className="quick-stats">
+              <div className="stat-card">
+                <span className="stat-label">Total Topped Up</span>
+                <span className="stat-value stat-value--green">
+                  {totalToppedUp !== null ? `$${totalToppedUp.toFixed(2)}` : '—'}
+                </span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Total Spent</span>
+                <span className="stat-value stat-value--red">
+                  {totalSpent !== null ? `$${totalSpent.toFixed(2)}` : '—'}
+                </span>
+              </div>
+              <div className="stat-card">
+                <span className="stat-label">Transactions</span>
+                <span className="stat-value stat-value--neutral">
+                  {transactionCount !== null ? transactionCount : '—'}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* ── Top Up ── */}
           <div className="wallet-card">
@@ -392,6 +489,27 @@ const Wallet = () => {
                   );
                 })}
               </div>
+            )}
+
+            {!walletLoading && transactions.length > 0 && (
+              <>
+                {txLoadMoreError && (
+                  <div className="tx-load-more-error">
+                    <FaExclamationTriangle /> {txLoadMoreError}
+                  </div>
+                )}
+                {txHasMore && (
+                  <button
+                    className="btn btn-ghost tx-load-more-btn"
+                    onClick={handleLoadMoreTransactions}
+                    disabled={txLoadingMore}
+                  >
+                    {txLoadingMore
+                      ? <><FaSpinner className="btn-spin" /> Loading…</>
+                      : 'Load more transactions'}
+                  </button>
+                )}
+              </>
             )}
           </div>
 
