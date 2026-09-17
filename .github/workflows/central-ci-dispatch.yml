@@ -1,0 +1,28 @@
+name: Trigger Central Frontend CI
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Central frontend CI
+        env:
+          GH_TOKEN: ${{ secrets.VIEWSTA_CI_TOKEN }}
+          SHA: ${{ github.sha }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          gh api \
+            --method POST \
+            /repos/Samalync-Ltd/viewsta-devops/dispatches \
+            -f event_type=frontend-ci \
+            -f client_payload[application]=frontend \
+            -f client_payload[repository]=Samalync-Ltd/viewsta-frontend \
+            -f client_payload[branch]="$BRANCH" \
+            -f client_payload[commit_sha]="$SHA" \
+            -f client_payload[event]=push
