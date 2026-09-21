@@ -9,7 +9,8 @@ import {
 import { useMovies } from '../context/MovieContext';
 import { useLocale } from '../context/LocaleContext';
 import CategoryRow from '../components/CategoryRow';
-import { GENRE_SLUG_MAP } from '../services/mockData/genres';
+import useCategories from '../hooks/useCategories';
+import { genreLabel } from '../utils/genreHelpers';
 import './Genre.css';
 
 const GENRE_ICONS = {
@@ -56,13 +57,18 @@ const Genre = () => {
   const { name } = useParams();
   const { getMoviesByGenre, loading } = useMovies();
   const { t } = useLocale();
+  const { categories } = useCategories();
 
   const slug = (name || '').toLowerCase();
-  const actualGenre = GENRE_SLUG_MAP[slug] || (slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : '');
+  // Resolve the display name from the backend categories; until they load (or
+  // for an unknown slug) fall back to the capitalised slug — genre matching
+  // below is case-insensitive.
+  const category = categories.find((c) => c.slug === slug);
+  const actualGenre = category?.name || (slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : '');
   const genreMovies = actualGenre ? getMoviesByGenre(actualGenre) : [];
   const Icon = GENRE_ICONS[actualGenre] || FaVideo;
   const bg = GENRE_BG[actualGenre] || '';
-  const localizedName = t(`genre.${actualGenre}`) || actualGenre || 'Genre';
+  const localizedName = actualGenre ? genreLabel(t, actualGenre) : 'Genre';
 
   return (
     <div className="genre-page">

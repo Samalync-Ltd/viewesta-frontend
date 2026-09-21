@@ -27,7 +27,10 @@ const calculateMaxVisible = () => {
 };
 
 const Home = () => {
-  const { featuredMovies, trendingMovies, newReleases, topRatedMovies, loading } = useMovies();
+  const {
+    featuredMovies, trendingMovies, newReleases, topRatedMovies,
+    trendingSeries, newSeries, topRatedSeries, loading,
+  } = useMovies();
   const { user } = useAuth();
   const [trendingFilter, setTrendingFilter] = useState('movies');
   const maxVisibleItems = useMemo(() => calculateMaxVisible(), []);
@@ -49,35 +52,40 @@ const Home = () => {
 
   const activeType = trendingFilter === 'tv' ? 'series' : 'movie';
 
+  // The movie rows only ever contain movies; series have their own lists in the
+  // context (they come from a different endpoint), so the toggle picks the source.
   const trendingSelection = useMemo(() => {
-    return trendingMovies
+    const source = activeType === 'series' ? trendingSeries : trendingMovies;
+    return source
       // TEMP TESTING MODE: approval filter disabled temporarily for DRM/video testing
       // TODO: restore approval_status === 'APPROVED' before production
       .filter((movie) => getMediaType(movie) === activeType /* && String(movie.approval_status).toUpperCase() === 'APPROVED' */)
       .slice(0, maxVisibleItems);
-  }, [maxVisibleItems, activeType, trendingMovies]);
+  }, [maxVisibleItems, activeType, trendingMovies, trendingSeries]);
 
   const newReleasesSelection = useMemo(() => {
-    return newReleases
+    const source = activeType === 'series' ? newSeries : newReleases;
+    return source
       // TEMP TESTING MODE: approval filter disabled temporarily for DRM/video testing
       // TODO: restore approval_status === 'APPROVED' before production
       .filter((movie) => getMediaType(movie) === activeType /* && String(movie.approval_status).toUpperCase() === 'APPROVED' */)
       .slice(0, 10);
-  }, [activeType, newReleases]);
+  }, [activeType, newReleases, newSeries]);
 
-  // Top Rated: strictly from backend average_rating — no fallback, no mock data
+  // Top Rated: strictly from backend average_rating — no fallback, no mock data.
+  // The API reports unrated titles as 0, so those are excluded.
   const topRated = useMemo(() => {
-    return (topRatedMovies || [])
+    const source = activeType === 'series' ? topRatedSeries : (topRatedMovies || []);
+    return source
       // TEMP TESTING MODE: approval filter disabled temporarily for DRM/video testing
       // TODO: restore approval_status === 'APPROVED' before production
       .filter((movie) =>
-        movie.average_rating !== null &&
-        movie.average_rating !== undefined &&
+        Number(movie.average_rating) > 0 &&
         getMediaType(movie) === activeType /* &&
         String(movie.approval_status).toUpperCase() === 'APPROVED' */
       )
       .slice(0, 12);
-  }, [topRatedMovies, activeType]);
+  }, [topRatedMovies, topRatedSeries, activeType]);
 
   if (loading) {
     return (
@@ -201,7 +209,9 @@ const Home = () => {
               ))}
             </div>
           ) : (
-            <p className="media-empty">No rated movies available</p>
+            <p className="media-empty">
+              {trendingFilter === 'tv' ? 'No rated series yet.' : 'No rated movies available'}
+            </p>
           )}
         </section>
       </div>

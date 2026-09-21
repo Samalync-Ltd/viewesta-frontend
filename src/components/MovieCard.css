@@ -77,6 +77,15 @@
   filter: brightness(1);
 }
 
+.movie-card .poster-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: 2.25rem;
+  color: rgba(255, 255, 255, 0.18);
+}
+
 .movie-card:hover .poster-image {
   transform: scale(1.06);
   filter: brightness(1);

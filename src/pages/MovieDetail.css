@@ -273,6 +273,25 @@
   color: var(--text-muted);
 }
 
+.movie-unavailable-note {
+  margin: 12px 0 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.movie-actions .btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.detail-rating-message {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.detail-rating-message--success { color: #22c55e; }
+.detail-rating-message--error   { color: #f87171; }
+
 /* CTA improvement - scoped to movie detail only */
 .movie-detail .movie-actions .btn.btn-primary,
 .movie-detail .btn.btn-primary {

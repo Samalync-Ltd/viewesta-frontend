@@ -1,5 +1,8 @@
+/* padding-block (not the `padding` shorthand): `.layout-container` supplies the
+   side gutter, and a `padding: X 0` shorthand here zeroes it, which pushed the
+   title and the grid flush against the screen edges. */
 .genres-page {
-  padding: var(--page-padding, 24px) 0;
+  padding-block: var(--page-padding, 24px);
 }
 
 .genres-header {
@@ -47,6 +50,21 @@
   border-color: #D06224;
   background: #1a1a1a;
   transform: translateY(-3px);
+}
+
+.genre-card--skeleton {
+  border-color: transparent;
+  pointer-events: none;
+}
+
+.genres-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 48px 0;
+  color: #a3a3a3;
+  text-align: center;
 }
 
 .genre-card-icon {

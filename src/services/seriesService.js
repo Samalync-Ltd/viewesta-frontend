@@ -5,12 +5,14 @@
  */
 
 import client from '../api/client';
-import { normalizeSeries } from '../utils/mediaHelpers';
+import { normalizeSeries, normalizeSeason } from '../utils/mediaHelpers';
 import { mockSeries } from './mockData/series'; // used only by helper functions, NOT getSeries
 
 // ─── helper: parse any response shape the backend might return ───────────────
 function extractList(data) {
   if (!data) return [];
+  // GET /shows and /series return { data: { shows: [...], pagination } }
+  if (data.shows && Array.isArray(data.shows)) return data.shows;
   if (data.series && Array.isArray(data.series)) return data.series;
   if (data.movies && Array.isArray(data.movies)) return data.movies; // some backends reuse the movies key
   if (Array.isArray(data)) return data;
@@ -67,6 +69,43 @@ export async function getSeriesById(id) {
     const raw = mockSeries.find((s) => String(s.id) === String(id));
     return raw ? normalizeSeries(raw) : null;
   }
+}
+
+/**
+ * Fetch a show's seasons with their episodes.
+ * GET /shows/:showId/seasons            → { data: { seasons: [...] } }
+ * GET /seasons/:seasonId/episodes       → { data: { episodes: [...] } }
+ *
+ * GET /shows/:id only reports season/episode *counts*, so the real lists are
+ * loaded separately. A season whose episodes fail to load comes back empty
+ * rather than failing the whole call; a failure of the seasons request itself
+ * is thrown.
+ */
+export async function getSeriesSeasons(showId) {
+  if (!showId) return [];
+  const seasonsRes = await client.get(`/shows/${showId}/seasons`);
+  const seasonsData = seasonsRes.data?.data;
+  const rawSeasons = Array.isArray(seasonsData?.seasons)
+    ? seasonsData.seasons
+    : Array.isArray(seasonsData) ? seasonsData : [];
+
+  const seasons = await Promise.all(
+    rawSeasons.map(async (season) => {
+      let episodes = [];
+      try {
+        const episodesRes = await client.get(`/seasons/${season.id}/episodes`);
+        const episodesData = episodesRes.data?.data;
+        episodes = Array.isArray(episodesData?.episodes)
+          ? episodesData.episodes
+          : Array.isArray(episodesData) ? episodesData : [];
+      } catch (err) {
+        console.error(`getSeriesSeasons: episodes for season ${season.id} failed:`, err?.message);
+      }
+      return normalizeSeason({ ...season, episodes });
+    })
+  );
+
+  return seasons.filter(Boolean).sort((a, b) => a.seasonNumber - b.seasonNumber);
 }
 
 /**
@@ -243,7 +282,8 @@ export async function getFilmmakerShows(params = {}) {
 }
 export async function rateShow(id, rating) {
   try {
-    const response = await client.post(`/shows/${id}/rate`, { rating });
+    // POST /shows/:showId/ratings  { rating }
+    const response = await client.post(`/shows/${id}/ratings`, { rating });
     return response.data;
   } catch (err) {
     console.error(`Failed to rate show ${id}:`, err);

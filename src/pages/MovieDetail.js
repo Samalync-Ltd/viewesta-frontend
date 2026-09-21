@@ -12,15 +12,20 @@ import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
-import { getAvailableQualities } from '../utils/mediaHelpers';
+import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime } from '../utils/mediaHelpers';
 import './MovieDetail.css';
 
 const MovieDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getMovieById, movies, addToWatchlist, removeFromWatchlist, watchlist, rateContent, getUserRating, addToDownloads, purchasedMovies } = useMovies();
+  const { getMovieById, movies, addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating, addToDownloads, purchasedMovies, refreshPurchases } = useMovies();
   const { user, refreshProfile } = useAuth();
+  const userId = user?.id;
   const [selectedQuality, setSelectedQuality] = useState('');
+  // Which tab of the "Watch Options" modal is open. Kept apart from
+  // `selectedQuality`: that is '' both for "Subscribe tab" and for "Pay-per-view
+  // tab on a title with no prices", which made the PPV tab impossible to open.
+  const [purchaseTab, setPurchaseTab] = useState('subscribe'); // 'subscribe' | 'ppv'
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [isInWatchlist, setIsInWatchlist] = useState(false);
@@ -29,7 +34,12 @@ const MovieDetail = () => {
   const [movie, setMovie] = useState(() => getMovieById(id));
   const [detailLoading, setDetailLoading] = useState(!getMovieById(id));
   const [detailError, setDetailError] = useState('');
-  const userRating = movie ? getUserRating(movie.id) : undefined;
+  // Prices are stored with the movie they belong to so a previous title's prices
+  // can never show on the next one.
+  const [pricingState, setPricingState] = useState({ movieId: null, prices: undefined });
+  const [ratingMessage, setRatingMessage] = useState(null); // { type: 'success' | 'error', text }
+  // This browser's just-made rating wins; otherwise the account's rating from the backend.
+  const userRating = movie ? (getUserRating(movie.id) ?? movie.user_rating ?? undefined) : undefined;
   // Filmmaker info fetched from movie.raw when available
   const filmmaker = null; // TODO: fetch from GET /filmmakers/:id when endpoint available
   const [relatedMovies, setRelatedMovies] = useState([]);
@@ -48,20 +58,70 @@ const MovieDetail = () => {
     setDetailError('');
     try {
       const normalized = await movieService.getMovieById(id);
-      setMovie(normalized || null);
-      if (!normalized) setDetailError('Movie not found.');
+      if (normalized) {
+        setMovie(normalized);
+        // Adopt the account's rating from the backend so the stars match it.
+        if (normalized.user_rating != null) syncUserRating(normalized.id, normalized.user_rating);
+      } else if (!getMovieById(id)) {
+        setDetailError('Movie not found.');
+      }
     } catch (error) {
       setDetailError(error?.message || 'Unable to load this movie right now.');
     } finally {
       setDetailLoading(false);
     }
-  }, [id]);
+  }, [id, getMovieById, syncUserRating]);
 
+  // The catalog copy is fetched anonymously, so a signed-in viewer needs a fresh
+  // copy for their own rating; a title missing from the catalog needs one anyway.
+  const inCatalog = Boolean(getMovieById(id));
   useEffect(() => {
-    if (!movie) {
+    if (!inCatalog || userId) {
       fetchMovieDetail();
     }
-  }, [movie, fetchMovieDetail]);
+    // Only the identity of the title / viewer should trigger a refetch, not the
+    // identity of the fetch function (which changes whenever the catalog does).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, userId, inCatalog]);
+
+  // Pay-per-view prices come from their own endpoint — neither the catalog nor
+  // the detail payload carries them, which is why the PPV tab used to be empty.
+  useEffect(() => {
+    const movieId = movie?.id;
+    if (!movieId) return undefined;
+    if (movie.is_purchasable === false) {
+      setPricingState({ movieId, prices: null }); // no pricing row: nothing to fetch
+      return undefined;
+    }
+    let active = true;
+    movieService.getMoviePricing(movieId).then((prices) => {
+      if (active) setPricingState({ movieId, prices });
+    });
+    return () => { active = false; };
+  }, [movie?.id, movie?.is_purchasable]);
+
+  // undefined while loading, null when the title has no prices.
+  const pricing = pricingState.movieId === movie?.id ? pricingState.prices : undefined;
+  // Prices from the pricing endpoint, else whatever the title itself carried.
+  const priceMap = pricing || movie?.price || null;
+
+  // A different title starts from a clean purchase / rating state.
+  useEffect(() => {
+    setSelectedQuality('');
+    setPurchaseTab('subscribe');
+    setShowPurchaseModal(false);
+    setShowPaymentMethodModal(false);
+    setRatingMessage(null);
+  }, [id]);
+
+  // Keep the chosen quality valid for the tab that is open.
+  useEffect(() => {
+    if (purchaseTab !== 'ppv') return;
+    const qualities = getAvailableQualities(priceMap);
+    if (qualities.length > 0 && !qualities.includes(selectedQuality)) {
+      setSelectedQuality(qualities[0]);
+    }
+  }, [purchaseTab, priceMap, selectedQuality]);
 
   // Fetch related movies from real backend API
   useEffect(() => {
@@ -215,22 +275,37 @@ const MovieDetail = () => {
     );
   }
 
+  // ── What this viewer can do with this title ──────────────────────────────
+  // The backend flags every title with is_playable (has a video file) and
+  // is_purchasable (has a price); an approved title is not necessarily either,
+  // so both are checked before offering a play or buy control. Flags a payload
+  // doesn't carry are treated as "unknown", never as "no".
+  const monetizationType = getMonetizationType(movie);
+  const subscribeAllowed = monetizationType === 'both' || monetizationType === 'subscription';
+  const ppvAllowed = (monetizationType === 'both' || monetizationType === 'pay_per_view') && movie.is_purchasable !== false;
+  // Filmmakers can ALWAYS watch THEIR OWN uploaded movies without payment.
+  const isFilmmaker = Boolean(user) && String(user.id) === String(movie.filmmakerId || movie.raw?.filmmaker_id);
+  const hasPurchased = Array.isArray(purchasedMovies) && purchasedMovies.includes(String(movie.id));
+  const hasAccess = isFilmmaker || hasPurchased || (Boolean(user?.subscription?.active) && subscribeAllowed);
+  const notPlayable = movie.is_playable === false;
+  const notOnSale = !hasAccess && !subscribeAllowed && !ppvAllowed;
+  const watchBlockedReason = notPlayable
+    ? "This title doesn't have a video yet — check back soon."
+    : notOnSale
+      ? "This title isn't available to buy yet — check back soon."
+      : '';
+
+  const averageRating = formatRating(movie.average_rating ?? movie.rating);
+  const runtime = formatRuntime(movie.duration);
+
   const handleWatch = () => {
     if (!user) {
       navigate('/login');
       return;
     }
+    if (watchBlockedReason) return;
 
-    // Filmmakers should ALWAYS be able to watch THEIR OWN uploaded movies
-    // without payment flow, subscription requirement, or unlock modal.
-    const isFilmmaker = String(user.id) === String(movie.filmmakerId || movie.raw?.filmmaker_id);
-    const monetizationType = movie.raw?.monetization_type || movie.monetization_type || 'both';
-    const isSubscribed = user?.subscription?.active;
-    
-    // Check backend purchased state
-    const isPurchased = Array.isArray(purchasedMovies) && purchasedMovies.includes(String(movie.id));
-    
-    if (isFilmmaker || isPurchased || (isSubscribed && (monetizationType === 'both' || monetizationType === 'subscription'))) {
+    if (hasAccess) {
       // Authorized user bypass: navigate directly to Watch.js
       addToDownloads(movie.id);
       sessionStorage.setItem(`playback_auth_${movie.id}`, 'true');
@@ -238,15 +313,9 @@ const MovieDetail = () => {
       return;
     }
 
-    if (monetizationType === 'subscription') {
-      setSelectedQuality('');
-    } else {
-      // Use only qualities explicitly provided by the backend
-      const firstQuality = getAvailableQualities(movie.price)[0] || '';
-      setSelectedQuality(firstQuality);
-    }
-
-    // For all other users, show the unlock modal (intermediate step)
+    // Everyone else gets the unlock modal, opened on a tab they can actually use.
+    setSelectedQuality('');
+    setPurchaseTab(subscribeAllowed ? 'subscribe' : 'ppv');
     setShowPurchaseModal(true);
   };
 
@@ -278,10 +347,12 @@ const MovieDetail = () => {
           sessionStorage.setItem('vw_payment_return_to', returnUrl);
           window.location.href = redirectUrl;
         } else if (response && (response.success || response.status === 'completed')) {
-          // Instant wallet payment confirmed by backend
-          if (refreshProfile) {
-            await refreshProfile();
-          }
+          // Instant wallet payment confirmed by backend. Wait for the purchase
+          // list (and profile) to catch up so the watch page recognises access.
+          await Promise.all([
+            refreshProfile ? refreshProfile() : null,
+            refreshPurchases(),
+          ]);
           navigate(`/watch/${movie.id}?q=${encodeURIComponent(selectedQuality)}`);
         } else {
           alert('Failed to initiate payment. Please try again.');
@@ -380,12 +451,20 @@ const MovieDetail = () => {
     }
   };
 
-  const handleRate = (stars) => {
+  const handleRate = async (stars) => {
     if (!user) {
       navigate('/login');
       return;
     }
-    rateContent(movie.id, stars);
+    setRatingMessage(null);
+    const result = await rateContent(movie.id, stars, 'movie');
+    if (!result.success) {
+      setRatingMessage({ type: 'error', text: result.error });
+      return;
+    }
+    setRatingMessage({ type: 'success', text: 'Thanks — your rating was saved.' });
+    // Pull the updated average / rating count.
+    fetchMovieDetail();
   };
 
   return (
@@ -425,18 +504,25 @@ const MovieDetail = () => {
             
             {/* Meta line (rating • year • duration) */}
             <div className="movie-meta">
+              {/* The API reports unrated titles as 0 — say so instead of showing a 0 score. */}
               <div className="movie-rating">
                 <FaStar className="star-icon" />
-                <span>{movie.rating}</span>
+                <span>
+                  {averageRating
+                    ? <>{averageRating}{movie.rating_count > 0 && <> ({movie.rating_count})</>}</>
+                    : 'No ratings yet'}
+                </span>
               </div>
               <div className="movie-year">
                 <FaCalendar />
                 <span>{movie.year}</span>
               </div>
-              <div className="movie-duration">
-                <FaClock />
-                <span>{Math.floor(movie.duration / 60)}h {movie.duration % 60}m</span>
-              </div>
+              {runtime && (
+                <div className="movie-duration">
+                  <FaClock />
+                  <span>{runtime}</span>
+                </div>
+              )}
             </div>
 
             {/* Description */}
@@ -450,7 +536,7 @@ const MovieDetail = () => {
                 <div className="spec-item"><strong>Director:</strong> {movie.director}</div>
               </div>
               <div className="specs-col">
-                <div className="spec-item"><strong>Duration:</strong> {Math.floor(movie.duration / 60)}h {movie.duration % 60}m</div>
+                {runtime && <div className="spec-item"><strong>Duration:</strong> {runtime}</div>}
                 <div className="spec-item"><strong>Cast:</strong> {movie.cast.join(', ')}</div>
               </div>
             </div>
@@ -494,17 +580,29 @@ const MovieDetail = () => {
               {userRating != null && (
                 <span className="detail-your-rating-value">{userRating}/5</span>
               )}
+              {ratingMessage && (
+                <span
+                  role="status"
+                  className={`detail-rating-message detail-rating-message--${ratingMessage.type}`}
+                >
+                  {ratingMessage.text}
+                </span>
+              )}
             </div>
 
             {/* Actions */}
             <div className="movie-actions">
               <div className="primary-cta">
-                <button 
-                  onClick={handleWatch} 
+                <button
+                  onClick={handleWatch}
                   className="btn btn-primary"
+                  disabled={Boolean(watchBlockedReason)}
+                  title={watchBlockedReason || undefined}
                 >
                   <FaPlay />
-                  {user?.subscription?.active ? 'Watch Now' : 'Watch'}
+                  {watchBlockedReason
+                    ? (notPlayable ? 'Coming soon' : 'Not available yet')
+                    : (user?.subscription?.active ? 'Watch Now' : 'Watch')}
                 </button>
                 <button 
                   onClick={user ? handleWatchlistToggle : () => navigate('/login')}
@@ -523,6 +621,9 @@ const MovieDetail = () => {
                 </button>
               </div>
             </div>
+            {watchBlockedReason && (
+              <p className="movie-unavailable-note">{watchBlockedReason}</p>
+            )}
           </div>
         </div>
       </div>
@@ -628,37 +729,36 @@ const MovieDetail = () => {
             
             <div className="modal-content">
               <div className="watch-options-tabs">
-                {((movie?.raw?.monetization_type || movie?.monetization_type || 'both') === 'both' || (movie?.raw?.monetization_type || movie?.monetization_type) === 'subscription') && (
+                {subscribeAllowed && (
                   <button
                     type="button"
-                    className={`option-tab ${selectedQuality ? '' : 'active'}`}
-                    onClick={() => setSelectedQuality('')}
+                    className={`option-tab ${purchaseTab === 'subscribe' ? 'active' : ''}`}
+                    onClick={() => setPurchaseTab('subscribe')}
                   >
                     Subscribe
                   </button>
                 )}
-                {((movie?.raw?.monetization_type || movie?.monetization_type || 'both') === 'both' || (movie?.raw?.monetization_type || movie?.monetization_type) === 'pay_per_view') && (
+                {ppvAllowed && (
                   <button
                     type="button"
-                    className={`option-tab ${selectedQuality ? 'active' : ''}`}
-                    onClick={() => {
-                      const firstQuality = getAvailableQualities(movie.price)[0] || '';
-                      setSelectedQuality(firstQuality);
-                    }}
+                    className={`option-tab ${purchaseTab === 'ppv' ? 'active' : ''}`}
+                    onClick={() => setPurchaseTab('ppv')}
                   >
                     Pay-per-view
                   </button>
                 )}
               </div>
 
-              {selectedQuality ? (
+              {purchaseTab === 'ppv' ? (
                 (() => {
-                  const availableQualities = getAvailableQualities(movie.price);
+                  const availableQualities = getAvailableQualities(priceMap);
                   if (availableQualities.length === 0) {
                     return (
                       <div className="quality-options">
                         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '1rem 0' }}>
-                          No pricing has been configured for this movie yet. Please try again later or contact support.
+                          {pricing === undefined
+                            ? 'Loading prices…'
+                            : 'Pay-per-view prices are not available for this movie right now. Please try again later or contact support.'}
                         </p>
                       </div>
                     );
@@ -680,7 +780,7 @@ const MovieDetail = () => {
                             />
                             <div className="quality-info">
                               <span className="quality-name">{quality}</span>
-                              <span className="quality-price">${movie.price[quality]}</span>
+                              <span className="quality-price">${Number(priceMap[quality]).toFixed(2)}</span>
                             </div>
                           </label>
                         ))}
@@ -696,7 +796,7 @@ const MovieDetail = () => {
                         </div>
                         <div className="summary-item total">
                           <span>Total:</span>
-                          <span>${(movie.price || {})[selectedQuality] ?? 0}</span>
+                          <span>${Number(priceMap[selectedQuality] ?? 0).toFixed(2)}</span>
                         </div>
                       </div>
                     </>
@@ -715,16 +815,16 @@ const MovieDetail = () => {
                 </div>
               )}
             </div>
-            
+
             <div className="modal-actions">
-              <button 
+              <button
                 onClick={() => setShowPurchaseModal(false)}
                 className="btn btn-ghost"
               >
                 Cancel
               </button>
-              {selectedQuality ? (
-                <button 
+              {purchaseTab === 'ppv' && selectedQuality ? (
+                <button
                   onClick={handleInitiatePurchase}
                   className="btn btn-primary"
                 >
@@ -776,7 +876,7 @@ const MovieDetail = () => {
         isOpen={showPaymentMethodModal}
         onClose={() => setShowPaymentMethodModal(false)}
         onContinue={handleConfirmPurchase}
-        amount={Number((movie.price || {})[selectedQuality] ?? 0)}
+        amount={Number((priceMap || {})[selectedQuality] ?? 0)}
         title={`Purchase ${movie.title}`}
       />
     </div>

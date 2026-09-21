@@ -4,7 +4,7 @@
  */
 
 import client from '../api/client';
-import { normalizeMovie } from '../utils/mediaHelpers';
+import { normalizeMovie, normalizePricing } from '../utils/mediaHelpers';
 // Keep mock data as fallback for development/testing
 import { mockMovies } from './mockData/movies';
 import { mockSeries } from './mockData/series';
@@ -203,9 +203,10 @@ export async function getTopRatedMovies(limit = 12) {
     raw = data.items;
   }
 
-  // Strictly filter on average_rating — null/undefined entries are excluded
+  // Strictly filter on average_rating — the API reports unrated titles as 0
+  // (not null), so only titles with a real rating are kept.
   return raw
-    .filter((m) => m.average_rating !== null && m.average_rating !== undefined)
+    .filter((m) => Number(m.average_rating) > 0)
     .sort((a, b) => Number(b.average_rating) - Number(a.average_rating))
     .slice(0, limit)
     .map(normalizeMovie);
@@ -479,16 +480,39 @@ export async function addMovieVideoFile(movieId, payload) {
 }
 
 /**
- * Rate a movie.
- * POST /movies/:id/rate
+ * Rate a movie (1–5 stars).
+ * POST /movies/:movieId/ratings  { rating, review_text? }
  */
 export async function rateMovie(id, rating) {
   try {
-    const response = await client.post(`/movies/${id}/rate`, { rating });
+    const response = await client.post(`/movies/${id}/ratings`, { rating });
     return response.data;
   } catch (err) {
     console.error(`Failed to rate movie ${id}:`, err);
     throw err;
+  }
+}
+
+/**
+ * Fetch a movie's pay-per-view prices.
+ * GET /movies/:movieId/pricing → { data: { movie_id, pricing: [{ quality, price, is_free }] } }
+ *
+ * The movie list and detail payloads carry no pricing, so this is the only
+ * source of it. Resolves to a { quality: price } map, or null if the title
+ * has no pricing configured (or the lookup fails).
+ */
+export async function getMoviePricing(movieId) {
+  if (!movieId) return null;
+  try {
+    const response = await client.get(`/movies/${movieId}/pricing`);
+    if (response.data?.success && response.data?.data) {
+      const data = response.data.data;
+      return normalizePricing(data.pricing ?? data.prices ?? null);
+    }
+    return null;
+  } catch (err) {
+    console.error(`getMoviePricing(${movieId}):`, err?.message);
+    return null;
   }
 }
 

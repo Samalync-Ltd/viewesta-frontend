@@ -36,6 +36,7 @@ export const MovieProvider = ({ children }) => {
   const [featuredMovies, setFeaturedMovies] = useState([]);
   const [newReleases, setNewReleases] = useState([]);
   const [topRatedMovies, setTopRatedMovies] = useState([]);
+  const [seriesList, setSeriesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
@@ -59,22 +60,40 @@ export const MovieProvider = ({ children }) => {
     }
   });
 
+  // Every change to the locally cached star ratings goes through here so the
+  // in-memory map and localStorage never drift apart.
+  const writeUserRatings = useCallback((updater) => {
+    setUserRatings((prev) => {
+      const next = updater(prev);
+      try {
+        localStorage.setItem(RATINGS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
   const refreshCatalog = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [catalog, trending, featured, newRel, topRated] = await Promise.all([
+      const [catalog, trending, featured, newRel, topRated, shows] = await Promise.all([
         movieService.getMovies({ limit: 100 }),
         movieService.getTrendingMovies(24),
         movieService.getFeaturedMovies(10),
         movieService.getNewReleases(10),
         movieService.getTopRatedMovies(12),
+        // A series failure must never take the movie catalog down with it.
+        seriesService.getSeries({ limit: 50 }).catch((err) => {
+          console.error('Failed to load series', err);
+          return [];
+        }),
       ]);
       setMovies(catalog);
       setTrendingMovies(trending);
       setFeaturedMovies(featured);
       setNewReleases(newRel);
       setTopRatedMovies(topRated);
+      setSeriesList(shows);
     } catch (err) {
       console.error('Failed to load catalog', err);
       setError(err.message || 'Unable to load movies.');
@@ -87,11 +106,50 @@ export const MovieProvider = ({ children }) => {
     refreshCatalog();
   }, [refreshCatalog]);
 
-  // Fetch real watchlist from backend on login
+  // Loads the signed-in user's purchased movie ids. Resolves to the id list so
+  // callers (e.g. right after a payment) can wait until access is up to date.
+  const refreshPurchases = useCallback(async () => {
+    if (!user) {
+      setPurchasedMovies([]);
+      return [];
+    }
+    try {
+      const purchasesData = await paymentService.getPurchases();
+      // Support all three backend response shapes:
+      //   1. { data: { purchases: [...] } }  ← real backend response
+      //   2. { data: [...] }                  ← flat-data envelope
+      //   3. [...]                            ← bare array
+      const items = Array.isArray(purchasesData?.data?.purchases) ? purchasesData.data.purchases :
+                    Array.isArray(purchasesData?.data)            ? purchasesData.data :
+                    Array.isArray(purchasesData)                  ? purchasesData :
+                    [];
+      // Safely extract movie IDs based on potential structures, supporting flat arrays
+      const ids = items.map(p => {
+        if (typeof p === 'string' || typeof p === 'number') return String(p);
+        return String(p?.movie_id || p?.movieId || p?.movie?.id || p?.id);
+      }).filter(id => id && id !== 'undefined' && id !== 'null');
+      setPurchasedMovies(ids);
+      return ids;
+    } catch (err) {
+      console.error('Failed to load purchases:', err);
+      // Temporary fallback: use user.purchasedMovies if API fails
+      if (user.purchasedMovies && Array.isArray(user.purchasedMovies)) {
+        const fallback = user.purchasedMovies.map(String);
+        setPurchasedMovies(fallback);
+        return fallback;
+      }
+      return [];
+    }
+  }, [user]);
+
+  // Fetch real watchlist + purchases from backend on login
   useEffect(() => {
     if (!user) {
       setWatchlist([]);
       setFavorites([]);
+      setPurchasedMovies([]);
+      // Locally cached star ratings belong to the account that made them.
+      writeUserRatings(() => ({}));
       return;
     }
     const fetchWatchlist = async () => {
@@ -103,37 +161,11 @@ export const MovieProvider = ({ children }) => {
       }
     };
     fetchWatchlist();
-
-    const fetchPurchases = async () => {
-      try {
-        const purchasesData = await paymentService.getPurchases();
-        // Support all three backend response shapes:
-        //   1. { data: { purchases: [...] } }  ← real backend response
-        //   2. { data: [...] }                  ← flat-data envelope
-        //   3. [...]                            ← bare array
-        const items = Array.isArray(purchasesData?.data?.purchases) ? purchasesData.data.purchases :
-                      Array.isArray(purchasesData?.data)            ? purchasesData.data :
-                      Array.isArray(purchasesData)                  ? purchasesData :
-                      [];
-        // Safely extract movie IDs based on potential structures, supporting flat arrays
-        const ids = items.map(p => {
-          if (typeof p === 'string' || typeof p === 'number') return String(p);
-          return String(p?.movie_id || p?.movieId || p?.movie?.id || p?.id);
-        }).filter(id => id && id !== 'undefined' && id !== 'null');
-        setPurchasedMovies(ids);
-      } catch (err) {
-        console.error('Failed to load purchases:', err);
-        // Temporary fallback: use user.purchasedMovies if API fails
-        if (user.purchasedMovies && Array.isArray(user.purchasedMovies)) {
-          setPurchasedMovies(user.purchasedMovies.map(String));
-        }
-      }
-    };
-    fetchPurchases();
+    refreshPurchases();
 
     const fav = coerceArray(user.favorites || []).map((id) => (typeof id === 'object' ? coerceMovieId(id) : String(id))).filter(Boolean);
     setFavorites(fav);
-  }, [user]);
+  }, [user, refreshPurchases, writeUserRatings]);
 
   const mutateWatchlist = useCallback(
     async (movieId, action) => {
@@ -219,31 +251,59 @@ export const MovieProvider = ({ children }) => {
   const addToFavorites = useCallback((movieId) => mutateFavorites(movieId, 'add'), [mutateFavorites]);
   const removeFromFavorites = useCallback((movieId) => mutateFavorites(movieId, 'remove'), [mutateFavorites]);
 
-  const rateContent = useCallback(async (contentId, rating) => {
+  /**
+   * Rate a movie or show (1–5). Shows the new rating straight away and puts the
+   * previous one back if the backend rejects it.
+   * @param {string} contentId
+   * @param {number} rating
+   * @param {'movie'|'show'} [contentType] which endpoint to use; guessed from the
+   *   loaded catalog when omitted
+   * @returns {Promise<{ success: boolean, error?: string }>}
+   */
+  const rateContent = useCallback(async (contentId, rating, contentType) => {
     const num = Math.min(5, Math.max(1, Number(rating)));
-    if (!contentId || Number.isNaN(num)) return;
-    
-    // Optimistic update
-    setUserRatings((prev) => {
-      const next = { ...prev, [String(contentId)]: num };
-      try {
-        localStorage.setItem(RATINGS_KEY, JSON.stringify(next));
-      } catch {}
-      return next;
-    });
+    if (!contentId || Number.isNaN(num)) return { success: false, error: 'Invalid rating.' };
+
+    const key = String(contentId);
+    const previous = userRatings[key];
+    writeUserRatings((prev) => ({ ...prev, [key]: num }));
 
     try {
-      // Determine if it's a movie or show by checking our loaded movies catalog
-      const isMovie = movies.some((m) => String(m.id) === String(contentId));
+      const isMovie = contentType
+        ? contentType === 'movie'
+        : movies.some((m) => String(m.id) === key);
       if (isMovie) {
         await movieService.rateMovie(contentId, num);
       } else {
         await seriesService.rateShow(contentId, num);
       }
+      return { success: true };
     } catch (err) {
       console.error('Failed to save rating to backend:', err);
+      writeUserRatings((prev) => {
+        const next = { ...prev };
+        if (previous === undefined) delete next[key];
+        else next[key] = previous;
+        return next;
+      });
+      const status = err?.response?.status;
+      return {
+        success: false,
+        error: status === 401
+          ? 'Please sign in to rate.'
+          : err?.response?.data?.message || 'Could not save your rating. Please try again.',
+      };
     }
-  }, [movies]);
+  }, [movies, userRatings, writeUserRatings]);
+
+  // Adopt the rating the backend has for this user (`user_rating` on the title
+  // payload) so the stars match the account, not just this browser.
+  const syncUserRating = useCallback((contentId, serverRating) => {
+    const n = Number(serverRating);
+    if (!contentId || !Number.isFinite(n) || n < 1) return;
+    const key = String(contentId);
+    writeUserRatings((prev) => (prev[key] === n ? prev : { ...prev, [key]: n }));
+  }, [writeUserRatings]);
 
   const getUserRating = useCallback(
     (contentId) => (contentId ? userRatings[String(contentId)] : undefined),
@@ -270,6 +330,28 @@ export const MovieProvider = ({ children }) => {
     return [...trendingMovies, ...featuredMovies].slice(0, 6);
   }, [trendingMovies, featuredMovies]);
 
+  // Series rows for the home page, all derived from the one GET /shows request.
+  const trendingSeries = useMemo(
+    () => [...seriesList]
+      .sort((a, b) => (Number(b.raw?.view_count) || 0) - (Number(a.raw?.view_count) || 0))
+      .slice(0, 24),
+    [seriesList]
+  );
+  const newSeries = useMemo(
+    () => [...seriesList]
+      .sort((a, b) => new Date(b.raw?.created_at || 0) - new Date(a.raw?.created_at || 0))
+      .slice(0, 10),
+    [seriesList]
+  );
+  // The API reports unrated shows as 0, so only shows with a real rating count.
+  const topRatedSeries = useMemo(
+    () => seriesList
+      .filter((s) => Number(s.average_rating) > 0)
+      .sort((a, b) => Number(b.average_rating) - Number(a.average_rating))
+      .slice(0, 12),
+    [seriesList]
+  );
+
   const value = useMemo(
     () => ({
       movies,
@@ -277,6 +359,10 @@ export const MovieProvider = ({ children }) => {
       featuredMovies,
       newReleases,
       topRatedMovies,
+      seriesList,
+      trendingSeries,
+      newSeries,
+      topRatedSeries,
       loading,
       error,
       watchlist,
@@ -295,10 +381,12 @@ export const MovieProvider = ({ children }) => {
       removeFromFavorites,
       rateMovie,
       rateContent,
+      syncUserRating,
       getUserRating,
       addToDownloads,
       getRecommendations,
       refreshCatalog,
+      refreshPurchases,
       refreshWatchlist: () => {},
       refreshFavorites: () => {},
     }),
@@ -308,6 +396,10 @@ export const MovieProvider = ({ children }) => {
       featuredMovies,
       newReleases,
       topRatedMovies,
+      seriesList,
+      trendingSeries,
+      newSeries,
+      topRatedSeries,
       loading,
       error,
       watchlist,
@@ -326,10 +418,12 @@ export const MovieProvider = ({ children }) => {
       removeFromFavorites,
       rateMovie,
       rateContent,
+      syncUserRating,
       getUserRating,
       addToDownloads,
       getRecommendations,
       refreshCatalog,
+      refreshPurchases,
     ]
   );
 

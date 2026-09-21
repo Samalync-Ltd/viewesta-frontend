@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaWallet, FaCreditCard, FaMobileAlt, FaExclamationCircle, FaSpinner } from 'react-icons/fa';
 import { getWallet } from '../services/walletService';
+import { ENABLE_MOBILE_MONEY } from '../config/features';
 import './PaymentMethodModal.css';
 
 const PaymentMethodModal = ({ isOpen, onClose, onContinue, amount, title = "Choose Payment Method" }) => {
@@ -40,9 +41,9 @@ const PaymentMethodModal = ({ isOpen, onClose, onContinue, amount, title = "Choo
 
   const isWalletInsufficient = selectedMethod === 'wallet' && !walletLoading && !walletError && walletBalance < amount;
   
-  const canContinue = 
-    selectedMethod === 'card' || 
-    selectedMethod === 'mobile' ||
+  const canContinue =
+    selectedMethod === 'card' ||
+    (ENABLE_MOBILE_MONEY && selectedMethod === 'mobile') ||
     (selectedMethod === 'wallet' && !isWalletInsufficient && !walletLoading && !walletError);
 
   const handleContinue = () => {
@@ -132,21 +133,23 @@ const PaymentMethodModal = ({ isOpen, onClose, onContinue, amount, title = "Choo
               </div>
             </div>
 
-            {/* Mobile Money Option */}
-            <div 
-              className={`pm-option ${selectedMethod === 'mobile' ? 'active' : ''}`}
-              onClick={() => setSelectedMethod('mobile')}
-            >
-              <div className="pm-option-info">
-                <div className="pm-option-icon">
-                  <FaMobileAlt />
-                </div>
-                <div className="pm-option-text">
-                  <span className="pm-option-title">Mobile Money</span>
-                  <span className="pm-option-desc">Secure payment via Pesapal</span>
+            {/* Mobile Money Option — hidden until enabled for launch (see config/features.js) */}
+            {ENABLE_MOBILE_MONEY && (
+              <div
+                className={`pm-option ${selectedMethod === 'mobile' ? 'active' : ''}`}
+                onClick={() => setSelectedMethod('mobile')}
+              >
+                <div className="pm-option-info">
+                  <div className="pm-option-icon">
+                    <FaMobileAlt />
+                  </div>
+                  <div className="pm-option-text">
+                    <span className="pm-option-title">Mobile Money</span>
+                    <span className="pm-option-desc">Secure payment via Pesapal</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

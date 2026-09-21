@@ -70,6 +70,37 @@ export const getAvailableQualities = (priceMap) => {
   return Object.keys(priceMap);
 };
 
+/**
+ * How a title can be watched: 'pay_per_view' (PPV only) or 'both' (PPV or a
+ * subscription). The backend field is `access_type` (`ppv_only` |
+ * `ppv_and_subscription`); the older `monetization_type` is still honoured.
+ */
+export const getMonetizationType = (movie) => {
+  const explicit = movie?.raw?.monetization_type || movie?.monetization_type;
+  if (explicit) return explicit;
+  const accessType = movie?.raw?.access_type || movie?.access_type;
+  return accessType === 'ppv_only' ? 'pay_per_view' : 'both';
+};
+
+/**
+ * Rating text for display, or '' when the title has no ratings yet — the API
+ * reports unrated titles as 0, which must never be shown as a score.
+ */
+export const formatRating = (value) => {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  return String(Math.round(n * 10) / 10);
+};
+
+/** Runtime text like "1h 35m" / "45m", or '' when the duration is unknown or 0. */
+export const formatRuntime = (minutes) => {
+  const total = Number(minutes);
+  if (!Number.isFinite(total) || total <= 0) return '';
+  const hours = Math.floor(total / 60);
+  const mins = Math.round(total % 60);
+  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+};
+
 
 const extractYear = (value) => {
   if (!value) return undefined;
@@ -87,6 +118,11 @@ const normalizePeopleList = (list) => {
     })
     .filter(Boolean);
 };
+
+// Person fields come back as a plain string on some payloads and as an array of
+// { id, name, image_url } objects on others (shows). Always resolve to text —
+// an object rendered as a React child crashes the page.
+const personNames = (value) => normalizePeopleList(value).join(', ');
 
 const normalizeCastCrew = (list) => {
   return coerceArray(list)
@@ -140,7 +176,7 @@ export const normalizeMovie = (input = {}) => {
 
   const releaseDate =
     rawMovie.release_date || rawMovie.released_at || rawMovie.created_at || rawMovie.published_at;
-  const releaseYear = extractYear(releaseDate) || rawMovie.year;
+  const releaseYear = Number(rawMovie.release_year) || extractYear(releaseDate) || rawMovie.year;
   const durationMinutes =
     Number(rawMovie.duration_minutes ?? rawMovie.duration ?? rawMovie.runtime_minutes) || 0;
 
@@ -199,6 +235,14 @@ export const normalizeMovie = (input = {}) => {
     year: releaseYear || '—',
     rating: rawMovie.rating || rawMovie.average_rating || rawMovie.score || 0,
     average_rating: rawMovie.average_rating ?? null,
+    rating_count: Number(rawMovie.rating_count) || 0,
+    user_rating: rawMovie.user_rating ?? null,
+    // Left undefined when the payload doesn't carry them (older payloads / mock
+    // data), so callers can treat "unknown" as "don't block".
+    is_playable: rawMovie.is_playable,
+    is_purchasable: rawMovie.is_purchasable,
+    video_file_count: rawMovie.video_file_count,
+    access_type: rawMovie.access_type || '',
     duration: durationMinutes,
     genres: genres.length ? genres : ['General'],
     poster:
@@ -228,7 +272,7 @@ export const normalizeMovie = (input = {}) => {
       ) ||
       'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"%3E%3Crect fill="%23222" width="1200" height="600"/%3E%3Ctext x="50%" y="50%" font-size="24" fill="%23666" text-anchor="middle" dominant-baseline="middle"%3ENo Backdrop%3C/text%3E%3C/svg%3E',
     description: rawMovie.description || rawMovie.synopsis || 'No description provided.',
-    director: rawMovie.director || rawMovie.directed_by || rawMovie.filmmaker || 
+    director: rawMovie.director_name || personNames(rawMovie.director) || personNames(rawMovie.directed_by) || personNames(rawMovie.filmmaker) ||
               (rawMovie.filmmaker_first_name ? `${rawMovie.filmmaker_first_name} ${rawMovie.filmmaker_last_name || ''}`.trim() : 'Unknown Director'),
     cast: cast.length ? cast : ['Unknown Cast'],
     quality: rawMovie.default_quality || '1080p',
@@ -248,7 +292,7 @@ export const normalizeMovie = (input = {}) => {
   };
 };
 
-const normalizeSeason = (season) => {
+export const normalizeSeason = (season) => {
   if (!season) return null;
   const episodes = coerceArray(season.episodes).map((episode, index) => ({
     episodeNumber: episode?.episode_number ?? episode?.episodeNumber ?? index + 1,
@@ -279,12 +323,25 @@ export const normalizeSeries = (input = {}) => {
     type: rawSeries.type || 'Series',
   });
 
-  const seasons = coerceArray(rawSeries.seasons).map(normalizeSeason).filter(Boolean);
+  // The show payload reports `seasons` / `episodes` as plain counts; the real
+  // season and episode lists come from GET /shows/:id/seasons and
+  // /seasons/:id/episodes (see seriesService.getSeriesSeasons).
+  const seasons = Array.isArray(rawSeries.seasons)
+    ? rawSeries.seasons.map(normalizeSeason).filter(Boolean)
+    : [];
+  const seasonCount = Number(rawSeries.season_count ?? (typeof rawSeries.seasons === 'number' ? rawSeries.seasons : seasons.length)) || 0;
+  const episodeCount = Number(rawSeries.episode_count ?? (typeof rawSeries.episodes === 'number' ? rawSeries.episodes : 0)) || 0;
 
   return {
     ...normalized,
     seasons,
-    director: rawSeries.director || rawSeries.creator || normalized.director,
+    season_count: seasonCount,
+    episode_count: episodeCount,
+    // `normalized.director` is already text (see normalizeMovie); only reach for
+    // the creator when the show has no director at all.
+    director: normalized.director !== 'Unknown Director'
+      ? normalized.director
+      : (rawSeries.creator_name || personNames(rawSeries.creator) || normalized.director),
     raw: rawSeries,
   };
 };

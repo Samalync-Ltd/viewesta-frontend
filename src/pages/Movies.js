@@ -4,12 +4,8 @@ import { FaFilm } from 'react-icons/fa';
 import MovieCard from '../components/MovieCard';
 import { SkeletonCard } from '../components/Skeleton';
 import { useMovies } from '../context/MovieContext';
+import useCategories from '../hooks/useCategories';
 import './Movies.css';
-
-const GENRES = [
-  'All', 'Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Drama',
-  'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'Family', 'Biography', 'History',
-];
 
 const SORT_OPTIONS = [
   { value: 'popular', label: 'Popular' },
@@ -22,6 +18,8 @@ const normalizeType = (item) => (item?.type || '').toLowerCase();
 const Movies = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { movies, trendingMovies, loading, error, refreshCatalog } = useMovies();
+  const { categories } = useCategories();
+  const genreOptions = useMemo(() => ['All', ...categories.map((c) => c.name)], [categories]);
 
   const genreParam = searchParams.get('genre') || 'All';
   const yearParam = searchParams.get('year') || '';
@@ -123,7 +121,7 @@ const Movies = () => {
               onChange={(e) => setFilter('genre', e.target.value)}
               className="filter-select"
             >
-              {GENRES.map((g) => (
+              {genreOptions.map((g) => (
                 <option key={g} value={g}>{g}</option>
               ))}
             </select>

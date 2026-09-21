@@ -1,11 +1,27 @@
 /**
  * Payment service — backend-connected.
- * GET  /payments/purchases    → list purchased movies
- * POST /payments/purchase     → purchase a movie
- * POST /payments/verify       → verify payment
+ * GET  /payments/purchases              → list purchased movies
+ * POST /payments/purchase               → purchase a movie
+ * POST /payments/verify                 → verify payment
+ * GET  /payments/movies/:id/access      → does the current viewer have access to a movie?
  */
 
 import client from '../api/client';
+
+/**
+ * Ask the backend whether the signed-in viewer can watch a movie (purchased,
+ * subscribed, or owner). This is authoritative — unlike the locally cached
+ * purchase list, it is correct immediately after a payment completes.
+ * Resolves to { has_access, access_reason, requires_purchase, requires_subscription, ... }.
+ * @param {string} movieId
+ * @param {string} [quality]
+ */
+export async function checkMovieAccess(movieId, quality) {
+  const { data } = await client.get(`/payments/movies/${movieId}/access`, {
+    params: quality ? { quality } : undefined,
+  });
+  return data?.data ?? data ?? {};
+}
 
 /**
  * Fetch the current user's purchased movies.

@@ -37,7 +37,7 @@ const FAQ_EN = [
     items: [
       { q: 'How do I cancel my subscription?', a: 'Go to Profile → Subscriptions and tap "Cancel Subscription". Your access continues until the end of the current billing period.' },
       { q: 'Will I get a refund if I cancel?', a: 'We offer a 30-day money-back guarantee for new subscribers. Contact support with your account email to request a refund.' },
-      { q: 'What payment methods are accepted?', a: 'We accept major credit/debit cards (Visa, Mastercard), mobile money, and Viewesta Wallet balance.' },
+      { q: 'What payment methods are accepted?', a: 'We accept major credit/debit cards (Visa, Mastercard) and Viewesta Wallet balance.' },
       { q: 'How does the Wallet work?', a: 'The Viewesta Wallet lets you top up credit and use it for pay-per-view content or subscription renewals. Top-ups never expire.' },
     ],
   },
@@ -83,7 +83,7 @@ const FAQ_FR = [
     items: [
       { q: `Comment annuler mon abonnement ?`, a: `Accédez à Profil → Abonnements et appuyez sur « Annuler l’abonnement ». Votre accès se poursuit jusqu’à la fin de la période de facturation en cours.` },
       { q: `Puis-je obtenir un remboursement si j’annule ?`, a: `Nous offrons une garantie de remboursement de 30 jours pour les nouveaux abonnés. Contactez le support avec votre e-mail de compte pour demander un remboursement.` },
-      { q: `Quels moyens de paiement sont acceptés ?`, a: `Nous acceptons les principales cartes de crédit/débit (Visa, Mastercard), le mobile money et le solde du Portefeuille Viewesta.` },
+      { q: `Quels moyens de paiement sont acceptés ?`, a: `Nous acceptons les principales cartes de crédit/débit (Visa, Mastercard) et le solde du Portefeuille Viewesta.` },
       { q: `Comment fonctionne le Portefeuille ?`, a: `Le Portefeuille Viewesta vous permet de recharger du crédit et de l’utiliser pour du contenu à la séance ou pour renouveler votre abonnement. Les recharges n’expirent jamais.` },
     ],
   },

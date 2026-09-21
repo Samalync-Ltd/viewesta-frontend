@@ -1,25 +1,28 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaStar, FaCalendar, FaClock, FaArrowLeft } from 'react-icons/fa';
+import { FaStar, FaCalendar, FaClock, FaArrowLeft, FaSpinner } from 'react-icons/fa';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
 import * as movieService from '../services/movieService';
+import { checkMovieAccess } from '../services/paymentService';
 import { getMovieVideoFiles, buildSourcesMap, pickBestSource, updateMovieProgress, videoErrorMessage } from '../services/videoService';
+import { getMonetizationType, formatRating, formatRuntime } from '../utils/mediaHelpers';
 import VideoPlayer from '../components/VideoPlayer';
 import './Watch.css';
+
+const NEEDS_ACCESS_MESSAGE = 'You need to purchase this title or have an active subscription to watch it.';
 
 const Watch = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getMovieById, loading: contextLoading, purchasedMovies } = useMovies();
-  const { user } = useAuth();
+  const { getMovieById, loading: contextLoading, purchasedMovies, refreshPurchases } = useMovies();
+  const { user, loading: authLoading } = useAuth();
 
   const quality = new URLSearchParams(window.location.search).get('q') || '1080p';
 
   const [movie, setMovie] = useState(() => getMovieById(id));
   const [isFetching, setIsFetching] = useState(false);
   const [movieError, setMovieError] = useState('');
-  const [needsAccess, setNeedsAccess] = useState(false);
 
   // Video sources from backend video-files API
   const [sourcesMap, setSourcesMap] = useState({});
@@ -31,7 +34,7 @@ const Watch = () => {
     if (!m) return false;
     if (!user) return false;
     const isFilmmaker = String(user.id) === String(m.filmmakerId || m.raw?.filmmaker_id);
-    const monetizationType = m.raw?.monetization_type || m.monetization_type || 'both';
+    const monetizationType = getMonetizationType(m);
     const isSubscribed = user?.subscription?.active;
     const isPurchased = Array.isArray(purchasedMovies) && purchasedMovies.includes(String(m.id));
 
@@ -41,7 +44,15 @@ const Watch = () => {
     return false;
   }, [user, purchasedMovies]);
 
-  const [isAuthorized, setIsAuthorized] = useState(() => checkAuthorization(movie));
+  // The cached purchase list can lag behind a payment that has just completed
+  // (viewers land here straight from the payment page), so when the local check
+  // says "no" the backend is asked directly before access is refused.
+  // null = not answered yet.
+  const [serverAccess, setServerAccess] = useState(null);
+  const locallyAuthorized = checkAuthorization(movie);
+  const isAuthorized = locallyAuthorized || serverAccess === true;
+  const accessPending = Boolean(user) && Boolean(movie) && !locallyAuthorized && serverAccess === null;
+  const needsAccess = Boolean(movie) && !authLoading && !accessPending && !isAuthorized;
 
   // ─── Sync movie with context ─────────────────────────────────────────────
   useEffect(() => {
@@ -77,20 +88,24 @@ const Watch = () => {
     return () => { active = false; };
   }, [id, movie, contextLoading]);
 
-  // ─── Validate Authorization ──────────────────────────────────────────────
+  // ─── Ask the backend when the local check says "no" ──────────────────────
   useEffect(() => {
-    if (movie) {
-      const authorized = checkAuthorization(movie);
-      setIsAuthorized(authorized);
-      if (!authorized) {
-         setNeedsAccess(true);
-         setMovieError('You need to purchase this title or have an active subscription to watch it.');
-      } else {
-         setNeedsAccess(false);
-         setMovieError('');
-      }
-    }
-  }, [movie, checkAuthorization]);
+    setServerAccess(null);
+    if (!movie?.id || !user || locallyAuthorized) return undefined;
+
+    let active = true;
+    checkMovieAccess(movie.id, quality)
+      .then((result) => {
+        if (!active) return;
+        const hasAccess = Boolean(result?.has_access);
+        setServerAccess(hasAccess);
+        // Bring the cached purchase list up to date with what the backend knows.
+        if (hasAccess) refreshPurchases();
+      })
+      .catch(() => { if (active) setServerAccess(false); });
+    return () => { active = false; };
+    // `locallyAuthorized` is a boolean, so this only reruns when it flips.
+  }, [movie?.id, user, locallyAuthorized, quality, refreshPurchases]);
 
   const isLoading = contextLoading || isFetching;
 
@@ -108,7 +123,13 @@ const Watch = () => {
       try {
         const files = await getMovieVideoFiles(id);
         if (active) {
-          setSourcesMap(buildSourcesMap(files));
+          const map = buildSourcesMap(files);
+          setSourcesMap(map);
+          // Files are registered but none has a playable URL yet — that is a
+          // different situation from "nothing was uploaded".
+          if (files.length > 0 && Object.keys(map).length === 0) {
+            setSourcesError('This video is still being processed. Please check back shortly.');
+          }
           console.log(`[Watch] Successfully fetched signed URLs.`);
         }
       } catch (err) {
@@ -162,25 +183,43 @@ const Watch = () => {
     );
   }
 
-  if (movieError || !movie) {
+  if (!movie) {
     return (
       <div className="watch-not-found">
-        <h2>{needsAccess ? 'Purchase or subscribe to watch' : 'Movie not found'}</h2>
+        <h2>Movie not found</h2>
         <p>{movieError || "The movie you're looking for doesn't exist."}</p>
-        <button
-          onClick={() => navigate(needsAccess ? `/movie/${id}` : '/')}
-          className="btn btn-primary"
-        >
-          {needsAccess ? 'View movie details' : 'Go Home'}
+        <button onClick={() => navigate('/')} className="btn btn-primary">
+          Go Home
         </button>
       </div>
     );
   }
 
+  if (authLoading || accessPending) {
+    return (
+      <div className="watch-not-found">
+        <div className="loading" />
+        <p>Checking your access...</p>
+      </div>
+    );
+  }
 
+  if (needsAccess) {
+    return (
+      <div className="watch-not-found">
+        <h2>Purchase or subscribe to watch</h2>
+        <p>{NEEDS_ACCESS_MESSAGE}</p>
+        <button onClick={() => navigate(`/movie/${id}`)} className="btn btn-primary">
+          View movie details
+        </button>
+      </div>
+    );
+  }
 
   // Determine best video source from dynamic endpoint
   const finalSrc = pickBestSource(sourcesMap) || '';
+  const averageRating = formatRating(movie.average_rating ?? movie.rating);
+  const runtime = formatRuntime(movie.duration);
 
   return (
     <div className="watch-page">
@@ -191,33 +230,36 @@ const Watch = () => {
           </button>
         </div>
 
-        <VideoPlayer
-          src={finalSrc}
-          sources={sourcesMap}
-          initialQuality={quality}
-          title={movie.title}
-          poster={movie.backdrop || movie.poster}
-          onRequestRefresh={handleRefreshSource}
-          onProgress={handleProgress}
-          {...(sourcesError
-            ? { emptyTitle: sourcesError, emptySubtitle: 'Try refreshing the page in a moment.' }
-            : {})}
-          onEnded={() => {
-            // Track completion
-            if (user && id) {
-              updateMovieProgress(id, {
-                watch_time_seconds: movie.duration * 60,
-                last_position_seconds: movie.duration * 60,
-                is_completed: true,
-              });
-            }
-          }}
-        />
-
-        {sourcesLoading && (
-          <div style={{ textAlign: 'center', color: '#888', fontSize: 13, marginTop: 8 }}>
-            Loading video sources…
+        {sourcesLoading ? (
+          // While the video files are still being fetched, say so — the player's
+          // own empty state ("No video source available…") would be wrong here.
+          <div className="watch-player-loading" role="status">
+            <FaSpinner className="watch-player-spinner" />
+            <span>Loading video…</span>
           </div>
+        ) : (
+          <VideoPlayer
+            src={finalSrc}
+            sources={sourcesMap}
+            initialQuality={quality}
+            title={movie.title}
+            poster={movie.backdrop || movie.poster}
+            onRequestRefresh={handleRefreshSource}
+            onProgress={handleProgress}
+            {...(sourcesError
+              ? { emptyTitle: sourcesError, emptySubtitle: 'Try refreshing the page in a moment.' }
+              : {})}
+            onEnded={() => {
+              // Track completion
+              if (user && id) {
+                updateMovieProgress(id, {
+                  watch_time_seconds: movie.duration * 60,
+                  last_position_seconds: movie.duration * 60,
+                  is_completed: true,
+                });
+              }
+            }}
+          />
         )}
 
         <section className="watch-details">
@@ -225,16 +267,16 @@ const Watch = () => {
           <div className="watch-meta">
             <div className="meta-item rating">
               <FaStar className="icon" />
-              <span>{movie.rating || '—'}</span>
+              <span>{averageRating || '—'}</span>
             </div>
             <div className="meta-item">
               <FaCalendar className="icon" />
               <span>{movie.year || '—'}</span>
             </div>
-            {movie.duration > 0 && (
+            {runtime && (
               <div className="meta-item">
                 <FaClock className="icon" />
-                <span>{Math.floor(movie.duration / 60)}h {movie.duration % 60}m</span>
+                <span>{runtime}</span>
               </div>
             )}
           </div>

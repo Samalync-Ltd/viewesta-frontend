@@ -11,6 +11,27 @@ import { registerPushNotifications, unregisterPushNotifications } from '../servi
 
 const AuthContext = createContext();
 const USER_KEY = 'viewesta_user';
+const NO_SUBSCRIPTION = { active: false, status: 'none' };
+// How long login/register waits for the subscription lookup before letting
+// the user in and filling the subscription in once it arrives.
+const SUBSCRIPTION_WAIT_MS = 6000;
+
+// Maps a GET /subscriptions/me response into the `user.subscription` shape the
+// app reads. Confirmed real shape: { success, data: { active_subscription, subscription_history } }
+function buildSubscription(subRes) {
+  const activeSub = subRes?.data?.active_subscription || null;
+  if (!activeSub) return { ...NO_SUBSCRIPTION };
+  return {
+    ...activeSub,
+    status: activeSub.status || 'active',
+    active: activeSub.status ? activeSub.status === 'active' : true,
+    type: activeSub.plan_type || activeSub.type || activeSub.plan?.type || null,
+    planId: activeSub.plan_type || activeSub.plan_id || activeSub.id || activeSub.plan?.id || null,
+    expiresAt: activeSub.end_date || activeSub.expires_at || activeSub.expiresAt || null,
+    startedAt: activeSub.start_date || activeSub.started_at || null,
+    autoRenew: activeSub.auto_renew ?? activeSub.autoRenew ?? null,
+  };
+}
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -71,20 +92,7 @@ export const AuthProvider = ({ children }) => {
       ]);
       const fetchedUser = res.data?.data?.user || res.data?.data || res.data?.user || res.data;
 
-      // Confirmed real shape: { success, data: { active_subscription, subscription_history } }
-      const activeSub = subRes?.data?.active_subscription || null;
-      fetchedUser.subscription = activeSub
-        ? {
-            ...activeSub,
-            status: activeSub.status || 'active',
-            active: activeSub.status ? activeSub.status === 'active' : true,
-            type: activeSub.plan_type || activeSub.type || activeSub.plan?.type || null,
-            planId: activeSub.plan_type || activeSub.plan_id || activeSub.id || activeSub.plan?.id || null,
-            expiresAt: activeSub.end_date || activeSub.expires_at || activeSub.expiresAt || null,
-            startedAt: activeSub.start_date || activeSub.started_at || null,
-            autoRenew: activeSub.auto_renew ?? activeSub.autoRenew ?? null,
-          }
-        : { active: false, status: 'none' };
+      fetchedUser.subscription = buildSubscription(subRes);
 
       persistUser(fetchedUser);
       return fetchedUser;
@@ -103,6 +111,34 @@ export const AuthProvider = ({ children }) => {
   }, [refreshProfile]);
 
 
+// The login response carries no subscription and refreshProfile() only runs when
+// the app first loads, so a returning subscriber would look unsubscribed until a
+// page refresh. This loads it right after sign-in. If the lookup is slow the user
+// is let in immediately and the subscription is filled in when it arrives.
+const signInWithSubscription = async (baseUser) => {
+  const lookup = getMySubscription()
+    .then((subRes) => ({ ...baseUser, subscription: buildSubscription(subRes) }))
+    .catch((subErr) => {
+      console.log('Could not fetch subscription:', subErr.message);
+      return baseUser;
+    });
+
+  const timedOut = Symbol('subscription-timeout');
+  const first = await Promise.race([
+    lookup,
+    new Promise((resolve) => setTimeout(() => resolve(timedOut), SUBSCRIPTION_WAIT_MS)),
+  ]);
+
+  if (first !== timedOut) return persistUser(first);
+
+  const provisional = persistUser(baseUser);
+  lookup.then((merged) => {
+    // Skip the late result if the user has signed out in the meantime.
+    if (localStorage.getItem('viewesta_token')) persistUser(merged);
+  });
+  return provisional;
+};
+
 // I edited the login function to use the apiclient insted of Mock loing of authService
 const login = async (email, password) => {
   try {
@@ -120,14 +156,14 @@ const login = async (email, password) => {
       localStorage.setItem('viewesta_refresh_token', tokens.refreshToken || resData?.refresh_token);
     }
 
-    persistUser(user);
+    const signedInUser = await signInWithSubscription(user);
 
     // Register push notifications silently in background
     registerPushNotifications().catch(err => {
       console.warn('Push notification registration failed silently', err);
     });
 
-    return { success: true, user };
+    return { success: true, user: signedInUser };
 
   } catch (err) {
     // Map by HTTP status rather than string-matching the backend message —
@@ -177,15 +213,16 @@ const register = async (data) => {
       localStorage.setItem('viewesta_refresh_token', tokens.refreshToken || resData?.refresh_token);
     }
 
-    persistUser(user);
-    console.log('Registration successful:', user);
+    // A brand-new account has no subscription yet.
+    const registeredUser = persistUser({ ...user, subscription: { ...NO_SUBSCRIPTION } });
+    console.log('Registration successful:', registeredUser);
 
     // Register push notifications silently in background
     registerPushNotifications().catch(err => {
       console.warn('Push notification registration failed silently', err);
     });
 
-    return { success: true, user };
+    return { success: true, user: registeredUser };
   } catch (err) {
     console.error('Registration API error:', err);
     return {
@@ -197,9 +234,23 @@ const register = async (data) => {
 
 
   const logout = () => {
-    unregisterPushNotifications().catch(err => {
-      console.warn('Failed to unregister push notifications on logout', err);
-    });
+    const tokenAtLogout = localStorage.getItem('viewesta_token');
+
+    // Unregistering the push device is an authenticated call, so the session
+    // tokens are only cleared once it has settled. Without clearing them a
+    // page refresh restores the "signed out" session. The token check stops a
+    // slow unregister from wiping the tokens of someone who signed straight back in.
+    unregisterPushNotifications()
+      .catch(err => {
+        console.warn('Failed to unregister push notifications on logout', err);
+      })
+      .finally(() => {
+        if (localStorage.getItem('viewesta_token') === tokenAtLogout) {
+          localStorage.removeItem('viewesta_token');
+          localStorage.removeItem('viewesta_refresh_token');
+          localStorage.removeItem('viewesta_access_token');
+        }
+      });
     persistUser(null);
   };
 

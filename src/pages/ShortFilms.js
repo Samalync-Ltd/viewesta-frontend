@@ -3,12 +3,8 @@ import { FaFilm, FaClock, FaFilter, FaTimes } from 'react-icons/fa';
 import { getShortFilms } from '../services/movieService';
 import MovieCard from '../components/MovieCard';
 import Skeleton from '../components/Skeleton';
+import useCategories from '../hooks/useCategories';
 import './ShortFilms.css';
-
-const GENRES = [
-  'Drama', 'Comedy', 'Action', 'Romance', 'Thriller',
-  'Documentary', 'Animation', 'Horror', 'Sci-Fi', 'Adventure',
-];
 
 const SORT_OPTIONS = [
   { value: 'popular', label: 'Most Popular' },
@@ -23,6 +19,7 @@ const ShortFilms = () => {
   const [activeGenre, setActiveGenre] = useState('');
   const [activeSort, setActiveSort] = useState('popular');
   const [showFilters, setShowFilters] = useState(false);
+  const { categories } = useCategories();
 
   const fetchFilms = useCallback(async () => {
     setLoading(true);
@@ -116,7 +113,7 @@ const ShortFilms = () => {
             >
               All
             </button>
-            {GENRES.map((g) => (
+            {categories.map(({ name: g }) => (
               <button
                 key={g}
                 className={`sf-genre-btn ${activeGenre === g ? 'active' : ''}`}

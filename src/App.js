@@ -285,6 +285,10 @@ function AppRoutes() {
             <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
             <Route path="/following" element={<ProtectedRoute><Following /></ProtectedRoute>} />
             <Route path="/payment-callback" element={<ProtectedRoute><PaymentCallback /></ProtectedRoute>} />
+            {/* The backend's Pesapal callback redirects the browser to these two — without
+                them the catch-all route below sent paying viewers silently to the home page. */}
+            <Route path="/payments/success" element={<ProtectedRoute><PaymentCallback outcome="success" /></ProtectedRoute>} />
+            <Route path="/payments/failure" element={<ProtectedRoute><PaymentCallback outcome="failure" /></ProtectedRoute>} />
             <Route path="/filmmaker-followers" element={<FilmmakerRoute><FilmmakerFollowers /></FilmmakerRoute>} />
             <Route path="/filmmaker-views" element={<FilmmakerRoute><FilmmakerViews /></FilmmakerRoute>} />
             <Route path="/earnings-detail" element={<FilmmakerRoute><EarningsDetail /></FilmmakerRoute>} />

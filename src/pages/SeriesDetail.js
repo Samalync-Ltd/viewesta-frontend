@@ -13,14 +13,16 @@ import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
 import AgeRatingBadge from '../components/AgeRatingBadge';
 import VideoPlayer from '../components/VideoPlayer';
+import { formatRating } from '../utils/mediaHelpers';
 import './SeriesDetail.css';
 
 const SeriesDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToWatchlist, removeFromWatchlist, watchlist, rateContent, getUserRating } = useMovies();
+  const { addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating } = useMovies();
   const episodesRef = useRef(null);
   const { user } = useAuth();
+  const userId = user?.id;
 
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -29,12 +31,40 @@ const SeriesDetail = () => {
   const [relatedSeries, setRelatedSeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [seasons, setSeasons] = useState([]);
+  const [seasonsLoading, setSeasonsLoading] = useState(false);
+  const [seasonsError, setSeasonsError] = useState('');
+  const [ratingMessage, setRatingMessage] = useState(null); // { type: 'success' | 'error', text }
 
   // Episode player state
   const [watchEpisode, setWatchEpisode] = useState(null); // { season, episode, seasonIdx, episodeIdx }
   const [episodeSources, setEpisodeSources] = useState({});
   const [episodeSourcesLoading, setEpisodeSourcesLoading] = useState(false);
   const [episodeSourcesError, setEpisodeSourcesError] = useState('');
+
+  // ─── Fetch seasons + episodes ───────────────────────────────────────────────
+  // GET /shows/:id only reports season/episode counts, so the real lists load
+  // separately (and slower) and are kept in their own state.
+  const fetchSeasons = useCallback(async () => {
+    if (!id) return;
+    setSeasonsLoading(true);
+    setSeasonsError('');
+    setSeasons([]);
+    try {
+      const list = await seriesService.getSeriesSeasons(id);
+      setSeasons(list);
+      if (list[0]) setExpandedSeason(list[0].seasonNumber ?? 1);
+    } catch (err) {
+      console.error('Failed to load seasons:', err?.message);
+      setSeasonsError('Unable to load episodes right now.');
+    } finally {
+      setSeasonsLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchSeasons();
+  }, [fetchSeasons]);
 
   // ─── Fetch series data ──────────────────────────────────────────────────────
   const fetchSeriesDetail = useCallback(async () => {
@@ -46,21 +76,27 @@ const SeriesDetail = () => {
       // TEMPORARY: Approval filter removed for testing — show ALL content regardless of status
       // TODO: Restore approval check before production
       setSeriesData(normalized || null);
-      if (normalized?.seasons?.[0]) {
-        setExpandedSeason(normalized.seasons[0].seasonNumber ?? 1);
+      if (!normalized) {
+        setError('Series not found.');
+      } else if (normalized.user_rating != null) {
+        syncUserRating(normalized.id, normalized.user_rating);
       }
-      if (!normalized) setError('Series not found.');
     } catch (err) {
       setError(err?.message || 'Unable to load this series right now.');
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, syncUserRating]);
 
+  // userId is a trigger, not an input: refetch once sign-in state settles so
+  // `user_rating` is the signed-in account's rather than an anonymous null.
   useEffect(() => {
     fetchSeriesDetail();
+  }, [fetchSeriesDetail, userId]);
+
+  useEffect(() => {
     if (id) seriesService.viewShow(id).catch(() => {});
-  }, [fetchSeriesDetail, id]);
+  }, [id]);
 
   // ─── Fetch related series ─────────────────────────────────────────────────
   useEffect(() => {
@@ -144,7 +180,7 @@ const SeriesDetail = () => {
   const getAllEpisodes = () => {
     if (!seriesData) return [];
     const result = [];
-    for (const season of seriesData.seasons || []) {
+    for (const season of seasons) {
       for (const ep of season.episodes || []) {
         result.push({ season, episode: ep });
       }
@@ -249,12 +285,26 @@ const SeriesDetail = () => {
     }
   };
 
-  const userRating = seriesData ? getUserRating(seriesData.id) : undefined;
-  const totalEpisodes = (seriesData?.seasons || []).reduce((s, x) => s + (x.episodes?.length || 0), 0);
+  // This browser's just-made rating wins; otherwise the account's rating from the backend.
+  const userRating = seriesData ? (getUserRating(seriesData.id) ?? seriesData.user_rating ?? undefined) : undefined;
+  // Until the real season list arrives, fall back to the counts on the show itself.
+  const seasonCount = seasons.length || seriesData?.season_count || 0;
+  const totalEpisodes = seasons.reduce((s, x) => s + (x.episodes?.length || 0), 0) || seriesData?.episode_count || 0;
+  const averageRating = formatRating(seriesData?.average_rating ?? seriesData?.rating);
 
-  const handleRate = (stars) => {
+  const handleRate = async (stars) => {
     if (!user) { navigate('/login'); return; }
-    rateContent(seriesData.id, stars);
+    setRatingMessage(null);
+    const result = await rateContent(seriesData.id, stars, 'show');
+    if (!result.success) {
+      setRatingMessage({ type: 'error', text: result.error });
+      return;
+    }
+    setRatingMessage({ type: 'success', text: 'Thanks — your rating was saved.' });
+    // Pull the updated average / rating count without a loading flash.
+    seriesService.getSeriesById(seriesData.id)
+      .then((fresh) => { if (fresh) setSeriesData(fresh); })
+      .catch(() => {});
   };
 
   const buildGallery = (s) => {
@@ -301,11 +351,21 @@ const SeriesDetail = () => {
               )}
             </div>
             <div className="series-meta">
-              <div className="series-rating"><FaStar className="star-icon" /><span>{seriesData.rating}</span></div>
-              <div className="series-year"><FaCalendar /><span>{seriesData.year}</span></div>
-              <div className="series-seasons">
-                <span>{seriesData.seasons.length} Season{seriesData.seasons.length !== 1 ? 's' : ''}</span>
+              {/* The API reports unrated shows as 0 — say so instead of showing a 0 score. */}
+              <div className="series-rating">
+                <FaStar className="star-icon" />
+                <span>
+                  {averageRating
+                    ? <>{averageRating}{seriesData.rating_count > 0 && <> ({seriesData.rating_count})</>}</>
+                    : 'No ratings yet'}
+                </span>
               </div>
+              <div className="series-year"><FaCalendar /><span>{seriesData.year}</span></div>
+              {seasonCount > 0 && (
+                <div className="series-seasons">
+                  <span>{seasonCount} Season{seasonCount !== 1 ? 's' : ''}</span>
+                </div>
+              )}
             </div>
             {seriesData.genres?.length > 0 && (
               <div className="series-genres">
@@ -317,7 +377,7 @@ const SeriesDetail = () => {
               <div className="detail-item"><strong>Creator:</strong> {seriesData.director || seriesData.creator || 'Unknown'}</div>
               <div className="detail-item"><strong>Cast:</strong> {Array.isArray(seriesData.cast) ? seriesData.cast.join(', ') : '—'}</div>
               <div className="detail-item"><strong>Premiered:</strong> {seriesData.raw?.release_date || seriesData.year || '—'}</div>
-              <div className="detail-item"><strong>Seasons:</strong> {seriesData.seasons?.length || '—'}</div>
+              <div className="detail-item"><strong>Seasons:</strong> {seasonCount || '—'}</div>
               {totalEpisodes > 0 && <div className="detail-item"><strong>Episodes:</strong> {totalEpisodes}</div>}
             </div>
             <div className="detail-your-rating">
@@ -336,6 +396,14 @@ const SeriesDetail = () => {
                 ))}
               </div>
               {userRating != null && <span className="detail-your-rating-value">{userRating}/5</span>}
+              {ratingMessage && (
+                <span
+                  role="status"
+                  className={`detail-rating-message detail-rating-message--${ratingMessage.type}`}
+                >
+                  {ratingMessage.text}
+                </span>
+              )}
             </div>
             <div className="series-actions">
               <button onClick={handleStartWatching} className="btn btn-primary">
@@ -380,10 +448,19 @@ const SeriesDetail = () => {
       <div className="seasons-section" ref={episodesRef} id="episodes">
         <div className="seasons-container">
           <h2 className="seasons-title">Episodes</h2>
-          {(!seriesData.seasons || seriesData.seasons.length === 0) && (
+          {seasonsLoading && (
+            <p className="seasons-empty">Loading episodes…</p>
+          )}
+          {!seasonsLoading && seasonsError && (
+            <div className="seasons-empty">
+              <p>{seasonsError}</p>
+              <button type="button" className="btn btn-ghost btn-small" onClick={fetchSeasons}>Retry</button>
+            </div>
+          )}
+          {!seasonsLoading && !seasonsError && seasons.length === 0 && (
             <p className="seasons-empty">Episodes will appear here once they are published.</p>
           )}
-          {(seriesData.seasons || []).map((season) => (
+          {seasons.map((season) => (
             <div key={season.seasonNumber} className="season-container">
               <div
                 className="season-header"

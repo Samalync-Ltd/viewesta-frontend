@@ -310,6 +310,14 @@
   color: var(--text-muted);
 }
 
+.detail-rating-message {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.detail-rating-message--success { color: #22c55e; }
+.detail-rating-message--error   { color: #f87171; }
+
 .series-actions { display: flex; gap: 12px; flex-wrap: wrap; }
 /* Reuse movie action sizing for consistency */
 .series-actions { --cta-min: 220px; --cta-max: 260px; --cta-height: 48px; }

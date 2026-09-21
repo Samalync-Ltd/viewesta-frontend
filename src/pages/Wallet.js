@@ -15,6 +15,7 @@ import {
 } from 'react-icons/fa';
 import { getWallet, getWalletTransactions, getWalletSummary, topUpWallet } from '../services/walletService';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
+import { ENABLE_MOBILE_MONEY } from '../config/features';
 import './Wallet.css';
 
 const TxIcon = ({ type }) => (
@@ -67,7 +68,7 @@ const Wallet = () => {
   const paymentMethods   = [
     { id: 'card',   name: 'Credit / Debit Card', icon: FaCreditCard },
     { id: 'mobile', name: 'Mobile Money',         icon: FaMobile    },
-  ];
+  ].filter((method) => method.id !== 'mobile' || ENABLE_MOBILE_MONEY);
 
   const paymentProviders = [
     { id: 'pesapal', name: 'Pesapal' },
@@ -165,11 +166,10 @@ const Wallet = () => {
       // Support nested redirect_url in result.data or top-level redirect_url
       const redirectUrl = result?.data?.redirect_url || result?.redirect_url;
       if (redirectUrl) {
-        // Append return_to so the callback can route us back to Wallet
-        const returnTo = encodeURIComponent(`/wallet`);
-        const url = new URL(redirectUrl);
-        url.searchParams.append('return_to', returnTo);
-        window.location.href = url.toString();
+        // Pesapal's return address is fixed on the server, so remember where to
+        // send the viewer once the payment landing page has verified the top-up.
+        sessionStorage.setItem('vw_payment_return_to', '/wallet');
+        window.location.href = redirectUrl;
         return; // Don't stop topping, we are redirecting
       }
 
@@ -525,7 +525,9 @@ const Wallet = () => {
               <div className="info-item">
                 <div className="info-icon info-icon--blue"><FaCreditCard /></div>
                 <h4>Multiple Methods</h4>
-                <p>Top up via credit card, debit card, or mobile money.</p>
+                <p>{ENABLE_MOBILE_MONEY
+                  ? 'Top up via credit card, debit card, or mobile money.'
+                  : 'Top up securely with your credit or debit card.'}</p>
               </div>
               <div className="info-item">
                 <div className="info-icon info-icon--green"><FaShieldAlt /></div>

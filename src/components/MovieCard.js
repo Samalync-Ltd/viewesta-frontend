@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaPlay, FaHeart, FaClock, FaBookmark, FaCalendar } from 'react-icons/fa';
+import { FaPlay, FaHeart, FaClock, FaBookmark, FaCalendar, FaFilm } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import { useMovies } from '../context/MovieContext';
 import AgeRatingBadge from './AgeRatingBadge';
@@ -16,6 +16,7 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
   const { user } = useAuth();
   const { watchlist, addToWatchlist, removeFromWatchlist } = useMovies();
   const isInWatchlist = movie?.id ? watchlist.includes(movie.id) : false;
+  const showPosterPlaceholder = imageError || !movie.poster;
 
   const handleWatchlistToggle = (e) => {
     e.preventDefault();
@@ -79,27 +80,35 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
       <div className="movie-card-inner">
         {/* Poster Section */}
         <div className="movie-poster">
-          {isImageLoading && (
+          {isImageLoading && !showPosterPlaceholder && (
             <div className="poster-loading" aria-label="Loading movie poster">
               <div className="poster-loading-spinner" />
             </div>
           )}
 
-          <img 
-            src={imageError ? '/assets/images/fallback.png' : (movie.poster || '/assets/images/fallback.png')} 
-            alt={movie.title}
-            className="poster-image"
-            loading="lazy"
-            onError={() => {
-              setImageError(true);
-              setIsImageLoading(false);
-            }}
-            onLoad={() => {
-              setImageError(false);
-              setIsImageLoading(false);
-            }}
-          />
-          
+          {showPosterPlaceholder ? (
+            // Posters can be missing or unreachable (403 / dead host); show a clean
+            // placeholder rather than a broken-image glyph with alt text spilling over the badges.
+            <div className="poster-placeholder" role="img" aria-label={movie.title}>
+              <FaFilm />
+            </div>
+          ) : (
+            <img
+              src={movie.poster}
+              alt={movie.title}
+              className="poster-image"
+              loading="lazy"
+              onError={() => {
+                setImageError(true);
+                setIsImageLoading(false);
+              }}
+              onLoad={() => {
+                setImageError(false);
+                setIsImageLoading(false);
+              }}
+            />
+          )}
+
           {/* Trailer Video */}
           {movie.trailer && String(movie.trailer).match(/\.(mp4|webm|ogg|mov)$/i) && (
             <video
@@ -148,7 +157,7 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
         {/* Movie Info */}
         <div className="movie-info">
           <h3 className="movie-title">{movie.title}</h3>
-          
+
           <div className="movie-meta">
             {movie.year && (
               <div className="movie-year">
@@ -156,8 +165,9 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
                 <span>{movie.year}</span>
               </div>
             )}
-            
-            {movie.duration && (
+
+            {/* `> 0`, not a bare `movie.duration &&`: a duration of 0 would render a literal "0". */}
+            {movie.duration > 0 && (
               <div className="movie-duration">
                 <FaClock className="clock-icon" />
                 <span>{formatDuration(movie.duration)}</span>
@@ -189,7 +199,7 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
                 </div>
               )}
               
-              {movie.duration && (
+              {movie.duration > 0 && (
                 <div className="movie-duration">
                   <FaClock className="clock-icon" />
                   <span>{formatDuration(movie.duration)}</span>

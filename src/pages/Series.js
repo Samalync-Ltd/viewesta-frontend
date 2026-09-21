@@ -4,13 +4,8 @@ import { FaTv } from 'react-icons/fa';
 import MovieCard from '../components/MovieCard';
 import { SkeletonCard } from '../components/Skeleton';
 import * as seriesService from '../services/seriesService';
+import useCategories from '../hooks/useCategories';
 import './Series.css';
-
-const GENRES = [
-  'All', 'Action', 'Biography', 'Comedy', 'Crime', 'Drama',
-  'Fantasy', 'History', 'Horror', 'Mystery', 'Reality', 'Romance',
-  'Sci-Fi', 'Thriller', 'Family',
-];
 
 const SORT_OPTIONS = [
   { value: 'popular',   label: 'Popular' },
@@ -25,6 +20,8 @@ const Series = () => {
   const [series, setSeries]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState('');
+  const { categories } = useCategories();
+  const genreOptions = useMemo(() => ['All', ...categories.map((c) => c.name)], [categories]);
 
   const genreParam = searchParams.get('genre') || 'All';
   const yearParam  = searchParams.get('year')  || '';
@@ -66,12 +63,6 @@ const Series = () => {
     // TEMP TESTING MODE: approval filter disabled temporarily for DRM/video testing
     // TODO: restore approval_status === 'APPROVED' before production
     let list = series.filter(s => true /* String(s.approval_status).toUpperCase() === 'APPROVED' */);
-    const trendingParam = searchParams.get('trending') === 'true';
-
-    // Trending filter
-    if (trendingParam) {
-      list = list.filter((s) => s.trending);
-    }
 
     // Genre filter
     if (genreParam && genreParam !== 'All') {
@@ -107,16 +98,18 @@ const Series = () => {
           (Number(a.average_rating ?? a.rating) || 0)
       );
     } else {
-      // popular: trending first, then by rating
+      // popular / trending: most viewed first, then by rating. (The API has no
+      // per-show "trending" flag, so views are the ranking signal; this also
+      // backs the home page's "View all" trending link.)
       list.sort(
         (a, b) =>
-          (b.trending ? 1 : 0) - (a.trending ? 1 : 0) ||
+          (Number(b.raw?.view_count) || 0) - (Number(a.raw?.view_count) || 0) ||
           (Number(b.rating) || 0) - (Number(a.rating) || 0)
       );
     }
 
     return list;
-  }, [series, searchParams, genreParam, yearParam, sortParam]);
+  }, [series, genreParam, yearParam, sortParam]);
 
 
 
@@ -172,7 +165,7 @@ const Series = () => {
               onChange={(e) => setFilter('genre', e.target.value)}
               className="filter-select"
             >
-              {GENRES.map((g) => (
+              {genreOptions.map((g) => (
                 <option key={g} value={g}>{g}</option>
               ))}
             </select>

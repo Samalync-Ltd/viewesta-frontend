@@ -4,6 +4,7 @@ import { FaChevronLeft, FaChevronRight, FaPlay, FaCheck } from 'react-icons/fa';
 import { useLocale } from '../context/LocaleContext';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
+import { formatRating, formatRuntime } from '../utils/mediaHelpers';
 import './HeroCarousel.css';
 
 const HeroCarousel = ({ items = [] }) => {
@@ -124,8 +125,12 @@ const HeroCarousel = ({ items = [] }) => {
                     <p className="slide-description">{item.description}</p>
                     <div className="slide-meta">
                       <span className="slide-year">{item.year}</span>
-                      <span className="slide-rating">⭐ {item.rating}</span>
-                      <span className="slide-duration">{item.duration}m</span>
+                      {formatRating(item.rating) && (
+                        <span className="slide-rating">⭐ {formatRating(item.rating)}</span>
+                      )}
+                      {formatRuntime(item.duration) && (
+                        <span className="slide-duration">{formatRuntime(item.duration)}</span>
+                      )}
                     </div>
                     <div className="slide-actions">
                       <button 

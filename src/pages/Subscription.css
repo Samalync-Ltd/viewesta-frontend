@@ -76,10 +76,13 @@
 }
 
 /* ── Container ── */
+/* `.layout-container` sets `overflow-x: hidden`, which also clips vertically at
+   the container's padding edge. The "Most Popular" badge sits 14px above the top
+   of its card, so the container needs top padding or the badge is cut in half. */
 .subscription-container {
   max-width: 1240px;
   margin: 0 auto;
-  padding: 0 24px 80px;
+  padding: 28px 24px 80px;
   box-sizing: border-box;
 }
 
@@ -250,7 +253,9 @@
   display: flex;
   flex-direction: column;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
-  z-index: 1000;
+  /* Was 1000 — the same as the fixed header, and later in the page, so cards
+     painted over the nav bar while scrolling. */
+  z-index: 1;
 }
 
 .plan-card:hover {
@@ -384,14 +389,56 @@
   flex-shrink: 0;
 }
 
-/* CTA button */
+/* CTA button — one look and one height for every plan. MovieCard.css defines a
+   bare, global `.btn-primary` (uppercase, 12px), which made the popular plan's
+   button read "GET STARTED" at a different size than its siblings; the doubled
+   selector here outranks it. Both variants share the same 2px border so the
+   filled and outlined buttons are exactly the same height. */
 .sub-btn {
   margin-top: auto;
-  padding: 14px;
+}
+
+.plan-card .sub-btn {
+  width: 100%;
+  min-height: 52px;
+  padding: 14px 20px;
+  border: 2px solid var(--primary);
+  border-radius: 12px;
   font-size: 15px;
   font-weight: 700;
-  border-radius: 12px;
   letter-spacing: 0.3px;
+  text-transform: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.plan-card .sub-btn.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.plan-card .sub-btn.btn-primary:hover:not(:disabled) {
+  background: #e07a3f;
+  transform: none;
+  box-shadow: none;
+}
+
+.plan-card .sub-btn.btn-outline {
+  background: transparent;
+  color: var(--primary);
+}
+
+.plan-card .sub-btn.btn-outline:hover:not(:disabled) {
+  background: var(--primary);
+  color: #fff;
+}
+
+.plan-card .sub-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* ── Trust Section ── */
@@ -510,7 +557,7 @@
   }
 
   .subscription-container {
-    padding: 0 20px 60px;
+    padding: 28px 20px 60px;
   }
 
   .guarantee-strip {
