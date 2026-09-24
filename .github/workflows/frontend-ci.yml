@@ -1,0 +1,115 @@
+name: Frontend Tier-1 CI
+
+on:
+  push:
+    branches-ignore:
+      - master
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-tier1-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-security:
+    name: Quality and Security Gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact commit
+        run: |
+          set -euo pipefail
+
+          ACTUAL="$(git rev-parse HEAD)"
+          EXPECTED="${GITHUB_SHA}"
+
+          echo "Expected: ${EXPECTED}"
+          echo "Actual:   ${ACTUAL}"
+
+          test "${ACTUAL}" = "${EXPECTED}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Unit tests
+        run: npm test -- --watchAll=false --watch=false
+
+      - name: Dependency security gate
+        run: npm audit --audit-level=critical
+
+      - name: Secret scan
+        run: |
+          set -euo pipefail
+
+          docker run --rm \
+            --mount "type=bind,source=${GITHUB_WORKSPACE},target=/repo,readonly" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect \
+            --source=/repo \
+            --no-banner \
+            --redact \
+            --exit-code=1 \
+            --log-opts="--all"
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          ignore-unfixed: true
+
+      - name: Build frontend
+        env:
+          REACT_APP_API_BASE: ${{ vars.REACT_APP_API_BASE }}
+          REACT_APP_API_VERSION: ${{ vars.REACT_APP_API_VERSION }}
+        run: |
+          set -euo pipefail
+
+          npm run build
+
+      - name: Verify build artifacts
+        run: |
+          set -euo pipefail
+
+          test -f build/index.html
+          test -s build/index.html
+
+          JS_COUNT="$(find build/static/js -type f -name '*.js' | wc -l)"
+
+          test "${JS_COUNT}" -ge 1
+
+          echo "JavaScript bundles: ${JS_COUNT}"
+          echo "Frontend build artifacts verified."
+
+      - name: Verify exact commit after security gates
+        run: |
+          set -euo pipefail
+
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+      - name: CI complete
+        run: |
+          echo "Frontend Tier-1 CI passed."
+          echo "No PR was created."
+          echo "No merge was performed."
+          echo "No deployment was performed."
