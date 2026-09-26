@@ -68,7 +68,11 @@ src/
 
 ### Documents
 - See `docs/ARCHITECTURE.md` for a deeper dive into architecture, data model, and next steps.
+- See `docs/DEVELOPER_GUIDE.md` for project structure, application flow, and development notes.
 
 ### Notes
 - Subscriptions are UI-only for now; wiring to `AuthContext` is a planned enhancement.
 - Some page sections use local arrays (e.g., `Movies`, `Series`); consider consolidating under context.
+
+
+Testing Testing readme test
