@@ -77,6 +77,10 @@ jobs:
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
+          # Runs after `npm ci`: without this, Trivy flags Dockerfiles shipped inside
+          # third-party packages. Dependency vulnerabilities are still read from
+          # package-lock.json, which is outside node_modules.
+          skip-dirs: node_modules
 
       - name: Build frontend
         env:

@@ -23,10 +23,10 @@ jobs:
 
           gh api \
             --method POST \
-            /repos/Samalync-Ltd/viewsta-devops/dispatches \
+            /repos/Samalync-Ltd/viewesta-devops/dispatches \
             -f event_type=frontend-ci \
             -f client_payload[application]=frontend \
-            -f client_payload[repository]=Samalync-Ltd/viewsta-frontend \
+            -f client_payload[repository]=Samalync-Ltd/viewesta-frontend \
             -f client_payload[branch]="$BRANCH" \
             -f client_payload[commit_sha]="$SHA" \
             -f client_payload[event]=push
