@@ -46,5 +46,15 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "overrides": {
+    "underscore": "^1.13.8",
+    "serialize-javascript": "^7.0.3",
+    "@svgr/plugin-svgo": {
+      "svgo": "^2.8.4"
+    },
+    "resolve-url-loader": {
+      "postcss": "^8.5.12"
+    }
   }
 }
