@@ -10,6 +10,7 @@
  */
 
 import client from '../api/client';
+import { qualityRank } from '../utils/quality';
 
 // ─── Video Files ──────────────────────────────────────────────────────────────
 
@@ -105,16 +106,46 @@ export function buildSourcesMap(videoFiles = []) {
 }
 
 /**
- * Pick the best available source URL from a sources map.
- * Priority: 1080p → 720p → 480p → first available
+ * Pick the source URL to start with from a sources map.
+ * With `preferred` (the viewer's quality): that quality if present, else the
+ * highest one below it, else the lowest available. Without it:
+ * 1080p → 720p → 480p → 4K → 360p → first available.
  */
-export function pickBestSource(sourcesMap = {}) {
-  const preferred = ['1080p', '720p', '480p', '4K', '360p'];
-  for (const q of preferred) {
+export function pickBestSource(sourcesMap = {}, preferred = null) {
+  const keys = Object.keys(sourcesMap);
+  if (keys.length === 0) return null;
+  if (preferred && qualityRank(preferred) >= 0) {
+    if (sourcesMap[preferred]) return sourcesMap[preferred];
+    const ranked = keys.filter((q) => qualityRank(q) >= 0).sort((a, b) => qualityRank(b) - qualityRank(a));
+    const below = ranked.find((q) => qualityRank(q) < qualityRank(preferred));
+    if (below) return sourcesMap[below];
+    if (ranked.length) return sourcesMap[ranked[ranked.length - 1]];
+  }
+  for (const q of ['1080p', '720p', '480p', '4K', '360p']) {
     if (sourcesMap[q]) return sourcesMap[q];
   }
-  const values = Object.values(sourcesMap);
-  return values.length > 0 ? values[0] : null;
+  return sourcesMap[keys[0]];
+}
+
+// Signed video URLs are short-lived (60 s on the current API). The player
+// renews them before a seek outside the buffer and after a failed request.
+export const SIGNED_URL_TTL_MS = 60 * 1000;
+
+/**
+ * When the earliest signed URL in `videoFiles` expires (ms since epoch).
+ * Uses a per-file `expires_at` / `expires_in(_seconds)` when the API sends one,
+ * otherwise SIGNED_URL_TTL_MS from `fetchedAt`.
+ */
+export function sourcesExpireAt(videoFiles = [], fetchedAt = Date.now()) {
+  const times = videoFiles
+    .map((vf) => {
+      const at = Date.parse(vf?.expires_at || vf?.url_expires_at || '');
+      if (!Number.isNaN(at)) return at;
+      const secs = Number(vf?.expires_in_seconds ?? vf?.expires_in);
+      return Number.isFinite(secs) && secs > 0 ? fetchedAt + secs * 1000 : null;
+    })
+    .filter(Boolean);
+  return times.length ? Math.min(...times) : fetchedAt + SIGNED_URL_TTL_MS;
 }
 
 /**

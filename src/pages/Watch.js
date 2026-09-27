@@ -1,33 +1,52 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { FaStar, FaCalendar, FaClock, FaArrowLeft, FaSpinner } from 'react-icons/fa';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
 import * as movieService from '../services/movieService';
 import { checkMovieAccess } from '../services/paymentService';
-import { getMovieVideoFiles, buildSourcesMap, pickBestSource, updateMovieProgress, videoErrorMessage } from '../services/videoService';
+import {
+  getMovieVideoFiles, buildSourcesMap, pickBestSource, sourcesExpireAt,
+  updateMovieProgress, videoErrorMessage,
+} from '../services/videoService';
 import { getMonetizationType, formatRating, formatRuntime } from '../utils/mediaHelpers';
+import { clampQuality, capSources, qualityRank } from '../utils/quality';
+import usePlaybackQuality from '../hooks/usePlaybackQuality';
 import VideoPlayer from '../components/VideoPlayer';
 import './Watch.css';
 
 const NEEDS_ACCESS_MESSAGE = 'You need to purchase this title or have an active subscription to watch it.';
+const DEFAULT_QUALITY = '1080p';
+const PROGRESS_SAVE_EVERY_S = 30;
 
 const Watch = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getMovieById, loading: contextLoading, purchasedMovies, refreshPurchases } = useMovies();
+  const [searchParams] = useSearchParams();
+  const { getMovieById, purchasedMovies, refreshPurchases } = useMovies();
   const { user, loading: authLoading } = useAuth();
 
-  const quality = new URLSearchParams(window.location.search).get('q') || '1080p';
-
   const [movie, setMovie] = useState(() => getMovieById(id));
-  const [isFetching, setIsFetching] = useState(false);
+  const [fetchState, setFetchState] = useState('idle'); // 'idle' | 'loading' | 'done'
   const [movieError, setMovieError] = useState('');
 
-  // Video sources from backend video-files API
-  const [sourcesMap, setSourcesMap] = useState({});
+  // Video sources from the backend video-files API. `version` bumps on every
+  // fetch so the player reloads after a renewal; `expiresAt` is when the
+  // signed URLs stop working.
+  const [playback, setPlayback] = useState({ map: {}, expiresAt: null, version: 0 });
   const [sourcesLoading, setSourcesLoading] = useState(true);
   const [sourcesError, setSourcesError] = useState('');
+
+  // ─── Quality the viewer is entitled to (Mobile plan = 480p) ──────────────
+  const { maxQuality, planName, planMaxQuality, ready: qualityReady } = usePlaybackQuality(movie);
+  const requestedQuality = searchParams.get('q');
+  const quality = clampQuality(requestedQuality || maxQuality || DEFAULT_QUALITY, maxQuality);
+
+  // Keep the address bar honest: ?q=1080p on a 480p plan becomes ?q=480p.
+  useEffect(() => {
+    if (!qualityReady || !requestedQuality || requestedQuality === quality) return;
+    navigate(`/watch/${id}?q=${encodeURIComponent(quality)}`, { replace: true });
+  }, [qualityReady, requestedQuality, quality, id, navigate]);
 
   // ─── Authorization Check ───────────────────────────────────────────────
   const checkAuthorization = useCallback((m) => {
@@ -54,6 +73,18 @@ const Watch = () => {
   const accessPending = Boolean(user) && Boolean(movie) && !locallyAuthorized && serverAccess === null;
   const needsAccess = Boolean(movie) && !authLoading && !accessPending && !isAuthorized;
 
+  // ─── A different title (same page component, new :id) starts clean ───────
+  const lastSavedMarkRef = useRef(-1);
+  const shownIdRef = useRef(id);
+  useEffect(() => {
+    if (shownIdRef.current === id) return;
+    shownIdRef.current = id;
+    setMovie(getMovieById(id) || null);
+    setMovieError('');
+    setFetchState('idle');
+    lastSavedMarkRef.current = -1;
+  }, [id, getMovieById]);
+
   // ─── Sync movie with context ─────────────────────────────────────────────
   useEffect(() => {
     const ctxMovie = getMovieById(id);
@@ -62,36 +93,33 @@ const Watch = () => {
     }
   }, [getMovieById, id]);
 
-  // ─── Fetch movie if not in context ───────────────────────────────────────
+  // ─── Fetch the movie directly if the catalog doesn't have it yet ─────────
+  // Don't wait for the whole catalog: on a slow API that left the page on
+  // "Loading movie..." with no request of its own in flight.
   useEffect(() => {
-    if (movie) return; // already have it
-    if (contextLoading) return; // wait for context to finish first
-
+    if (movie || fetchState !== 'idle') return undefined;
     let active = true;
+    setFetchState('loading');
     (async () => {
-      setIsFetching(true);
       try {
         const m = await movieService.getMovieById(id);
-        if (active) {
-          if (m) {
-            setMovie(m);
-          } else {
-            setMovieError('Movie not found.');
-          }
-        }
+        if (!active) return;
+        if (m) setMovie(m);
+        else setMovieError('Movie not found.');
       } catch (err) {
         if (active) setMovieError('Unable to load movie details.');
       } finally {
-        if (active) setIsFetching(false);
+        if (active) setFetchState('done');
       }
     })();
     return () => { active = false; };
-  }, [id, movie, contextLoading]);
+  }, [id, movie, fetchState]);
 
   // ─── Ask the backend when the local check says "no" ──────────────────────
   useEffect(() => {
     setServerAccess(null);
-    if (!movie?.id || !user || locallyAuthorized) return undefined;
+    // Wait for the plan lookup so the check asks for the quality the viewer can use.
+    if (!movie?.id || !user || locallyAuthorized || !qualityReady) return undefined;
 
     let active = true;
     checkMovieAccess(movie.id, quality)
@@ -105,32 +133,33 @@ const Watch = () => {
       .catch(() => { if (active) setServerAccess(false); });
     return () => { active = false; };
     // `locallyAuthorized` is a boolean, so this only reruns when it flips.
-  }, [movie?.id, user, locallyAuthorized, quality, refreshPurchases]);
-
-  const isLoading = contextLoading || isFetching;
+  }, [movie?.id, user, locallyAuthorized, qualityReady, quality, refreshPurchases]);
 
   // ─── Fetch video files from backend ──────────────────────────────────────
+  const loadSources = useCallback(async () => {
+    const fetchedAt = Date.now();
+    const files = await getMovieVideoFiles(id);
+    const map = buildSourcesMap(files);
+    return { files, map, expiresAt: sourcesExpireAt(files, fetchedAt) };
+  }, [id]);
+
   useEffect(() => {
     if (!id || !isAuthorized) {
       setSourcesLoading(false);
-      return;
+      return undefined;
     }
     let active = true;
     (async () => {
       setSourcesLoading(true);
       setSourcesError('');
-      console.log(`[Watch] Fetching dynamic signed URLs for movie ${id}...`);
       try {
-        const files = await getMovieVideoFiles(id);
-        if (active) {
-          const map = buildSourcesMap(files);
-          setSourcesMap(map);
-          // Files are registered but none has a playable URL yet — that is a
-          // different situation from "nothing was uploaded".
-          if (files.length > 0 && Object.keys(map).length === 0) {
-            setSourcesError('This video is still being processed. Please check back shortly.');
-          }
-          console.log(`[Watch] Successfully fetched signed URLs.`);
+        const { files, map, expiresAt } = await loadSources();
+        if (!active) return;
+        setPlayback((prev) => ({ map, expiresAt, version: prev.version + 1 }));
+        // Files are registered but none has a playable URL yet — that is a
+        // different situation from "nothing was uploaded".
+        if (files.length > 0 && Object.keys(map).length === 0) {
+          setSourcesError('This video is still being processed. Please check back shortly.');
         }
       } catch (err) {
         console.error('[Watch] Error fetching signed URLs:', err);
@@ -141,40 +170,44 @@ const Watch = () => {
     })();
     return () => {
       active = false;
-      setSourcesMap({}); // Clear sources immediately on unmount
+      setPlayback((prev) => ({ ...prev, map: {} })); // Clear sources immediately on unmount
     };
-  }, [id, isAuthorized]);
+  }, [id, isAuthorized, loadSources]);
 
+  // Called by the player when the signed URLs have expired (long pause, or a
+  // seek past the buffer). The player resumes from the same spot once they land.
   const handleRefreshSource = useCallback(() => {
-    console.log('[Watch] Refreshing signed URLs due to expiration or playback error...');
     (async () => {
       try {
-        const files = await getMovieVideoFiles(id);
-        setSourcesMap(buildSourcesMap(files));
+        const { map, expiresAt } = await loadSources();
+        setPlayback((prev) => ({ map, expiresAt, version: prev.version + 1 }));
         setSourcesError('');
-        console.log('[Watch] Refreshed signed URLs successfully.');
       } catch (err) {
         console.error('[Watch] Failed to refresh signed URLs:', err);
+        // Drop the dead URLs so the player shows the reason instead of spinning.
+        setPlayback((prev) => ({ map: {}, expiresAt: null, version: prev.version + 1 }));
         setSourcesError(videoErrorMessage(err));
       }
     })();
-  }, [id]);
+  }, [loadSources]);
 
   // ─── Watch progress tracking ──────────────────────────────────────────────
+  // `timeupdate` fires ~4×/s, so remember the last mark saved: one save per
+  // 30-second mark instead of several identical requests.
   const handleProgress = useCallback(({ currentTime, duration, percent }) => {
     if (!user || !id || !duration) return;
-    // Debounce: save every ~30 seconds of watch time
-    if (Math.floor(currentTime) % 30 === 0 && Math.floor(currentTime) > 0) {
-      updateMovieProgress(id, {
-        watch_time_seconds: Math.floor(currentTime),
-        last_position_seconds: Math.floor(currentTime),
-        is_completed: percent >= 95,
-      });
-    }
+    const second = Math.floor(currentTime);
+    if (second <= 0 || second % PROGRESS_SAVE_EVERY_S !== 0 || second === lastSavedMarkRef.current) return;
+    lastSavedMarkRef.current = second;
+    updateMovieProgress(id, {
+      watch_time_seconds: second,
+      last_position_seconds: second,
+      is_completed: percent >= 95,
+    });
   }, [id, user]);
 
   // ─── Loading / error states ───────────────────────────────────────────────
-  if (isLoading && !movie) {
+  if (!movie && fetchState !== 'done') {
     return (
       <div className="watch-not-found">
         <div className="loading" />
@@ -216,8 +249,21 @@ const Watch = () => {
     );
   }
 
-  // Determine best video source from dynamic endpoint
-  const finalSrc = pickBestSource(sourcesMap) || '';
+  // Only offer qualities the viewer is entitled to, starting from theirs.
+  const playableSources = capSources(playback.map, maxQuality);
+  const finalSrc = pickBestSource(playableSources, quality) || '';
+
+  // Why there is nothing to play, in the viewer's terms.
+  let emptyProps = {};
+  if (sourcesError) {
+    emptyProps = { emptyTitle: sourcesError, emptySubtitle: 'Try refreshing the page in a moment.' };
+  } else if (!finalSrc && planMaxQuality && qualityRank(planMaxQuality) < qualityRank(DEFAULT_QUALITY)) {
+    emptyProps = {
+      emptyTitle: `This title isn't available in ${planMaxQuality} yet.`,
+      emptySubtitle: `Your ${planName || 'current'} plan streams up to ${planMaxQuality}. Try another title, or upgrade your plan to watch it in higher quality.`,
+    };
+  }
+
   const averageRating = formatRating(movie.average_rating ?? movie.rating);
   const runtime = formatRuntime(movie.duration);
 
@@ -240,15 +286,15 @@ const Watch = () => {
         ) : (
           <VideoPlayer
             src={finalSrc}
-            sources={sourcesMap}
+            sources={playableSources}
             initialQuality={quality}
             title={movie.title}
             poster={movie.backdrop || movie.poster}
             onRequestRefresh={handleRefreshSource}
+            sourceVersion={playback.version}
+            sourcesExpireAt={playback.expiresAt}
             onProgress={handleProgress}
-            {...(sourcesError
-              ? { emptyTitle: sourcesError, emptySubtitle: 'Try refreshing the page in a moment.' }
-              : {})}
+            {...emptyProps}
             onEnded={() => {
               // Track completion
               if (user && id) {

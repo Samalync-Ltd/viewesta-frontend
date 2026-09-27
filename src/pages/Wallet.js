@@ -16,6 +16,7 @@ import {
 import { getWallet, getWalletTransactions, getWalletSummary, topUpWallet } from '../services/walletService';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
 import { ENABLE_MOBILE_MONEY } from '../config/features';
+import { friendlyApiError } from '../utils/apiErrors';
 import './Wallet.css';
 
 const TxIcon = ({ type }) => (
@@ -54,6 +55,7 @@ const Wallet = () => {
   const [summary, setSummary]               = useState(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
   const [summaryError, setSummaryError]     = useState('');
+  const [summaryUnavailable, setSummaryUnavailable] = useState(false);
 
   /* ── Top-up form state ── */
   const [topUpAmount, setTopUpAmount]   = useState(25);
@@ -95,11 +97,7 @@ const Wallet = () => {
       // isn't documented as page-count vs. lifetime-total.
       setTxHasMore(txResult.transactions.length === TX_PAGE_SIZE);
     } catch (err) {
-      setWalletError(
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to load wallet. Please try again.'
-      );
+      setWalletError(friendlyApiError(err, 'We couldn\'t load your wallet. Please try again.'));
     } finally {
       setWalletLoading(false);
     }
@@ -109,15 +107,18 @@ const Wallet = () => {
   const fetchSummary = useCallback(async () => {
     setSummaryLoading(true);
     setSummaryError('');
+    setSummaryUnavailable(false);
     try {
       const result = await getWalletSummary();
       setSummary(result);
     } catch (err) {
-      setSummaryError(
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to load wallet summary.'
-      );
+      if ((err?.response?.status ?? err?.status) === 404) {
+        // The totals endpoint isn't available on this API yet — hide the totals
+        // rather than show an error or placeholder numbers.
+        setSummaryUnavailable(true);
+      } else {
+        setSummaryError(friendlyApiError(err, 'We couldn\'t load your wallet totals.'));
+      }
     } finally {
       setSummaryLoading(false);
     }
@@ -141,11 +142,7 @@ const Wallet = () => {
       setTxOffset((prev) => prev + result.transactions.length);
       setTxHasMore(result.transactions.length === TX_PAGE_SIZE);
     } catch (err) {
-      setTxLoadMoreError(
-        err?.response?.data?.message ||
-        err?.message ||
-        'Failed to load more transactions. Please try again.'
-      );
+      setTxLoadMoreError(friendlyApiError(err, 'We couldn\'t load more transactions. Please try again.'));
     } finally {
       setTxLoadingMore(false);
     }
@@ -192,31 +189,9 @@ const Wallet = () => {
       setCustomValue('');
       setTopping(false);
     } catch (err) {
+      // Full details stay in the console for debugging; the viewer gets a sentence.
       console.error('Top-up API Error:', JSON.stringify(err.response?.data, null, 2) || err.message);
-      
-      let errorMsg = 'Top-up failed. Please try again.';
-      if (err?.response?.data) {
-        const data = err.response.data;
-        if (data.error?.details) {
-          errorMsg = JSON.stringify(data.error.details);
-        } else if (data.error?.message) {
-          errorMsg = data.error.message;
-        } else if (data.error) {
-          errorMsg = typeof data.error === 'object' ? JSON.stringify(data.error) : data.error;
-        } else if (data.message) {
-          errorMsg = typeof data.message === 'object' ? JSON.stringify(data.message) : data.message;
-        } else if (data.errors) {
-          errorMsg = JSON.stringify(data.errors);
-        }
-      } else if (err?.message) {
-        errorMsg = err.message;
-      }
-      
-      if (typeof errorMsg === 'object') {
-        errorMsg = JSON.stringify(errorMsg);
-      }
-      
-      setTopError(errorMsg);
+      setTopError(friendlyApiError(err, 'Top-up failed. Please try again.'));
       setTopping(false);
     }
   };
@@ -313,8 +288,8 @@ const Wallet = () => {
             </div>
           )}
 
-          {/* ── Quick Stats ── */}
-          {summaryLoading ? (
+          {/* ── Quick Stats (hidden entirely when the totals endpoint isn't available) ── */}
+          {summaryUnavailable ? null : summaryLoading ? (
             <div className="quick-stats">
               {['Total Topped Up', 'Total Spent', 'Transactions'].map((label) => (
                 <div className="stat-card" key={label}>

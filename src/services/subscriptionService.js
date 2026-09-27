@@ -61,6 +61,36 @@ export async function getSubscriptionPlans() {
   });
 }
 
+// Plans rarely change, so the playback screens share one GET /subscriptions/plans
+// per session. A failed request isn't cached, so the next caller retries.
+let plansRequest = null;
+
+function getCachedPlans() {
+  if (!plansRequest) {
+    plansRequest = getSubscriptionPlans().catch((err) => {
+      plansRequest = null;
+      throw err;
+    });
+  }
+  return plansRequest;
+}
+
+/**
+ * The plan's streaming limits, from GET /subscriptions/plans.
+ * @param {string} planType e.g. 'monthly' | 'yearly' | 'mobile'
+ * @returns {Promise<{ maxQuality: string|null, name: string|null }>} nulls when unknown
+ */
+export async function getPlanLimits(planType) {
+  if (!planType) return { maxQuality: null, name: null };
+  try {
+    const plans = await getCachedPlans();
+    const plan = plans.find((p) => String(p.id) === String(planType) || String(p.type) === String(planType));
+    return { maxQuality: plan?.max_quality || null, name: plan?.name || null };
+  } catch {
+    return { maxQuality: null, name: null };
+  }
+}
+
 /**
  * Subscribe the current user to a plan.
  * @param {{ plan_id: string, payment_method?: string }} payload

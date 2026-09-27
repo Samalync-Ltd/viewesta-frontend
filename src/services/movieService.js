@@ -178,30 +178,35 @@ export async function getFeaturedMovies(limit = 10) {
   }
 }
 
+// Top Rated and New Releases are both derived from the same GET /movies?limit=100
+// list and are loaded at the same moment, so they share one in-flight request
+// instead of each fetching it. Cleared once settled, so later loads are fresh.
+let defaultListRequest = null;
+
+function fetchDefaultMovieList() {
+  if (!defaultListRequest) {
+    defaultListRequest = client
+      .get('/movies', { params: { limit: 100 } })
+      .then((response) => {
+        const data = response.data?.data;
+        if (!response.data?.success || !data) return [];
+        if (Array.isArray(data.movies)) return data.movies;
+        if (Array.isArray(data)) return data;
+        if (Array.isArray(data.items)) return data.items;
+        return [];
+      })
+      .finally(() => { defaultListRequest = null; });
+  }
+  return defaultListRequest;
+}
+
 /**
  * Fetch top rated movies from backend.
  * Uses average_rating strictly — no fallback, no mock data.
  * GET /movies (fetches a larger pool, then filters/sorts client-side on average_rating)
  */
 export async function getTopRatedMovies(limit = 12) {
-  const response = await client.get('/movies', {
-    params: { limit: 100 },
-  });
-
-  if (!response.data?.success || !response.data?.data) {
-    return [];
-  }
-
-  const data = response.data.data;
-  let raw = [];
-
-  if (data.movies && Array.isArray(data.movies)) {
-    raw = data.movies;
-  } else if (Array.isArray(data)) {
-    raw = data;
-  } else if (data.items && Array.isArray(data.items)) {
-    raw = data.items;
-  }
+  const raw = await fetchDefaultMovieList();
 
   // Strictly filter on average_rating — the API reports unrated titles as 0
   // (not null), so only titles with a real rating are kept.
@@ -218,28 +223,11 @@ export async function getTopRatedMovies(limit = 12) {
  */
 export async function getNewReleases(limit = 12) {
   try {
-    const response = await client.get('/movies', {
-      params: { limit: 100 },
-    });
+    const raw = await fetchDefaultMovieList();
 
-    const data = response.data?.data;
-
-    if (!response.data?.success || !data) {
-      return [];
-    }
-
-    let raw = [];
-
-    if (Array.isArray(data.movies)) {
-      raw = data.movies;
-    } else if (Array.isArray(data)) {
-      raw = data;
-    } else if (Array.isArray(data.items)) {
-      raw = data.items;
-    }
-
-    // Sort client-side fallback just in case backend sorting fails
-    return raw
+    // Sort client-side fallback just in case backend sorting fails.
+    // Copy first: the list is shared with getTopRatedMovies.
+    return [...raw]
       .sort((a, b) => new Date(b.created_at || b.release_date || 0) - new Date(a.created_at || a.release_date || 0))
       .slice(0, limit)
       .map(normalizeMovie);

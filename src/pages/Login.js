@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
@@ -15,6 +15,11 @@ const Login = () => {
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  // Set by ProtectedRoute when a guest opens a page that needs an account.
+  const from = useLocation().state?.from;
+  const returnTo = from?.pathname && from.pathname !== '/login'
+    ? `${from.pathname}${from.search || ''}`
+    : null;
 
   const handleChange = (e) => {
     setFormData({
@@ -32,7 +37,7 @@ const Login = () => {
       const result = await login(formData.email, formData.password);
       if (result.success) {
         const isFilmmaker = (result.user?.role || result.user?.user_type || '').toLowerCase() === 'filmmaker';
-        navigate(isFilmmaker ? '/filmmaker-studio' : '/');
+        navigate(returnTo || (isFilmmaker ? '/filmmaker-studio' : '/'), { replace: Boolean(returnTo) });
       } else {
         setError(result.error || 'Login failed');
       }

@@ -42,6 +42,7 @@ export const MovieProvider = ({ children }) => {
   const [watchlist, setWatchlist] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [purchasedMovies, setPurchasedMovies] = useState([]);
+  const [purchaseQualities, setPurchaseQualities] = useState({}); // { movieId: '1080p' }
   const [isSyncingLists] = useState(false);
   const [userRatings, setUserRatings] = useState(() => {
     try {
@@ -111,6 +112,7 @@ export const MovieProvider = ({ children }) => {
   const refreshPurchases = useCallback(async () => {
     if (!user) {
       setPurchasedMovies([]);
+      setPurchaseQualities({});
       return [];
     }
     try {
@@ -128,7 +130,14 @@ export const MovieProvider = ({ children }) => {
         if (typeof p === 'string' || typeof p === 'number') return String(p);
         return String(p?.movie_id || p?.movieId || p?.movie?.id || p?.id);
       }).filter(id => id && id !== 'undefined' && id !== 'null');
+      // A pay-per-view purchase is for one quality; the player opens at it.
+      const qualities = {};
+      for (const p of items) {
+        const mid = typeof p === 'object' && p ? String(p.movie_id || p.movieId || p.movie?.id || '') : '';
+        if (mid && p.quality) qualities[mid] = p.quality;
+      }
       setPurchasedMovies(ids);
+      setPurchaseQualities(qualities);
       return ids;
     } catch (err) {
       console.error('Failed to load purchases:', err);
@@ -148,6 +157,7 @@ export const MovieProvider = ({ children }) => {
       setWatchlist([]);
       setFavorites([]);
       setPurchasedMovies([]);
+      setPurchaseQualities({});
       // Locally cached star ratings belong to the account that made them.
       writeUserRatings(() => ({}));
       return;
@@ -368,6 +378,7 @@ export const MovieProvider = ({ children }) => {
       watchlist,
       favorites,
       purchasedMovies,
+      purchaseQualities,
       isSyncingLists,
       userRatings,
       downloads,
@@ -405,6 +416,7 @@ export const MovieProvider = ({ children }) => {
       watchlist,
       favorites,
       purchasedMovies,
+      purchaseQualities,
       isSyncingLists,
       userRatings,
       downloads,

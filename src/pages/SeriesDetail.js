@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   FaPlay, FaHeart, FaStar, FaClock, FaCalendar,
   FaShareAlt, FaChevronDown, FaChevronUp, FaArrowLeft, FaArrowRight,
@@ -7,7 +7,9 @@ import {
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
 import * as seriesService from '../services/seriesService';
-import { getEpisodeVideoFiles, buildSourcesMap, pickBestSource, videoErrorMessage } from '../services/videoService';
+import { getEpisodeVideoFiles, buildSourcesMap, pickBestSource, sourcesExpireAt, videoErrorMessage } from '../services/videoService';
+import { capSources, qualityRank } from '../utils/quality';
+import usePlaybackQuality from '../hooks/usePlaybackQuality';
 import MovieCard from '../components/MovieCard';
 import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
@@ -19,16 +21,18 @@ import './SeriesDetail.css';
 const SeriesDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating } = useMovies();
+  const location = useLocation();
+  // Sign-in brings the viewer back to this page afterwards.
+  const goToLogin = () => navigate('/login', { state: { from: location } });
+  const { addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating, seriesList } = useMovies();
   const episodesRef = useRef(null);
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const userId = user?.id;
 
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [expandedSeason, setExpandedSeason] = useState(1);
   const [seriesData, setSeriesData] = useState(null);
-  const [relatedSeries, setRelatedSeries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [seasons, setSeasons] = useState([]);
@@ -36,11 +40,14 @@ const SeriesDetail = () => {
   const [seasonsError, setSeasonsError] = useState('');
   const [ratingMessage, setRatingMessage] = useState(null); // { type: 'success' | 'error', text }
 
-  // Episode player state
+  // Episode player state. `version` bumps on every fetch so the player reloads
+  // after a URL renewal; `expiresAt` is when the signed URLs stop working.
   const [watchEpisode, setWatchEpisode] = useState(null); // { season, episode, seasonIdx, episodeIdx }
-  const [episodeSources, setEpisodeSources] = useState({});
+  const [episodePlayback, setEpisodePlayback] = useState({ map: {}, expiresAt: null, version: 0 });
   const [episodeSourcesLoading, setEpisodeSourcesLoading] = useState(false);
   const [episodeSourcesError, setEpisodeSourcesError] = useState('');
+  // Quality the viewer is entitled to (the Mobile plan is 480p).
+  const { maxQuality, planName, planMaxQuality } = usePlaybackQuality(seriesData);
 
   // ─── Fetch seasons + episodes ───────────────────────────────────────────────
   // GET /shows/:id only reports season/episode counts, so the real lists load
@@ -88,33 +95,28 @@ const SeriesDetail = () => {
     }
   }, [id, syncUserRating]);
 
-  // userId is a trigger, not an input: refetch once sign-in state settles so
-  // `user_rating` is the signed-in account's rather than an anonymous null.
+  // Fetched once sign-in has settled, so `user_rating` is the signed-in account's
+  // — fetching before *and* after the session restored requested it twice.
+  // userId is a trigger, not an input.
   useEffect(() => {
+    if (authLoading) return;
     fetchSeriesDetail();
-  }, [fetchSeriesDetail, userId]);
+  }, [fetchSeriesDetail, userId, authLoading]);
 
   useEffect(() => {
     if (id) seriesService.viewShow(id).catch(() => {});
   }, [id]);
 
-  // ─── Fetch related series ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!seriesData) return;
-    let active = true;
-    (async () => {
-      try {
-        const list = await seriesService.getSeries({ limit: 24 });
-        if (!active) return;
-        const filtered = list
-          .filter((item) => item.id !== seriesData.id)
-          .filter((item) => item.genres?.some((g) => seriesData.genres?.includes(g)))
-          .slice(0, 6);
-        setRelatedSeries(filtered);
-      } catch {}
-    })();
-    return () => { active = false; };
-  }, [seriesData]);
+  // ─── Related series ───────────────────────────────────────────────────────
+  // Derived from the series list the app already loaded (MovieContext) rather
+  // than refetching the whole list on every change to this show.
+  const relatedSeries = useMemo(() => {
+    if (!seriesData) return [];
+    return seriesList
+      .filter((item) => item.id !== seriesData.id)
+      .filter((item) => item.genres?.some((g) => seriesData.genres?.includes(g)))
+      .slice(0, 6);
+  }, [seriesList, seriesData]);
 
   // ─── Watchlist state ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -124,23 +126,25 @@ const SeriesDetail = () => {
   }, [seriesData, watchlist]);
 
   // ─── Fetch episode video files when episode selected ──────────────────────
+  const loadEpisodeSources = useCallback(async (episodeId) => {
+    const fetchedAt = Date.now();
+    const files = await getEpisodeVideoFiles(episodeId);
+    return { map: buildSourcesMap(files), expiresAt: sourcesExpireAt(files, fetchedAt) };
+  }, []);
+
   useEffect(() => {
     if (!watchEpisode) {
-      setEpisodeSources({});
-      return;
+      setEpisodePlayback((prev) => ({ ...prev, map: {} }));
+      return undefined;
     }
     let active = true;
     (async () => {
       setEpisodeSourcesLoading(true);
-      setEpisodeSources({});
+      setEpisodePlayback((prev) => ({ ...prev, map: {} }));
       setEpisodeSourcesError('');
-      console.log(`[SeriesDetail] Fetching dynamic signed URLs for episode ${watchEpisode.episode.id}...`);
       try {
-        const files = await getEpisodeVideoFiles(watchEpisode.episode.id);
-        if (active) {
-          setEpisodeSources(buildSourcesMap(files));
-          console.log(`[SeriesDetail] Successfully fetched signed URLs.`);
-        }
+        const { map, expiresAt } = await loadEpisodeSources(watchEpisode.episode.id);
+        if (active) setEpisodePlayback((prev) => ({ map, expiresAt, version: prev.version + 1 }));
       } catch (err) {
         console.error('[SeriesDetail] Error fetching signed URLs:', err);
         if (active) setEpisodeSourcesError(videoErrorMessage(err));
@@ -150,25 +154,27 @@ const SeriesDetail = () => {
     })();
     return () => {
       active = false;
-      setEpisodeSources({}); // Cleanup on unmount or episode change
+      setEpisodePlayback((prev) => ({ ...prev, map: {} })); // Cleanup on unmount or episode change
     };
-  }, [watchEpisode]);
+  }, [watchEpisode, loadEpisodeSources]);
 
+  // Called by the player when the signed URLs have expired (long pause, or a
+  // seek past the buffer). The player resumes from the same spot once they land.
   const handleRefreshSource = useCallback(() => {
     if (!watchEpisode) return;
-    console.log('[SeriesDetail] Refreshing signed URLs due to expiration or playback error...');
     (async () => {
       try {
-        const files = await getEpisodeVideoFiles(watchEpisode.episode.id);
-        setEpisodeSources(buildSourcesMap(files));
+        const { map, expiresAt } = await loadEpisodeSources(watchEpisode.episode.id);
+        setEpisodePlayback((prev) => ({ map, expiresAt, version: prev.version + 1 }));
         setEpisodeSourcesError('');
-        console.log('[SeriesDetail] Refreshed signed URLs successfully.');
       } catch (err) {
         console.error('[SeriesDetail] Failed to refresh signed URLs:', err);
+        // Drop the dead URLs so the player shows the reason instead of spinning.
+        setEpisodePlayback((prev) => ({ map: {}, expiresAt: null, version: prev.version + 1 }));
         setEpisodeSourcesError(videoErrorMessage(err));
       }
     })();
-  }, [watchEpisode]);
+  }, [watchEpisode, loadEpisodeSources]);
 
 
 
@@ -253,7 +259,7 @@ const SeriesDetail = () => {
   };
 
   const handleWatchlistToggle = async () => {
-    if (!user) { navigate('/login'); return; }
+    if (!user) { goToLogin(); return; }
     try {
       if (isInWatchlist) await seriesService.unsaveShow(seriesData.id);
       else await seriesService.saveShow(seriesData.id);
@@ -268,7 +274,7 @@ const SeriesDetail = () => {
   };
 
   const handleLikeToggle = async () => {
-    if (!user) { navigate('/login'); return; }
+    if (!user) { goToLogin(); return; }
     setIsLiked(!isLiked);
     try {
       if (isLiked) await seriesService.unlikeShow(seriesData.id);
@@ -293,7 +299,7 @@ const SeriesDetail = () => {
   const averageRating = formatRating(seriesData?.average_rating ?? seriesData?.rating);
 
   const handleRate = async (stars) => {
-    if (!user) { navigate('/login'); return; }
+    if (!user) { goToLogin(); return; }
     setRatingMessage(null);
     const result = await rateContent(seriesData.id, stars, 'show');
     if (!result.success) {
@@ -320,7 +326,19 @@ const SeriesDetail = () => {
   const allEps = getAllEpisodes();
   const hasPrev = epIdx > 0;
   const hasNext = epIdx >= 0 && epIdx < allEps.length - 1;
-  const episodeVideoSrc = pickBestSource(episodeSources);
+  // Only offer qualities the viewer is entitled to, starting from theirs.
+  const episodeQuality = maxQuality || '1080p';
+  const episodeSources = capSources(episodePlayback.map, maxQuality);
+  const episodeVideoSrc = pickBestSource(episodeSources, episodeQuality);
+  let episodeEmptyProps = {};
+  if (episodeSourcesError) {
+    episodeEmptyProps = { emptyTitle: episodeSourcesError, emptySubtitle: 'Try refreshing the page in a moment.' };
+  } else if (!episodeVideoSrc && planMaxQuality && qualityRank(planMaxQuality) < qualityRank('1080p')) {
+    episodeEmptyProps = {
+      emptyTitle: `This episode isn't available in ${planMaxQuality} yet.`,
+      emptySubtitle: `Your ${planName || 'current'} plan streams up to ${planMaxQuality}. Try another episode, or upgrade your plan to watch it in higher quality.`,
+    };
+  }
 
   return (
     <div className="series-detail">
@@ -559,13 +577,14 @@ const SeriesDetail = () => {
                 <VideoPlayer
                   src={episodeVideoSrc || ''}
                   sources={episodeSources}
+                  initialQuality={episodeQuality}
                   title={`S${watchEpisode.season.seasonNumber} E${watchEpisode.episode.episodeNumber}: ${watchEpisode.episode.title}`}
                   poster={seriesData.backdrop || seriesData.poster}
                   onRequestRefresh={handleRefreshSource}
+                  sourceVersion={episodePlayback.version}
+                  sourcesExpireAt={episodePlayback.expiresAt}
                   onEnded={handleAutoplayNext}
-                  {...(episodeSourcesError
-                    ? { emptyTitle: episodeSourcesError, emptySubtitle: 'Try refreshing the page in a moment.' }
-                    : {})}
+                  {...episodeEmptyProps}
                 />
               </div>
             )}

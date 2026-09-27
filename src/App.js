@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './App.css';
 
 import ScrollToTop from './components/ScrollToTop';
@@ -38,6 +38,7 @@ import FilmmakerPublicProfile from './pages/FilmmakerPublicProfile';
 import ShortFilms from './pages/ShortFilms';
 import AdminApproval from './pages/admin/AdminApproval';
 import PaymentCallback from './pages/PaymentCallback';
+import NotFound from './pages/NotFound';
 
 import FilmmakerDashboard from './pages/filmmaker/FilmmakerDashboard';
 import FilmmakerMyMovies from './pages/filmmaker/FilmmakerMyMovies';
@@ -276,7 +277,8 @@ function AppRoutes() {
             <Route path="/filmmaker/:id" element={<FilmmakerPublicProfile />} />
             <Route path="/short-films" element={<ShortFilms />} />
             <Route path="/admin/approval" element={<ProtectedRoute><AdminApproval /></ProtectedRoute>} />
-            <Route path="/watch/:id" element={<Watch />} />
+            {/* Playback always needs an account; guests are sent to sign in and brought back here. */}
+            <Route path="/watch/:id" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/downloads" element={<Downloads />} />
             <Route path="/watchlist" element={<ProtectedRoute><Watchlist /></ProtectedRoute>} />
@@ -292,6 +294,7 @@ function AppRoutes() {
             <Route path="/filmmaker-followers" element={<FilmmakerRoute><FilmmakerFollowers /></FilmmakerRoute>} />
             <Route path="/filmmaker-views" element={<FilmmakerRoute><FilmmakerViews /></FilmmakerRoute>} />
             <Route path="/earnings-detail" element={<FilmmakerRoute><EarningsDetail /></FilmmakerRoute>} />
+            <Route path="*" element={<NotFound />} />
           </Route>
 
           <Route path="/filmmaker-studio" element={<FilmmakerRoute><FilmmakerStudioLayout /></FilmmakerRoute>}>
@@ -302,8 +305,6 @@ function AppRoutes() {
             <Route path="notifications" element={<Notifications />} />
             <Route path="profile" element={<FilmmakerStudioProfile />} />
           </Route>
-
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </Router>

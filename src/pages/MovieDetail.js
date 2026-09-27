@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { FaPlay, FaHeart, FaStar, FaClock, FaCalendar, FaShareAlt } from 'react-icons/fa';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
@@ -13,13 +13,18 @@ import MovieGallery from '../components/MovieGallery';
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
 import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime } from '../utils/mediaHelpers';
+import { clampQuality } from '../utils/quality';
+import usePlaybackQuality from '../hooks/usePlaybackQuality';
 import './MovieDetail.css';
 
 const MovieDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Sign-in brings the viewer back to this page afterwards.
+  const goToLogin = () => navigate('/login', { state: { from: location } });
   const { getMovieById, movies, addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating, addToDownloads, purchasedMovies, refreshPurchases } = useMovies();
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, loading: authLoading } = useAuth();
   const userId = user?.id;
   const [selectedQuality, setSelectedQuality] = useState('');
   // Which tab of the "Watch Options" modal is open. Kept apart from
@@ -38,6 +43,7 @@ const MovieDetail = () => {
   // can never show on the next one.
   const [pricingState, setPricingState] = useState({ movieId: null, prices: undefined });
   const [ratingMessage, setRatingMessage] = useState(null); // { type: 'success' | 'error', text }
+  const { maxQuality: maxPlaybackQuality } = usePlaybackQuality(movie);
   // This browser's just-made rating wins; otherwise the account's rating from the backend.
   const userRating = movie ? (getUserRating(movie.id) ?? movie.user_rating ?? undefined) : undefined;
   // Filmmaker info fetched from movie.raw when available
@@ -46,8 +52,10 @@ const MovieDetail = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editFormData, setEditFormData] = useState({ title: '', description: '', status: '' });
 
+  // Take the catalog copy only when we don't already hold this title — the
+  // detail copy fetched below is fresher (it carries the viewer's own rating).
   useEffect(() => {
-    setMovie(getMovieById(id));
+    setMovie((prev) => (prev && String(prev.id) === String(id) ? prev : getMovieById(id)));
   }, [getMovieById, id]);
 
   // TEMPORARY: Approval filter removed for testing — show ALL content regardless of status
@@ -74,15 +82,18 @@ const MovieDetail = () => {
 
   // The catalog copy is fetched anonymously, so a signed-in viewer needs a fresh
   // copy for their own rating; a title missing from the catalog needs one anyway.
+  // Fetched once per title + viewer, after sign-in has settled — refetching when
+  // the session or the catalog finished loading used to request it three times.
   const inCatalog = Boolean(getMovieById(id));
   useEffect(() => {
+    if (authLoading) return;
     if (!inCatalog || userId) {
       fetchMovieDetail();
     }
-    // Only the identity of the title / viewer should trigger a refetch, not the
-    // identity of the fetch function (which changes whenever the catalog does).
+    // `inCatalog` / `fetchMovieDetail` are read, not triggers: the catalog loading
+    // later must not refetch a title we already have.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, userId, inCatalog]);
+  }, [id, userId, authLoading]);
 
   // Pay-per-view prices come from their own endpoint — neither the catalog nor
   // the detail payload carries them, which is why the PPV tab used to be empty.
@@ -123,34 +134,36 @@ const MovieDetail = () => {
     }
   }, [purchaseTab, priceMap, selectedQuality]);
 
-  // Fetch related movies from real backend API
+  // The genre-matching fallback reads the latest catalog/movie through refs, so
+  // the related request depends on the title id alone. (It used to depend on the
+  // `genres` array and the whole catalog, and re-ran five times per page load.)
+  const movieRef = useRef(movie);
+  const catalogRef = useRef(movies);
+  movieRef.current = movie;
+  catalogRef.current = movies;
+  const movieId = movie?.id;
+
+  // Fetch related movies from real backend API — once per title.
   useEffect(() => {
-    if (!movie?.id) return;
+    if (!movieId) return;
     let active = true;
+    const genreFallback = () => {
+      const current = movieRef.current;
+      return catalogRef.current
+        .filter((m) => m.id !== movieId && m.genres?.some((g) => current?.genres?.includes(g)))
+        .slice(0, 6);
+    };
     (async () => {
       try {
-        const related = await movieService.getRelatedMovies(movie.id, 6);
-        if (active) {
-          // If API returns empty, fall back to context-based genre matching
-          if (related.length > 0) {
-            setRelatedMovies(related);
-          } else {
-            const fallback = movies
-              .filter((m) => m.id !== movie.id && m.genres?.some((g) => movie.genres?.includes(g)))
-              .slice(0, 6);
-            setRelatedMovies(fallback);
-          }
-        }
+        const related = await movieService.getRelatedMovies(movieId, 6);
+        // If API returns empty, fall back to context-based genre matching
+        if (active) setRelatedMovies(related.length > 0 ? related : genreFallback());
       } catch {
-        // Fallback to context on error
-        const fallback = movies
-          .filter((m) => m.id !== movie.id && m.genres?.some((g) => movie.genres?.includes(g)))
-          .slice(0, 6);
-        if (active) setRelatedMovies(fallback);
+        if (active) setRelatedMovies(genreFallback());
       }
     })();
     return () => { active = false; };
-  }, [movie?.id, movie?.genres, movies]);
+  }, [movieId]);
 
   const getTrailerSrc = () => {
     if (!movie) return '';
@@ -300,7 +313,7 @@ const MovieDetail = () => {
 
   const handleWatch = () => {
     if (!user) {
-      navigate('/login');
+      goToLogin();
       return;
     }
     if (watchBlockedReason) return;
@@ -309,7 +322,9 @@ const MovieDetail = () => {
       // Authorized user bypass: navigate directly to Watch.js
       addToDownloads(movie.id);
       sessionStorage.setItem(`playback_auth_${movie.id}`, 'true');
-      navigate(`/watch/${movie.id}?q=${encodeURIComponent(selectedQuality || '1080p')}`);
+      // Open the player at the viewer's own quality (e.g. 480p on the Mobile plan).
+      const playQuality = clampQuality(selectedQuality || maxPlaybackQuality || '1080p', maxPlaybackQuality);
+      navigate(`/watch/${movie.id}?q=${encodeURIComponent(playQuality)}`);
       return;
     }
 
@@ -382,7 +397,7 @@ const MovieDetail = () => {
         setIsMutatingWatchlist(false);
       }
     } else {
-      navigate('/login');
+      goToLogin();
     }
   };
 
@@ -453,7 +468,7 @@ const MovieDetail = () => {
 
   const handleRate = async (stars) => {
     if (!user) {
-      navigate('/login');
+      goToLogin();
       return;
     }
     setRatingMessage(null);
@@ -605,7 +620,7 @@ const MovieDetail = () => {
                     : (user?.subscription?.active ? 'Watch Now' : 'Watch')}
                 </button>
                 <button 
-                  onClick={user ? handleWatchlistToggle : () => navigate('/login')}
+                  onClick={user ? handleWatchlistToggle : goToLogin}
                   disabled={isMutatingWatchlist}
                   className={`btn btn-secondary wishlist-btn ${isInWatchlist ? 'active' : ''}`}
                   title={!user ? "Log in to add to your wishlist" : (isInWatchlist ? "Remove from wishlist" : "Add to wishlist")}

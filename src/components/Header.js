@@ -20,7 +20,9 @@ const Header = () => {
   const [isVisible, setIsVisible] = useState(!isWatchPage);
   const [autoHideEnabled, setAutoHideEnabled] = useState(isWatchPage);
   const lastScrollY = useRef(0);
-  const { user, logout } = useAuth();
+  // `loading` is true while a saved session is being restored; the header shows
+  // neither the account menu nor Sign In / Sign Up until that settles.
+  const { user, logout, loading: authLoading } = useAuth();
   const { locale, setLocale, t } = useLocale();
   const { unreadCount } = useNotification();
   const navigate = useNavigate();
@@ -266,6 +268,8 @@ const Header = () => {
                 </div>
               </div>
             </>
+          ) : authLoading ? (
+            <div className="auth-placeholder" aria-hidden="true" />
           ) : (
             <div className="auth-buttons">
               <Link to="/login" className="btn btn-ghost">{t('auth.login')}</Link>
@@ -396,7 +400,7 @@ const Header = () => {
                 Logout
               </button>
             </>
-          ) : (
+          ) : authLoading ? null : (
             <>
               <Link to="/login" className="mobile-menu-link" onClick={toggleMenu}>Login</Link>
               <Link to="/register" className="mobile-menu-link" onClick={toggleMenu}>Sign Up</Link>

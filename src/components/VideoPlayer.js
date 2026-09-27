@@ -21,6 +21,23 @@ function isEmbedUrl(url = '') {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+// Consecutive URL renewals allowed without playback progressing in between.
+const MAX_REFRESH_ATTEMPTS = 3;
+// Renew this long before the stated expiry — capped at a quarter of the URL's
+// lifetime, so a short-lived URL isn't treated as expired the moment it arrives.
+const EXPIRY_MARGIN_MS = 5000;
+// Media seconds that must play on a renewed URL before renewal counts as working.
+const PROGRESS_TO_RESET_S = 2;
+
+/** Whether `time` (s) falls inside what the browser has already downloaded. */
+const isBuffered = (video, time) => {
+  const ranges = video.buffered;
+  for (let i = 0; i < ranges.length; i++) {
+    if (time >= ranges.start(i) && time < ranges.end(i) - 0.5) return true;
+  }
+  return false;
+};
+
 const formatTime = (seconds) => {
   if (!isFinite(seconds) || seconds < 0) return '0:00';
   const h = Math.floor(seconds / 3600);
@@ -53,6 +70,11 @@ const VideoPlayer = ({
   onProgress,
   drmConfig = null,
   onRequestRefresh,
+  // Bump when the parent has fetched fresh (re-signed) URLs, so the player
+  // reloads even if a URL string happens to come back unchanged.
+  sourceVersion = 0,
+  // When the current signed URLs expire (ms since epoch), if known.
+  sourcesExpireAt = null,
   emptyTitle = 'No video source available for this title yet.',
   emptySubtitle = 'The filmmaker may not have uploaded a video file yet.',
 }) => {
@@ -74,14 +96,45 @@ const VideoPlayer = ({
   const [showControls, setShowControls] = useState(true);
   const hideControlsTimer = useRef(null);
 
+  // ─── Signed-URL renewal ───────────────────────────────────────────────────
+  // Video URLs are short-lived. Once one expires, the next range request (after
+  // a long pause, or a seek past the buffer) fails with 403, which the browser
+  // reports as a media error. Instead of dead-ending, ask the parent for fresh
+  // URLs and resume from the same position.
+  const onRequestRefreshRef = useRef(onRequestRefresh);
+  onRequestRefreshRef.current = onRequestRefresh;
+  const expiresAtRef = useRef(sourcesExpireAt);
+  expiresAtRef.current = sourcesExpireAt;
+  const resumeRef = useRef(null);        // { time, play } to restore once fresh URLs load
+  const refreshAttemptsRef = useRef(0);  // consecutive renewals without playback progressing
+  const renewedAtTimeRef = useRef(null); // media time of the last renewal
+  const sourceArrivedAtRef = useRef(Date.now()); // wall-clock time the current URLs arrived
+  const wasPlayingRef = useRef(false);
+  const lastTimeRef = useRef(0);
+
+  const requestFreshSource = useCallback((resume) => {
+    const refresh = onRequestRefreshRef.current;
+    if (!refresh || refreshAttemptsRef.current >= MAX_REFRESH_ATTEMPTS) return false;
+    refreshAttemptsRef.current += 1;
+    renewedAtTimeRef.current = resume.time;
+    resumeRef.current = resume;
+    setError('');
+    setIsLoading(true);
+    refresh();
+    return true;
+  }, []);
+
   // ─── Resolve active source URL ────────────────────────────────────────────
   const availableQualities = Object.keys(sources).length > 0 ? Object.keys(sources) : (src ? ['default'] : []);
   const activeSrc = (() => {
     if (Object.keys(sources).length > 0) {
-      return sources[quality] || sources[initialQuality] || Object.values(sources)[0] || src || '';
+      // `src` is the parent's pick for this viewer (their quality, or the best
+      // one below it) — a better fallback than whichever key happens to be first.
+      return sources[quality] || sources[initialQuality] || src || Object.values(sources)[0] || '';
     }
     return src || '';
   })();
+  const hasVideoElement = Boolean(activeSrc) && !isEmbedUrl(activeSrc);
 
   // ─── HLS / native source setup ────────────────────────────────────────────
   const attachSource = useCallback((url) => {
@@ -122,8 +175,7 @@ const VideoPlayer = ({
                 data.details === Hls.ErrorDetails.FRAG_LOAD_ERROR
               ) {
                 console.warn('[VideoPlayer] Signed URL may be expired. Requesting refresh...', { status, details: data.details });
-                if (onRequestRefresh) {
-                  onRequestRefresh();
+                if (requestFreshSource({ time: video.currentTime || lastTimeRef.current, play: !video.paused || wasPlayingRef.current })) {
                   return; // Stop here, wait for parent to pass new sources
                 }
               }
@@ -162,9 +214,9 @@ const VideoPlayer = ({
 
     // Standard MP4 / WebM
     video.src = url;
-  }, [drmConfig, onRequestRefresh]);
+  }, [drmConfig, requestFreshSource]);
 
-  // ─── Attach source when activeSrc changes ─────────────────────────────────
+  // ─── Attach source when activeSrc changes (or fresh URLs arrive) ──────────
   useEffect(() => {
     if (isEmbedUrl(activeSrc)) {
       setIsLoading(false);
@@ -174,9 +226,14 @@ const VideoPlayer = ({
     const video = videoRef.current;
     if (!video) return;
 
-    const wasPlaying = !video.paused;
-    const savedTime = video.currentTime || 0;
+    // After a URL renewal, resume exactly where the viewer was; otherwise (a
+    // quality switch) keep the current position and play state.
+    const resume = resumeRef.current;
+    resumeRef.current = null;
+    const wasPlaying = resume ? resume.play : !video.paused;
+    const savedTime = resume ? resume.time : (video.currentTime || 0);
 
+    sourceArrivedAtRef.current = Date.now();
     attachSource(activeSrc);
 
     if (!activeSrc) {
@@ -184,12 +241,11 @@ const VideoPlayer = ({
       return;
     }
 
-    // Restore position after quality switch
     const onMetadata = () => {
-      if (savedTime > 0 && wasPlaying) {
-        video.currentTime = savedTime;
-        video.play().catch(() => {});
+      if (savedTime > 0) {
+        try { video.currentTime = savedTime; } catch { /* not seekable yet */ }
       }
+      if (wasPlaying) video.play().catch(() => {});
       setIsLoading(false);
     };
 
@@ -197,14 +253,31 @@ const VideoPlayer = ({
     return () => {
       video.removeEventListener('loadedmetadata', onMetadata);
     };
-  }, [activeSrc, attachSource]);
+  }, [activeSrc, sourceVersion, attachSource]);
 
   // ─── Video event listeners ────────────────────────────────────────────────
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
+    // True once the current URLs are (about to be) expired and `time` isn't
+    // already downloaded — i.e. the browser would have to request it and fail.
+    const needsFreshUrl = (time) => {
+      const exp = expiresAtRef.current;
+      if (!exp) return false;
+      const lifetime = Math.max(0, exp - sourceArrivedAtRef.current);
+      const margin = Math.min(EXPIRY_MARGIN_MS, lifetime / 4);
+      return Date.now() >= exp - margin && !isBuffered(video, time);
+    };
+
     const onTimeUpdate = () => {
+      lastTimeRef.current = video.currentTime;
+      // Playback has genuinely moved on since the last renewal: it worked.
+      if (renewedAtTimeRef.current !== null &&
+          Math.abs(video.currentTime - renewedAtTimeRef.current) >= PROGRESS_TO_RESET_S) {
+        refreshAttemptsRef.current = 0;
+        renewedAtTimeRef.current = null;
+      }
       setCurrentTime(video.currentTime);
       if (onProgress && video.duration) {
         onProgress({
@@ -215,8 +288,21 @@ const VideoPlayer = ({
       }
     };
     const onLoaded = () => { setDuration(video.duration); setIsLoading(false); };
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+    const onPlay = () => {
+      wasPlayingRef.current = true;
+      setIsPlaying(true);
+      // Resuming after a long pause: renew first instead of letting it fail.
+      if (needsFreshUrl(video.currentTime + 1)) {
+        requestFreshSource({ time: video.currentTime, play: true });
+      }
+    };
+    const onPause = () => { wasPlayingRef.current = false; setIsPlaying(false); };
+    const onSeeking = () => {
+      // Seeking past the buffer on an expired URL: renew before the request fails.
+      if (needsFreshUrl(video.currentTime)) {
+        requestFreshSource({ time: video.currentTime, play: wasPlayingRef.current });
+      }
+    };
     const onVolume = () => { setVolume(video.volume); setIsMuted(video.muted); };
     const onWaiting = () => setIsLoading(true);
     const onCanPlay = () => setIsLoading(false);
@@ -226,6 +312,14 @@ const VideoPlayer = ({
     };
     const onError_ = () => {
       const code = video.error?.code;
+      // An expired signed URL surfaces as a network (2) or source (4) error:
+      // renew it and continue from the same spot rather than dead-ending.
+      if ((code === 2 || code === 4) && requestFreshSource({
+        time: video.currentTime || lastTimeRef.current,
+        play: !video.paused || wasPlayingRef.current,
+      })) {
+        return;
+      }
       if (code === 4) setError('Format not supported. The video file may be missing or incompatible.');
       else if (code === 2) setError('Network error. Check your connection and try again.');
       else setError('Unable to play this video. Please try again.');
@@ -236,6 +330,7 @@ const VideoPlayer = ({
     video.addEventListener('loadedmetadata', onLoaded);
     video.addEventListener('play', onPlay);
     video.addEventListener('pause', onPause);
+    video.addEventListener('seeking', onSeeking);
     video.addEventListener('volumechange', onVolume);
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('canplay', onCanPlay);
@@ -247,13 +342,16 @@ const VideoPlayer = ({
       video.removeEventListener('loadedmetadata', onLoaded);
       video.removeEventListener('play', onPlay);
       video.removeEventListener('pause', onPause);
+      video.removeEventListener('seeking', onSeeking);
       video.removeEventListener('volumechange', onVolume);
       video.removeEventListener('waiting', onWaiting);
       video.removeEventListener('canplay', onCanPlay);
       video.removeEventListener('ended', onEnded_);
       video.removeEventListener('error', onError_);
     };
-  }, [onEnded, onProgress]);
+    // `hasVideoElement`: the <video> only exists once there is a source, so the
+    // listeners must (re)attach when it appears, not just on first mount.
+  }, [onEnded, onProgress, requestFreshSource, hasVideoElement]);
 
   // ─── Fullscreen listener ──────────────────────────────────────────────────
   useEffect(() => {

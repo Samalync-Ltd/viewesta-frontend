@@ -314,3 +314,12 @@
     font-size: clamp(11px, 3vw, 12px);
   }
 }
+
+/* Touch targets: at phone/tablet widths every tappable footer item is at
+   least 44×44px (text links were ~20px tall, social icons 32–36px). */
+@media (max-width: 768px) {
+  .footer-links { gap: 0; }
+  .footer-links li a { min-height: 44px; }
+  .social-links { gap: 12px; }
+  .social-link { width: 44px; height: 44px; }
+}

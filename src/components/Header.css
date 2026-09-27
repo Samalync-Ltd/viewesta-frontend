@@ -411,6 +411,13 @@
   gap: 12px;
 }
 
+/* Holds the account area's space while a saved session is restored, so the
+   header neither flashes Sign In / Sign Up nor shifts when the menu appears. */
+.auth-placeholder {
+  width: 120px;
+  height: 36px;
+}
+
 /* Mobile Menu Button */
 .mobile-menu-button {
   display: none;
@@ -888,6 +895,35 @@
   .mobile-notification-bell {
     display: flex;
     order: 2;
+  }
+}
+
+/* Touch targets: every tappable header / menu item is at least 44×44px on
+   phones and tablets (icon buttons were 34–41px, menu rows ~40px). */
+@media (max-width: 768px) {
+  .logo {
+    min-height: 44px;
+  }
+
+  .mobile-menu-button,
+  .mobile-search-button,
+  .mobile-notification-bell,
+  .mobile-menu-close {
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .mobile-menu-link {
+    min-height: 48px;
+  }
+
+  .mobile-country-link {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
   }
 }
 
