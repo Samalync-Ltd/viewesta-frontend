@@ -4,7 +4,7 @@ import { FaChevronLeft, FaChevronRight, FaPlay, FaCheck } from 'react-icons/fa';
 import { useLocale } from '../context/LocaleContext';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
-import { formatRating, formatRuntime } from '../utils/mediaHelpers';
+import { formatRating, formatRuntime, hideBrokenImage } from '../utils/mediaHelpers';
 import './HeroCarousel.css';
 
 const HeroCarousel = ({ items = [] }) => {
@@ -115,7 +115,7 @@ const HeroCarousel = ({ items = [] }) => {
                 className={`carousel-slide ${index === currentIndex ? 'active' : ''}`}
               >
                 <div className="slide-background">
-                  <img src={item.backdrop} alt={item.title} />
+                  <img src={item.backdrop} alt={item.title} onError={hideBrokenImage} />
                   <div className="slide-overlay"></div>
                 </div>
                 

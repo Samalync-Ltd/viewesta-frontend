@@ -92,6 +92,15 @@ export const formatRating = (value) => {
   return String(Math.round(n * 10) / 10);
 };
 
+/**
+ * `onError` for artwork <img>s. A URL can be dead (expired or bad signature,
+ * private object, placeholder host); hiding the image lets the frame show its
+ * background instead of a broken-image glyph with the alt text.
+ */
+export const hideBrokenImage = (e) => {
+  e.currentTarget.style.visibility = 'hidden';
+};
+
 /** Runtime text like "1h 35m" / "45m", or '' when the duration is unknown or 0. */
 export const formatRuntime = (minutes) => {
   const total = Number(minutes);

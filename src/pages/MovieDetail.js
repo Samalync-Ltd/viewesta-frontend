@@ -12,7 +12,7 @@ import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
-import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime } from '../utils/mediaHelpers';
+import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime, hideBrokenImage } from '../utils/mediaHelpers';
 import { clampQuality } from '../utils/quality';
 import usePlaybackQuality from '../hooks/usePlaybackQuality';
 import './MovieDetail.css';
@@ -496,14 +496,14 @@ const MovieDetail = () => {
       <div className="movie-hero">
         {movie.title !== 'Interstellar' && (
           <div className="movie-backdrop">
-            <img src={movie.backdrop} alt={movie.title} />
+            <img src={movie.backdrop} alt={movie.title} onError={hideBrokenImage} />
             <div className="backdrop-overlay"></div>
           </div>
         )}
-        
+
         <div className="movie-hero-content">
           <div className="movie-poster">
-            <img src={movie.poster} alt={movie.title} />
+            <img src={movie.poster} alt={movie.title} onError={hideBrokenImage} />
           </div>
           
           <div className="movie-info">

@@ -15,7 +15,7 @@ import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
 import AgeRatingBadge from '../components/AgeRatingBadge';
 import VideoPlayer from '../components/VideoPlayer';
-import { formatRating } from '../utils/mediaHelpers';
+import { formatRating, hideBrokenImage } from '../utils/mediaHelpers';
 import './SeriesDetail.css';
 
 const SeriesDetail = () => {
@@ -352,12 +352,12 @@ const SeriesDetail = () => {
       {/* Hero */}
       <div className="series-hero">
         <div className="series-backdrop">
-          <img src={seriesData.backdrop} alt={seriesData.title} />
+          <img src={seriesData.backdrop} alt={seriesData.title} onError={hideBrokenImage} />
           <div className="backdrop-overlay" />
         </div>
         <div className="series-hero-content">
           <div className="series-poster">
-            <img src={seriesData.poster} alt={seriesData.title} />
+            <img src={seriesData.poster} alt={seriesData.title} onError={hideBrokenImage} />
           </div>
           <div className="series-info">
             <h1 className="series-title">{seriesData.title}</h1>

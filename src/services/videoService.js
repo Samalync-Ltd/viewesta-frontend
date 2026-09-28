@@ -67,6 +67,23 @@ export function videoErrorMessage(err) {
   }
 }
 
+const EXPIRY_KEYS = ['expires_at', 'url_expires_at', 'expires_in_seconds', 'expires_in'];
+
+/**
+ * The API may send the signed-URL lifetime once for the whole response
+ * instead of on each file. Copy it onto files that carry none of their own,
+ * so sourcesExpireAt() sees it either way.
+ */
+export function withSharedExpiry(files, ...containers) {
+  const shared = {};
+  EXPIRY_KEYS.forEach((key) => {
+    const holder = containers.find((c) => c && !Array.isArray(c) && c[key] != null);
+    if (holder) shared[key] = holder[key];
+  });
+  if (Object.keys(shared).length === 0) return files;
+  return files.map((f) => (EXPIRY_KEYS.some((k) => f?.[k] != null) ? f : { ...shared, ...f }));
+}
+
 /**
  * Fetch all video files for a movie.
  * Returns an array of { quality, file_url, duration_seconds, is_processed }
@@ -80,10 +97,10 @@ export async function getMovieVideoFiles(movieId) {
       const data = response.data.data;
       // Handle nesting: { data: { movie: { video_files: [...] } } }
       const inner = data.movie || data.show || data.series || data;
-      
-      if (Array.isArray(inner.video_files)) return inner.video_files;
-      if (Array.isArray(inner.files)) return inner.files;
-      if (Array.isArray(inner)) return inner;
+
+      if (Array.isArray(inner.video_files)) return withSharedExpiry(inner.video_files, inner, data, response.data);
+      if (Array.isArray(inner.files)) return withSharedExpiry(inner.files, inner, data, response.data);
+      if (Array.isArray(inner)) return withSharedExpiry(inner, data, response.data);
     }
     return [];
   } catch (err) {
@@ -127,8 +144,10 @@ export function pickBestSource(sourcesMap = {}, preferred = null) {
   return sourcesMap[keys[0]];
 }
 
-// Signed video URLs are short-lived (60 s on the current API). The player
-// renews them before a seek outside the buffer and after a failed request.
+// Signed video URLs are short-lived: 60 s on the old API; the ECS build (#40)
+// sends `expires_in_seconds` (up to 900 s), which takes precedence. This is
+// the fallback when no lifetime is sent. The player renews URLs before a seek
+// outside the buffer and after a failed request.
 export const SIGNED_URL_TTL_MS = 60 * 1000;
 
 /**
@@ -162,9 +181,9 @@ export async function getEpisodeVideoFiles(episodeId) {
       // Handle nesting: { data: { episode: { video_files: [...] } } }
       const inner = data.episode || data.data || data;
 
-      if (Array.isArray(inner.video_files)) return inner.video_files;
-      if (Array.isArray(inner.files)) return inner.files;
-      if (Array.isArray(inner)) return inner;
+      if (Array.isArray(inner.video_files)) return withSharedExpiry(inner.video_files, inner, data, response.data);
+      if (Array.isArray(inner.files)) return withSharedExpiry(inner.files, inner, data, response.data);
+      if (Array.isArray(inner)) return withSharedExpiry(inner, data, response.data);
     }
     return [];
   } catch (err) {

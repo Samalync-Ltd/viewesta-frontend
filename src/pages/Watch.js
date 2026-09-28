@@ -75,6 +75,7 @@ const Watch = () => {
 
   // ─── A different title (same page component, new :id) starts clean ───────
   const lastSavedMarkRef = useRef(-1);
+  const mediaDurationRef = useRef(0);
   const shownIdRef = useRef(id);
   useEffect(() => {
     if (shownIdRef.current === id) return;
@@ -83,6 +84,7 @@ const Watch = () => {
     setMovieError('');
     setFetchState('idle');
     lastSavedMarkRef.current = -1;
+    mediaDurationRef.current = 0;
   }, [id, getMovieById]);
 
   // ─── Sync movie with context ─────────────────────────────────────────────
@@ -196,6 +198,7 @@ const Watch = () => {
   // 30-second mark instead of several identical requests.
   const handleProgress = useCallback(({ currentTime, duration, percent }) => {
     if (!user || !id || !duration) return;
+    mediaDurationRef.current = duration;
     const second = Math.floor(currentTime);
     if (second <= 0 || second % PROGRESS_SAVE_EVERY_S !== 0 || second === lastSavedMarkRef.current) return;
     lastSavedMarkRef.current = second;
@@ -296,11 +299,13 @@ const Watch = () => {
             onProgress={handleProgress}
             {...emptyProps}
             onEnded={() => {
-              // Track completion
-              if (user && id) {
+              // Track completion with the file's real length: catalog durations
+              // can be missing (0) or wrong (200 min for a 21 s file).
+              const total = Math.round(mediaDurationRef.current);
+              if (user && id && total > 0) {
                 updateMovieProgress(id, {
-                  watch_time_seconds: movie.duration * 60,
-                  last_position_seconds: movie.duration * 60,
+                  watch_time_seconds: total,
+                  last_position_seconds: total,
                   is_completed: true,
                 });
               }
