@@ -55,6 +55,12 @@
     },
     "resolve-url-loader": {
       "postcss": "^8.5.12"
-    }
+    },
+    "webpack-dev-server": {
+      ".": "^5.2.6",
+      "webpack-dev-middleware": "^7.4.6"
+    },
+    "@tootallnate/once": "^2.0.1",
+    "uuid": "^11.1.1"
   }
 }
