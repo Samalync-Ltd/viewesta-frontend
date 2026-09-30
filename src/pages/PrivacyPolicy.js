@@ -1,21 +1,11 @@
 import React from 'react';
 import LegalPage from './LegalPage';
+import PRIVACY_POLICY from '../content/legal/privacyPolicy';
 
-// Section headings only — bodies are placeholders until real copy is provided.
-const SECTIONS = [
-  { heading: '1. Introduction' },
-  { heading: '2. Information We Collect' },
-  { heading: '3. How We Use Your Information' },
-  { heading: '4. Sharing & Disclosure' },
-  { heading: '5. Cookies & Tracking Technologies' },
-  { heading: '6. Data Retention & Security' },
-  { heading: '7. Your Rights & Choices' },
-  { heading: "8. Children's Privacy" },
-  { heading: '9. International Data Transfers' },
-  { heading: '10. Changes to This Policy' },
-  { heading: '11. Contact Us' },
+const CROSS_LINKS = [
+  { phrase: 'Terms of Use', to: '/terms' },
 ];
 
 export default function PrivacyPolicy() {
-  return <LegalPage title="Privacy Policy" sections={SECTIONS} />;
+  return <LegalPage doc={PRIVACY_POLICY} crossLinks={CROSS_LINKS} />;
 }
