@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLocale } from '../context/LocaleContext';
 import { useNotification } from '../context/NotificationContext';
 import { searchMovies } from '../services/movieService';
+import { showNoPoster } from '../utils/mediaHelpers';
 import './Header.css';
 
 const Header = () => {
@@ -58,6 +59,27 @@ const Header = () => {
     const timeoutId = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
+
+  // The account menu opens on hover and also on click / tap / keyboard, which
+  // hover alone can't serve (touch screens, keyboard users, test tools).
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef(null);
+  useEffect(() => { setIsUserMenuOpen(false); }, [location.pathname]);
+  useEffect(() => {
+    if (!isUserMenuOpen) return undefined;
+    const closeIfOutside = (event) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) setIsUserMenuOpen(false);
+    };
+    const closeOnEscape = (event) => { if (event.key === 'Escape') setIsUserMenuOpen(false); };
+    document.addEventListener('mousedown', closeIfOutside);
+    document.addEventListener('touchstart', closeIfOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeIfOutside);
+      document.removeEventListener('touchstart', closeIfOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isUserMenuOpen]);
 
   // Click outside to close suggestions
   useEffect(() => {
@@ -173,7 +195,7 @@ const Header = () => {
                     navigate(movie.type === 'Series' ? `/series/${movie.id}` : `/movie/${movie.id}`);
                   }}
                 >
-                  <img src={movie.poster} alt={movie.title} className="suggestion-poster" />
+                  <img src={movie.poster} alt={movie.title} className="suggestion-poster" onError={showNoPoster} />
                   <div className="suggestion-info">
                     <div className="suggestion-title">{movie.title}</div>
                     <div className="suggestion-meta">{movie.year || ''} • {movie.type || 'Movie'}</div>
@@ -246,8 +268,13 @@ const Header = () => {
                 </span>
               </Link>
 
-              <div className="user-menu">
-                <button className="user-button">
+              <div className={`user-menu ${isUserMenuOpen ? 'open' : ''}`} ref={userMenuRef}>
+                <button
+                  className="user-button"
+                  onClick={() => setIsUserMenuOpen((open) => !open)}
+                  aria-haspopup="true"
+                  aria-expanded={isUserMenuOpen}
+                >
                   <FaUser />
                   <span className="user-name">{user.name}</span>
                 </button>

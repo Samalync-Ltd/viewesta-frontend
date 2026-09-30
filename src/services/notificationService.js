@@ -237,11 +237,13 @@ export async function registerDevice(token) {
 /**
  * Unregister FCM token from backend.
  * POST /notifications/devices/unregister
+ * `authToken` is for logout, which clears the stored session before this runs.
  */
-export async function unregisterDevice(token) {
+export async function unregisterDevice(token, authToken = null) {
   if (!token) return;
   try {
-    await client.post('/notifications/devices/unregister', { token });
+    const config = authToken ? { headers: { Authorization: `Bearer ${authToken}` } } : undefined;
+    await client.post('/notifications/devices/unregister', { token }, config);
     console.log('[NotificationService] Token unregistered from backend.');
   } catch (error) {
     console.warn('[NotificationService] Failed to unregister token:', error?.message);
@@ -412,13 +414,14 @@ export async function registerPushNotifications() {
 }
 
 /**
- * Unregister all push notifications (call on logout).
+ * Unregister all push notifications (call on logout, with the session's
+ * access token — it is no longer in storage by then).
  */
-export async function unregisterPushNotifications() {
+export async function unregisterPushNotifications(authToken = null) {
   const token = localStorage.getItem('viewesta_fcm_token');
   if (token) {
-    await unregisterDevice(token);
     localStorage.removeItem('viewesta_fcm_token');
+    await unregisterDevice(token, authToken);
   }
 }
 

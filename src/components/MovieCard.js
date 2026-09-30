@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaPlay, FaHeart, FaClock, FaBookmark, FaCalendar, FaFilm } from 'react-icons/fa';
+import { FaPlay, FaHeart, FaClock, FaBookmark, FaCalendar } from 'react-icons/fa';
+import { NO_POSTER_IMAGE } from '../utils/mediaHelpers';
 import { useAuth } from '../context/AuthContext';
 import { useMovies } from '../context/MovieContext';
 import AgeRatingBadge from './AgeRatingBadge';
@@ -87,11 +88,9 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
           )}
 
           {showPosterPlaceholder ? (
-            // Posters can be missing or unreachable (403 / dead host); show a clean
-            // placeholder rather than a broken-image glyph with alt text spilling over the badges.
-            <div className="poster-placeholder" role="img" aria-label={movie.title}>
-              <FaFilm />
-            </div>
+            // Posters can be missing or unreachable (403 / dead host); show the same
+            // "No Poster" image as a title without one, not a broken-image glyph.
+            <img src={NO_POSTER_IMAGE} alt={movie.title} className="poster-image" />
           ) : (
             <img
               src={movie.poster}

@@ -7,6 +7,7 @@ import { loginUser } from '../utils/apiClient';
 import { getCurrentUser, updateUserProfile, changePassword as apiChangePassword } from '../utils/apiClient.js';
 import { getMySubscription } from '../services/subscriptionService.js';
 import axios from 'axios';
+import client from '../api/client';
 import { registerPushNotifications, unregisterPushNotifications } from '../services/notificationService.js';
 
 const AuthContext = createContext();
@@ -234,24 +235,28 @@ const register = async (data) => {
 
 
   const logout = () => {
-    const tokenAtLogout = localStorage.getItem('viewesta_token');
+    const accessToken = localStorage.getItem('viewesta_token') || localStorage.getItem('viewesta_access_token');
+    const refreshToken = localStorage.getItem('viewesta_refresh_token');
 
-    // Unregistering the push device is an authenticated call, so the session
-    // tokens are only cleared once it has settled. Without clearing them a
-    // page refresh restores the "signed out" session. The token check stops a
-    // slow unregister from wiping the tokens of someone who signed straight back in.
-    unregisterPushNotifications()
-      .catch(err => {
-        console.warn('Failed to unregister push notifications on logout', err);
-      })
-      .finally(() => {
-        if (localStorage.getItem('viewesta_token') === tokenAtLogout) {
-          localStorage.removeItem('viewesta_token');
-          localStorage.removeItem('viewesta_refresh_token');
-          localStorage.removeItem('viewesta_access_token');
-        }
-      });
+    // Sign out of this browser first, so a refresh or a new tab can't restore
+    // the session while the server calls below are still in flight (the push
+    // unregister can take up to the request timeout).
+    localStorage.removeItem('viewesta_token');
+    localStorage.removeItem('viewesta_refresh_token');
+    localStorage.removeItem('viewesta_access_token');
     persistUser(null);
+
+    if (!accessToken) return;
+    // Best-effort server cleanup, with the old token passed explicitly. The
+    // main client is used because utils/apiClient hard-redirects on a 401.
+    unregisterPushNotifications(accessToken).catch((err) => {
+      console.warn('Failed to unregister push notifications on logout', err);
+    });
+    client
+      .post('/auth/logout', { refresh_token: refreshToken || undefined, logout_all: false }, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      .catch((err) => console.warn('Server logout failed:', err?.message));
   };
 
   const updateProfile = async (updates) => {

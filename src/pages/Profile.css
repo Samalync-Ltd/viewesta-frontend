@@ -134,6 +134,12 @@
   font-size: 13px;
 }
 
+.profile-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .edit-profile-btn {
   display: inline-flex;
   align-items: center;
@@ -548,6 +554,8 @@
   .edit-row { grid-template-columns: 1fr; }
 
   .edit-actions { justify-content: center; }
+
+  .profile-header-actions { justify-content: center; }
 
   .profile-stats-bar { gap: 6px; padding: 16px 12px; }
   .pstat-value { font-size: 18px; }

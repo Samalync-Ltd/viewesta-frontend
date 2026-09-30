@@ -12,7 +12,7 @@ import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
-import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime, hideBrokenImage } from '../utils/mediaHelpers';
+import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime, showNoPoster, showNoBackdrop, isRealArtwork } from '../utils/mediaHelpers';
 import { clampQuality } from '../utils/quality';
 import usePlaybackQuality from '../hooks/usePlaybackQuality';
 import './MovieDetail.css';
@@ -402,52 +402,18 @@ const MovieDetail = () => {
   };
 
   /**
-   * Build a gallery images array from the movie object.
-   * Uses movie.gallery if present; otherwise derives from existing cover/poster fields
-   * and supplements with genre-themed Unsplash photos for a richer visual experience.
+   * Gallery photos: the movie's own `gallery_images`, otherwise its real
+   * backdrop and poster. Never placeholders or stock photos: the genre-themed
+   * Unsplash images that used to pad this out were not the film's.
    */
   const buildGallery = (m) => {
     if (!m) return [];
-    // Use explicit gallery data if the movie has it
     if (m.gallery && m.gallery.length > 0) return m.gallery;
-
-    // Genre-to-theme mapping for supplemental Unsplash images
-    const themeMap = {
-      Drama:    ['photo-1528360983277-13d401cdc186', 'photo-1517457373958-b7bdd4587205'],
-      Comedy:   ['photo-1527529482837-4698179dc6ce', 'photo-1492684223066-81342ee5ff30'],
-      Romance:  ['photo-1522673607200-164d1b6ce486', 'photo-1464366400600-7168b8af9bc3'],
-      Crime:    ['photo-1477959858617-67f85cf4f1df', 'photo-1444723121867-7a241cacace9'],
-      Thriller: ['photo-1518331647614-7a1f04cd34cf', 'photo-1542204165-65bf26472b9b'],
-      Action:   ['photo-1547153760-18fc86324498', 'photo-1552319454-0f07c07fc399'],
-      Family:   ['photo-1529156069898-49953e39b3ac', 'photo-1543269664-56d93c1b41a6'],
-      Fantasy:  ['photo-1518709268805-4e9042af9f23', 'photo-1502691876148-a84978e59af8'],
-      Music:    ['photo-1511671782779-c97d3d27a1d4', 'photo-1506157786151-b8491531f063'],
-      War:      ['photo-1541976590-713941681591', 'photo-1575408264798-a9e5f3aeb2fc'],
-      History:  ['photo-1560969184-10fe8719e047', 'photo-1568702846914-96b305d2aaeb'],
-    };
-
-    const genres = m.genres || [];
-    const seen = new Set();
-    const extraImages = [];
-    for (const genre of genres) {
-      const ids = themeMap[genre] || [];
-      for (const id of ids) {
-        if (!seen.has(id)) {
-          seen.add(id);
-          extraImages.push({
-            url: `https://images.unsplash.com/${id}?w=900&h=500&fit=crop&auto=format`,
-            caption: `${m.title} — ${genre} scene`
-          });
-        }
-      }
-      if (extraImages.length >= 4) break;
-    }
 
     const images = [];
     const coverUrl = m.cover || m.backdrop;
-    if (coverUrl) images.push({ url: coverUrl, caption: `${m.title} — Featured` });
-    if (m.poster) images.push({ url: m.poster, caption: `${m.title} — Poster` });
-    images.push(...extraImages);
+    if (isRealArtwork(coverUrl)) images.push({ url: coverUrl, caption: `${m.title} — Featured` });
+    if (isRealArtwork(m.poster)) images.push({ url: m.poster, caption: `${m.title} — Poster` });
     return images;
   };
 
@@ -496,14 +462,14 @@ const MovieDetail = () => {
       <div className="movie-hero">
         {movie.title !== 'Interstellar' && (
           <div className="movie-backdrop">
-            <img src={movie.backdrop} alt={movie.title} onError={hideBrokenImage} />
+            <img src={movie.backdrop} alt={movie.title} onError={showNoBackdrop} />
             <div className="backdrop-overlay"></div>
           </div>
         )}
 
         <div className="movie-hero-content">
           <div className="movie-poster">
-            <img src={movie.poster} alt={movie.title} onError={hideBrokenImage} />
+            <img src={movie.poster} alt={movie.title} onError={showNoPoster} />
           </div>
           
           <div className="movie-info">

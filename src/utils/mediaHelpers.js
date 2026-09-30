@@ -92,14 +92,25 @@ export const formatRating = (value) => {
   return String(Math.round(n * 10) / 10);
 };
 
+// Shown for a title with no artwork, and in place of artwork that fails to load.
+export const NO_POSTER_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="450"%3E%3Crect fill="%23333" width="300" height="450"/%3E%3Ctext x="50%" y="50%" font-size="18" fill="%23999" text-anchor="middle" dominant-baseline="middle"%3ENo Poster%3C/text%3E%3C/svg%3E';
+export const NO_BACKDROP_IMAGE = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"%3E%3Crect fill="%23222" width="1200" height="600"/%3E%3Ctext x="50%" y="50%" font-size="24" fill="%23666" text-anchor="middle" dominant-baseline="middle"%3ENo Backdrop%3C/text%3E%3C/svg%3E';
+
+/** True for a real artwork URL, false for none or one of the placeholders above. */
+export const isRealArtwork = (url) => Boolean(url) && url !== NO_POSTER_IMAGE && url !== NO_BACKDROP_IMAGE;
+
 /**
  * `onError` for artwork <img>s. A URL can be dead (expired or bad signature,
- * private object, placeholder host); hiding the image lets the frame show its
- * background instead of a broken-image glyph with the alt text.
+ * private object, placeholder host); show the same placeholder a title without
+ * artwork gets, not a broken-image icon or an empty frame. A new `src` from
+ * React (another title) replaces the placeholder and is tried again.
  */
-export const hideBrokenImage = (e) => {
-  e.currentTarget.style.visibility = 'hidden';
+const fallBackTo = (placeholder) => (e) => {
+  const img = e.currentTarget;
+  if (img.getAttribute('src') !== placeholder) img.setAttribute('src', placeholder);
 };
+export const showNoPoster = fallBackTo(NO_POSTER_IMAGE);
+export const showNoBackdrop = fallBackTo(NO_BACKDROP_IMAGE);
 
 /** Runtime text like "1h 35m" / "45m", or '' when the duration is unknown or 0. */
 export const formatRuntime = (minutes) => {
@@ -270,16 +281,19 @@ export const normalizeMovie = (input = {}) => {
         rawMovie.media?.poster ||
         rawMovie.thumbnail ||
         rawMovie.thumbnail_url
-      ) ||
-      'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="300" height="450"%3E%3Crect fill="%23333" width="300" height="450"/%3E%3Ctext x="50%" y="50%" font-size="18" fill="%23999" text-anchor="middle" dominant-baseline="middle"%3ENo Poster%3C/text%3E%3C/svg%3E',
+      ) || NO_POSTER_IMAGE,
     backdrop:
       normalizeMediaUrl(
         rawMovie.backdrop ||
         rawMovie.backdrop_url ||
         rawMovie.backdropUrl ||
         rawMovie.hero_image
-      ) ||
-      'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="1200" height="600"%3E%3Crect fill="%23222" width="1200" height="600"/%3E%3Ctext x="50%" y="50%" font-size="24" fill="%23666" text-anchor="middle" dominant-baseline="middle"%3ENo Backdrop%3C/text%3E%3C/svg%3E',
+      ) || NO_BACKDROP_IMAGE,
+    // The title's own gallery photos (GET /movies, /shows: `gallery_images`, a list of URLs).
+    gallery: coerceArray(rawMovie.gallery_images)
+      .map((image) => normalizeMediaUrl(typeof image === 'string' ? image : image?.url))
+      .filter(Boolean)
+      .map((url) => ({ url })),
     description: rawMovie.description || rawMovie.synopsis || 'No description provided.',
     director: rawMovie.director_name || personNames(rawMovie.director) || personNames(rawMovie.directed_by) || personNames(rawMovie.filmmaker) ||
               (rawMovie.filmmaker_first_name ? `${rawMovie.filmmaker_first_name} ${rawMovie.filmmaker_last_name || ''}`.trim() : 'Unknown Director'),

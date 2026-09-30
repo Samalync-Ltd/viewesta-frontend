@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useMovies } from '../context/MovieContext';
 import {
@@ -19,6 +19,7 @@ import {
   FaReceipt,
   FaSpinner,
   FaExclamationTriangle,
+  FaSignOutAlt,
 } from 'react-icons/fa';
 import MovieCard from '../components/MovieCard';
 import { getPurchases } from '../services/paymentService';
@@ -27,7 +28,14 @@ import './Profile.css';
 const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?background=D06224&color=fff&size=128&name=';
 
 const Profile = () => {
-  const { user, updateProfile, changePassword, loading, uploadAvatar } = useAuth();
+  const { user, updateProfile, changePassword, loading, uploadAvatar, logout } = useAuth();
+  const navigate = useNavigate();
+  // Navigate on the next tick, like the header: /profile is protected, and its
+  // redirect to /login would otherwise win once the user is cleared.
+  const handleLogout = () => {
+    logout();
+    setTimeout(() => navigate('/', { replace: true }), 0);
+  };
   const { watchlist, getMovieById } = useMovies();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -354,12 +362,20 @@ const Profile = () => {
 
                 {/* <p className="profile-bio">{user.bio}</p> */}
 
-                <button
-                  className="btn btn-outline edit-profile-btn"
-                  onClick={handleEditStart}
-                >
-                  <FaEdit /> Edit Profile
-                </button>
+                <div className="profile-header-actions">
+                  <button
+                    className="btn btn-outline edit-profile-btn"
+                    onClick={handleEditStart}
+                  >
+                    <FaEdit /> Edit Profile
+                  </button>
+                  <button
+                    className="btn btn-outline edit-profile-btn"
+                    onClick={handleLogout}
+                  >
+                    <FaSignOutAlt /> Log Out
+                  </button>
+                </div>
               </>
             )}
           </div>

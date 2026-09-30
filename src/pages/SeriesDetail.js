@@ -15,7 +15,7 @@ import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
 import AgeRatingBadge from '../components/AgeRatingBadge';
 import VideoPlayer from '../components/VideoPlayer';
-import { formatRating, hideBrokenImage } from '../utils/mediaHelpers';
+import { formatRating, showNoPoster, showNoBackdrop, isRealArtwork } from '../utils/mediaHelpers';
 import './SeriesDetail.css';
 
 const SeriesDetail = () => {
@@ -316,9 +316,11 @@ const SeriesDetail = () => {
   const buildGallery = (s) => {
     if (!s) return [];
     if (s.gallery?.length > 0) return s.gallery;
+    // No gallery photos: the real backdrop and poster, never the placeholders.
     const images = [];
-    if (s.cover || s.backdrop) images.push({ url: s.cover || s.backdrop, caption: `${s.title} — Featured` });
-    if (s.poster) images.push({ url: s.poster, caption: `${s.title} — Poster` });
+    const coverUrl = s.cover || s.backdrop;
+    if (isRealArtwork(coverUrl)) images.push({ url: coverUrl, caption: `${s.title} — Featured` });
+    if (isRealArtwork(s.poster)) images.push({ url: s.poster, caption: `${s.title} — Poster` });
     return images;
   };
 
@@ -352,12 +354,12 @@ const SeriesDetail = () => {
       {/* Hero */}
       <div className="series-hero">
         <div className="series-backdrop">
-          <img src={seriesData.backdrop} alt={seriesData.title} onError={hideBrokenImage} />
+          <img src={seriesData.backdrop} alt={seriesData.title} onError={showNoBackdrop} />
           <div className="backdrop-overlay" />
         </div>
         <div className="series-hero-content">
           <div className="series-poster">
-            <img src={seriesData.poster} alt={seriesData.title} onError={hideBrokenImage} />
+            <img src={seriesData.poster} alt={seriesData.title} onError={showNoPoster} />
           </div>
           <div className="series-info">
             <h1 className="series-title">{seriesData.title}</h1>

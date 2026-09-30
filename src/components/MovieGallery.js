@@ -9,11 +9,15 @@ import './MovieGallery.css';
  *
  * @param {{ images: Array<{url: string, caption?: string}>, title: string }} props
  */
-const MovieGallery = ({ images = [], title = '' }) => {
+const MovieGallery = ({ images: allImages = [], title = '' }) => {
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const [loaded, setLoaded] = useState({});
+  // Photos that failed to load are dropped instead of shimmering forever;
+  // if none load, the gallery is not shown at all.
+  const [failed, setFailed] = useState({});
+  const images = (allImages || []).filter((img) => img?.url && !failed[img.url]);
 
-  const isOpen = lightboxIndex !== null;
+  const isOpen = lightboxIndex !== null && lightboxIndex < images.length;
 
   const openLightbox = (index) => setLightboxIndex(index);
   const closeLightbox = () => setLightboxIndex(null);
@@ -44,9 +48,10 @@ const MovieGallery = ({ images = [], title = '' }) => {
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
-  if (!images || images.length === 0) return null;
+  if (images.length === 0) return null;
 
-  const handleImgLoad = (index) => setLoaded((prev) => ({ ...prev, [index]: true }));
+  const handleImgLoad = (url) => setLoaded((prev) => ({ ...prev, [url]: true }));
+  const handleImgError = (url) => setFailed((prev) => ({ ...prev, [url]: true }));
 
   return (
     <section className="movie-gallery">
@@ -59,18 +64,19 @@ const MovieGallery = ({ images = [], title = '' }) => {
       <div className="movie-gallery__grid">
         {images.map((img, index) => (
           <button
-            key={index}
+            key={`${index}-${img.url}`}
             className={`gallery-thumb ${index === 0 ? 'gallery-thumb--featured' : ''}`}
             onClick={() => openLightbox(index)}
             aria-label={img.caption || `View photo ${index + 1}`}
           >
-            <div className={`gallery-thumb__skeleton ${loaded[index] ? 'loaded' : ''}`} />
+            <div className={`gallery-thumb__skeleton ${loaded[img.url] ? 'loaded' : ''}`} />
+            {/* Not lazy: a dead photo is dropped at page load, not after the viewer scrolls to it. */}
             <img
               src={img.url}
               alt={img.caption || `${title} photo ${index + 1}`}
-              loading="lazy"
-              onLoad={() => handleImgLoad(index)}
-              className={`gallery-thumb__img ${loaded[index] ? 'loaded' : ''}`}
+              onLoad={() => handleImgLoad(img.url)}
+              onError={() => handleImgError(img.url)}
+              className={`gallery-thumb__img ${loaded[img.url] ? 'loaded' : ''}`}
             />
             <div className="gallery-thumb__overlay">
               <FaExpand />
