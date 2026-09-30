@@ -24,13 +24,13 @@ const Footer = () => {
             </div>
             <p className="footer-description">{t('footerDesc')}</p>
             <div className="social-links">
-              <a href="https://facebook.com" className="social-link" aria-label="Facebook" target="_blank" rel="noreferrer">
+              <a href="https://www.facebook.com/share/14uaEY52gtP/" className="social-link" aria-label="Facebook" target="_blank" rel="noopener noreferrer">
                 <FaFacebook />
               </a>
-              <a href="https://instagram.com" className="social-link" aria-label="Instagram" target="_blank" rel="noreferrer">
+              <a href="https://www.instagram.com/viewesta.official?stkn=cnpsd2N6d3N1dnA2" className="social-link" aria-label="Instagram" target="_blank" rel="noopener noreferrer">
                 <FaInstagram />
               </a>
-              <a href="https://tiktok.com" className="social-link" aria-label="TikTok" target="_blank" rel="noreferrer">
+              <a href="https://tiktok.com" className="social-link" aria-label="TikTok" target="_blank" rel="noopener noreferrer">
                 <SiTiktok />
               </a>
             </div>
