@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useLocale } from '../context/LocaleContext';
 import { FaStar, FaCalendar, FaClock, FaArrowLeft, FaSpinner } from 'react-icons/fa';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
@@ -25,6 +26,7 @@ const Watch = () => {
   const [searchParams] = useSearchParams();
   const { getMovieById, purchasedMovies, refreshPurchases } = useMovies();
   const { user, loading: authLoading } = useAuth();
+  const { tx } = useLocale();
 
   const [movie, setMovie] = useState(() => getMovieById(id));
   const [fetchState, setFetchState] = useState('idle'); // 'idle' | 'loading' | 'done'
@@ -256,6 +258,10 @@ const Watch = () => {
   const playableSources = capSources(playback.map, maxQuality);
   const finalSrc = pickBestSource(playableSources, quality) || '';
 
+  // A plan capped below HD (e.g. Mobile = 480p) plays at its cap instead of being
+  // blocked; say so, and point to the plans page.
+  const cappedBelowHd = Boolean(finalSrc && maxQuality && qualityRank(maxQuality) >= 0 && qualityRank(maxQuality) < qualityRank('720p'));
+
   // Why there is nothing to play, in the viewer's terms.
   let emptyProps = {};
   if (sourcesError) {
@@ -287,6 +293,13 @@ const Watch = () => {
             <span>Loading video…</span>
           </div>
         ) : (
+          <>
+          {cappedBelowHd && (
+            <p className="watch-quality-note" role="status">
+              {tx('Playing in {{quality}}. Upgrade your plan for HD.', { quality: maxQuality })}{' '}
+              <Link to="/subscription">{tx('View plans')}</Link>
+            </p>
+          )}
           <VideoPlayer
             src={finalSrc}
             sources={playableSources}
@@ -311,6 +324,7 @@ const Watch = () => {
               }
             }}
           />
+          </>
         )}
 
         <section className="watch-details">
