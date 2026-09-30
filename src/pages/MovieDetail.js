@@ -16,8 +16,11 @@ import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime
 import { clampQuality } from '../utils/quality';
 import usePlaybackQuality from '../hooks/usePlaybackQuality';
 import './MovieDetail.css';
+import { friendlyApiError } from '../utils/apiErrors';
+import { useLocale } from '../context/LocaleContext';
 
 const MovieDetail = () => {
+  const { tx } = useLocale();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -33,6 +36,8 @@ const MovieDetail = () => {
   const [purchaseTab, setPurchaseTab] = useState('subscribe'); // 'subscribe' | 'ppv'
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseError, setPurchaseError] = useState('');
   const [isInWatchlist, setIsInWatchlist] = useState(false);
   const [isTrailerOpen, setIsTrailerOpen] = useState(false);
   const [isMutatingWatchlist, setIsMutatingWatchlist] = useState(false);
@@ -122,6 +127,7 @@ const MovieDetail = () => {
     setPurchaseTab('subscribe');
     setShowPurchaseModal(false);
     setShowPaymentMethodModal(false);
+    setPurchaseError('');
     setRatingMessage(null);
   }, [id]);
 
@@ -254,7 +260,7 @@ const MovieDetail = () => {
     return (
       <div className="movie-detail loading-state">
         <div className="loading" />
-        <p>Loading movie...</p>
+        <p>{tx('Loading movie...')}</p>
         </div>
     );
   }
@@ -262,14 +268,14 @@ const MovieDetail = () => {
   if (detailError && !movie) {
     return (
       <div className="movie-not-found">
-        <h2>Unable to load this movie</h2>
+        <h2>{tx('Unable to load this movie')}</h2>
         <p>{detailError}</p>
         <div className="error-actions">
           <button onClick={fetchMovieDetail} className="btn btn-primary">
-            Try Again
+            {tx('Try Again')}
           </button>
           <button onClick={() => navigate('/movies')} className="btn btn-outline">
-            Browse Movies
+            {tx('Browse Movies')}
           </button>
         </div>
       </div>
@@ -279,10 +285,10 @@ const MovieDetail = () => {
   if (!movie) {
     return (
       <div className="movie-not-found">
-        <h2>Movie not found</h2>
-        <p>The movie you're looking for doesn't exist.</p>
+        <h2>{tx('Movie not found')}</h2>
+        <p>{tx("The movie you're looking for doesn't exist.")}</p>
         <button onClick={() => navigate('/')} className="btn btn-primary">
-          Go Home
+          {tx('Go Home')}
         </button>
       </div>
     );
@@ -303,9 +309,9 @@ const MovieDetail = () => {
   const notPlayable = movie.is_playable === false;
   const notOnSale = !hasAccess && !subscribeAllowed && !ppvAllowed;
   const watchBlockedReason = notPlayable
-    ? "This title doesn't have a video yet — check back soon."
+    ? tx("This title doesn't have a video yet — check back soon.")
     : notOnSale
-      ? "This title isn't available to buy yet — check back soon."
+      ? tx("This title isn't available to buy yet — check back soon.")
       : '';
 
   const averageRating = formatRating(movie.average_rating ?? movie.rating);
@@ -336,13 +342,17 @@ const MovieDetail = () => {
 
   const handleInitiatePurchase = () => {
     setShowPurchaseModal(false);
+    setPurchaseError('');
     setShowPaymentMethodModal(true);
   };
 
+  // The payment modal stays open while this runs, so a failure (e.g. not
+  // enough wallet balance) is explained there instead of in an alert.
   const handleConfirmPurchase = async (paymentMethod) => {
     if (user) {
-      setShowPaymentMethodModal(false);
-      
+      setPurchasing(true);
+      setPurchaseError('');
+
       try {
         const response = await paymentService.purchaseMovie({
           movie_id: movie.id,
@@ -368,13 +378,16 @@ const MovieDetail = () => {
             refreshProfile ? refreshProfile() : null,
             refreshPurchases(),
           ]);
+          setShowPaymentMethodModal(false);
           navigate(`/watch/${movie.id}?q=${encodeURIComponent(selectedQuality)}`);
         } else {
-          alert('Failed to initiate payment. Please try again.');
+          setPurchaseError(tx("We couldn't start the payment. Please try again."));
         }
       } catch (error) {
         console.error('Purchase failed:', error);
-        alert(error?.response?.data?.message || 'Failed to initiate payment. Please try again.');
+        setPurchaseError(friendlyApiError(error, tx("We couldn't complete the purchase. Please try again.")));
+      } finally {
+        setPurchasing(false);
       }
     }
   };
@@ -412,8 +425,8 @@ const MovieDetail = () => {
 
     const images = [];
     const coverUrl = m.cover || m.backdrop;
-    if (isRealArtwork(coverUrl)) images.push({ url: coverUrl, caption: `${m.title} — Featured` });
-    if (isRealArtwork(m.poster)) images.push({ url: m.poster, caption: `${m.title} — Poster` });
+    if (isRealArtwork(coverUrl)) images.push({ url: coverUrl, caption: `${m.title} — ${tx('Featured')}` });
+    if (isRealArtwork(m.poster)) images.push({ url: m.poster, caption: `${m.title} — ${tx('Poster')}` });
     return images;
   };
 
@@ -443,7 +456,7 @@ const MovieDetail = () => {
       setRatingMessage({ type: 'error', text: result.error });
       return;
     }
-    setRatingMessage({ type: 'success', text: 'Thanks — your rating was saved.' });
+    setRatingMessage({ type: 'success', text: tx('Thanks — your rating was saved.') });
     // Pull the updated average / rating count.
     fetchMovieDetail();
   };
@@ -479,7 +492,7 @@ const MovieDetail = () => {
             <div className="detail-badges">
               <button onClick={() => setIsTrailerOpen(true)} className="badge badge-ghost">
                 <FaPlay />
-                Watch Trailer
+                {tx('Watch Trailer')}
               </button>
             </div>
             
@@ -491,7 +504,7 @@ const MovieDetail = () => {
                 <span>
                   {averageRating
                     ? <>{averageRating}{movie.rating_count > 0 && <> ({movie.rating_count})</>}</>
-                    : 'No ratings yet'}
+                    : tx('No ratings yet')}
                 </span>
               </div>
               <div className="movie-year">
@@ -512,13 +525,13 @@ const MovieDetail = () => {
             {/* Two-column specs grid */}
             <div className="specs-grid">
               <div className="specs-col">
-                <div className="spec-item"><strong>Released:</strong> {movie.year}</div>
-                <div className="spec-item"><strong>Genre:</strong> {movie.genres.join(', ')}</div>
-                <div className="spec-item"><strong>Director:</strong> {movie.director}</div>
+                <div className="spec-item"><strong>{tx('Released:')}</strong> {movie.year}</div>
+                <div className="spec-item"><strong>{tx('Genre:')}</strong> {movie.genres.join(', ')}</div>
+                <div className="spec-item"><strong>{tx('Director:')}</strong> {movie.director}</div>
               </div>
               <div className="specs-col">
-                {runtime && <div className="spec-item"><strong>Duration:</strong> {runtime}</div>}
-                <div className="spec-item"><strong>Cast:</strong> {movie.cast.join(', ')}</div>
+                {runtime && <div className="spec-item"><strong>{tx('Duration:')}</strong> {runtime}</div>}
+                <div className="spec-item"><strong>{tx('Cast:')}</strong> {movie.cast.join(', ')}</div>
               </div>
             </div>
 
@@ -543,8 +556,8 @@ const MovieDetail = () => {
 
             {/* Your rating (viewer) */}
             <div className="detail-your-rating">
-              <span className="detail-your-rating-label">Your rating:</span>
-              <div className="detail-stars" role="group" aria-label="Rate this movie">
+              <span className="detail-your-rating-label">{tx('Your rating:')}</span>
+              <div className="detail-stars" role="group" aria-label={tx('Rate this movie')}>
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
@@ -552,7 +565,7 @@ const MovieDetail = () => {
                     className={`detail-star-btn ${userRating >= star ? 'filled' : ''}`}
                     onClick={() => handleRate(star)}
                     onKeyDown={(e) => e.key === 'Enter' && handleRate(star)}
-                    aria-label={`Rate ${star} star${star !== 1 ? 's' : ''}`}
+                    aria-label={tx(star === 1 ? 'Rate 1 star' : 'Rate {{n}} stars', { n: star })}
                   >
                     <FaStar />
                   </button>
@@ -582,23 +595,23 @@ const MovieDetail = () => {
                 >
                   <FaPlay />
                   {watchBlockedReason
-                    ? (notPlayable ? 'Coming soon' : 'Not available yet')
-                    : (user?.subscription?.active ? 'Watch Now' : 'Watch')}
+                    ? tx(notPlayable ? 'Coming soon' : 'Not available yet')
+                    : tx(user?.subscription?.active ? 'Watch Now' : 'Watch')}
                 </button>
                 <button 
                   onClick={user ? handleWatchlistToggle : goToLogin}
                   disabled={isMutatingWatchlist}
                   className={`btn btn-secondary wishlist-btn ${isInWatchlist ? 'active' : ''}`}
-                  title={!user ? "Log in to add to your wishlist" : (isInWatchlist ? "Remove from wishlist" : "Add to wishlist")}
+                  title={tx(!user ? "Log in to add to your wishlist" : (isInWatchlist ? "Remove from wishlist" : "Add to wishlist"))}
                 >
                   <FaHeart className={isInWatchlist && !isMutatingWatchlist ? "heart-beat" : ""} />
-                  {isMutatingWatchlist ? 'Wait...' : (isInWatchlist ? 'In Wishlist' : 'Wishlist')}
+                  {tx(isMutatingWatchlist ? 'Wait...' : (isInWatchlist ? 'In Wishlist' : 'Wishlist'))}
                 </button>
               </div>
               <div className="secondary-cta">
                 <button onClick={handleShare} className="btn btn-secondary">
                   <FaShareAlt />
-                  Share
+                  {tx('Share')}
                 </button>
               </div>
             </div>
@@ -631,7 +644,7 @@ const MovieDetail = () => {
       {relatedMovies.length > 0 && (
         <div className="related-movies-section">
           <div className="related-movies-container">
-            <h2 className="related-movies-title">More Like This</h2>
+            <h2 className="related-movies-title">{tx('More Like This')}</h2>
             <div className="related-movies-grid">
               {relatedMovies.map((relatedMovie) => (
                 <MovieCard key={relatedMovie.id} movie={relatedMovie} />
@@ -699,7 +712,7 @@ const MovieDetail = () => {
         <div className="modal-overlay">
           <div className="purchase-modal">
             <div className="modal-header">
-              <h3>Watch Options</h3>
+              <h3>{tx('Watch Options')}</h3>
               <button 
                 onClick={() => setShowPurchaseModal(false)}
                 className="modal-close"
@@ -716,7 +729,7 @@ const MovieDetail = () => {
                     className={`option-tab ${purchaseTab === 'subscribe' ? 'active' : ''}`}
                     onClick={() => setPurchaseTab('subscribe')}
                   >
-                    Subscribe
+                    {tx('Subscribe')}
                   </button>
                 )}
                 {ppvAllowed && (
@@ -725,7 +738,7 @@ const MovieDetail = () => {
                     className={`option-tab ${purchaseTab === 'ppv' ? 'active' : ''}`}
                     onClick={() => setPurchaseTab('ppv')}
                   >
-                    Pay-per-view
+                    {tx('Pay-per-view')}
                   </button>
                 )}
               </div>
@@ -738,8 +751,8 @@ const MovieDetail = () => {
                       <div className="quality-options">
                         <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '1rem 0' }}>
                           {pricing === undefined
-                            ? 'Loading prices…'
-                            : 'Pay-per-view prices are not available for this movie right now. Please try again later or contact support.'}
+                            ? tx('Loading prices…')
+                            : tx('Pay-per-view prices are not available for this movie right now. Please try again later or contact support.')}
                         </p>
                       </div>
                     );
@@ -768,15 +781,15 @@ const MovieDetail = () => {
                       </div>
                       <div className="purchase-summary">
                         <div className="summary-item">
-                          <span>Movie:</span>
+                          <span>{tx('Movie:')}</span>
                           <span>{movie.title}</span>
                         </div>
                         <div className="summary-item">
-                          <span>Quality:</span>
+                          <span>{tx('Quality:')}</span>
                           <span>{selectedQuality}</span>
                         </div>
                         <div className="summary-item total">
-                          <span>Total:</span>
+                          <span>{tx('Total:')}</span>
                           <span>${Number(priceMap[selectedQuality] ?? 0).toFixed(2)}</span>
                         </div>
                       </div>
@@ -785,13 +798,13 @@ const MovieDetail = () => {
                 })()
               ) : (
                 <div className="subscribe-option">
-                  <p>Get unlimited access to all movies with a monthly subscription.</p>
+                  <p>{tx('Get unlimited access to all movies with a monthly subscription.')}</p>
                   <button
                     type="button"
                     className="btn btn-primary"
                     onClick={() => navigate(`/subscription?return_to=${encodeURIComponent(`/watch/${movie.id}?q=${selectedQuality || '1080p'}`)}&movie_id=${movie.id}`)}
                   >
-                    View Plans
+                    {tx('View Plans')}
                   </button>
                 </div>
               )}
@@ -802,14 +815,14 @@ const MovieDetail = () => {
                 onClick={() => setShowPurchaseModal(false)}
                 className="btn btn-ghost"
               >
-                Cancel
+                {tx('Cancel')}
               </button>
               {purchaseTab === 'ppv' && selectedQuality ? (
                 <button
                   onClick={handleInitiatePurchase}
                   className="btn btn-primary"
                 >
-                  Purchase & Watch
+                  {tx('Purchase & Watch')}
                 </button>
               ) : null}
             </div>
@@ -855,10 +868,12 @@ const MovieDetail = () => {
 
       <PaymentMethodModal
         isOpen={showPaymentMethodModal}
-        onClose={() => setShowPaymentMethodModal(false)}
+        onClose={() => { if (!purchasing) { setShowPaymentMethodModal(false); setPurchaseError(''); } }}
         onContinue={handleConfirmPurchase}
         amount={Number((priceMap || {})[selectedQuality] ?? 0)}
-        title={`Purchase ${movie.title}`}
+        title={tx('Purchase {{title}}', { title: movie.title })}
+        busy={purchasing}
+        error={purchaseError}
       />
     </div>
   );

@@ -6,8 +6,10 @@ import { useAuth } from '../context/AuthContext';
 import { useMovies } from '../context/MovieContext';
 import AgeRatingBadge from './AgeRatingBadge';
 import './MovieCard.css';
+import { useLocale } from '../context/LocaleContext';
 
 const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
+  const { tx } = useLocale();
   const [isHovered, setIsHovered] = useState(false);
   const [isTrailerPlaying, setIsTrailerPlaying] = useState(false);
   const [isImageLoading, setIsImageLoading] = useState(true);
@@ -82,7 +84,7 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
         {/* Poster Section */}
         <div className="movie-poster">
           {isImageLoading && !showPosterPlaceholder && (
-            <div className="poster-loading" aria-label="Loading movie poster">
+            <div className="poster-loading" aria-label={tx('Loading movie poster')}>
               <div className="poster-loading-spinner" />
             </div>
           )}
@@ -124,7 +126,7 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
           
           {/* Type Badge */}
           <div className={`type-badge type-badge--${(movie.type || 'Movie').toLowerCase().replace('_', '-')}`}>
-            {movie.type === 'ShortFilm' ? 'Short' : (movie.type || 'Movie')}
+            {tx(movie.type === 'ShortFilm' ? 'Short' : (movie.type || 'Movie'))}
           </div>
 
           {/* Age Rating Badge */}
@@ -228,7 +230,7 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
             <div className="movie-actions">
               <div className="btn-primary">
                 <FaPlay />
-                {movie.type === 'Series' ? 'Watch Series' : 'Watch Now'}
+                {tx(movie.type === 'Series' ? 'Watch Series' : 'Watch Now')}
               </div>
               
               <div className="secondary-actions">

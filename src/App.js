@@ -7,6 +7,7 @@ import ViewerLayout from './layouts/ViewerLayout';
 import FilmmakerStudioLayout from './layouts/FilmmakerStudioLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import FilmmakerRoute from './components/FilmmakerRoute';
+import AdminRoute from './components/AdminRoute';
 import RedirectFilmmakerToStudio from './components/RedirectFilmmakerToStudio';
 
 import Home from './pages/Home';
@@ -33,7 +34,6 @@ import TermsOfService from './pages/TermsOfService';
 import PrivacyPolicy from './pages/PrivacyPolicy';
 import Notifications from './pages/Notifications';
 import EditProfile from './pages/EditProfile';
-import Following from './pages/Following';
 import FilmmakerPublicProfile from './pages/FilmmakerPublicProfile';
 import ShortFilms from './pages/ShortFilms';
 import AdminApproval from './pages/admin/AdminApproval';
@@ -44,7 +44,6 @@ import FilmmakerDashboard from './pages/filmmaker/FilmmakerDashboard';
 import FilmmakerMyMovies from './pages/filmmaker/FilmmakerMyMovies';
 import FilmmakerUpload from './pages/filmmaker/FilmmakerUpload';
 import FilmmakerEarnings from './pages/filmmaker/FilmmakerEarnings';
-import FilmmakerFollowers from './pages/filmmaker/FilmmakerFollowers';
 import FilmmakerViews from './pages/FilmmakerViews';
 import FilmmakerStudioProfile from './pages/FilmmakerStudioProfile';
 import EarningsDetail from './pages/EarningsDetail';
@@ -53,7 +52,7 @@ import { AuthProvider } from './context/AuthContext';
 import { MovieProvider } from './context/MovieContext';
 import { ThemeProvider } from './context/ThemeContext';
 
-import { LocaleProvider } from './context/LocaleContext';
+import { LocaleProvider, useLocale } from './context/LocaleContext';
 import { NotificationProvider, useNotification } from './context/NotificationContext';
 import { onForegroundMessage, markNotificationRead } from './services/notificationService';
 
@@ -225,6 +224,7 @@ function ForegroundNotificationHandler() {
 
 // ─── App Routes ───────────────────────────────────────────────────────────────
 function AppRoutes() {
+  const { tx } = useLocale();
   // ── Register service worker once ────────────────────────────────────────────
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -250,7 +250,7 @@ function AppRoutes() {
     <Router>
       <ScrollToTop />
       <div className="App">
-        <a href="#main-content" className="skip-to-main">Skip to main content</a>
+        <a href="#main-content" className="skip-to-main">{tx('Skip to main content')}</a>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -276,7 +276,7 @@ function AppRoutes() {
             <Route path="/series/:id" element={<SeriesDetail />} />
             <Route path="/filmmaker/:id" element={<FilmmakerPublicProfile />} />
             <Route path="/short-films" element={<ShortFilms />} />
-            <Route path="/admin/approval" element={<ProtectedRoute><AdminApproval /></ProtectedRoute>} />
+            <Route path="/admin/approval" element={<AdminRoute><AdminApproval /></AdminRoute>} />
             {/* Playback always needs an account; guests are sent to sign in and brought back here. */}
             <Route path="/watch/:id" element={<ProtectedRoute><Watch /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
@@ -285,13 +285,11 @@ function AppRoutes() {
             <Route path="/subscription" element={<ProtectedRoute><Subscription /></ProtectedRoute>} />
             <Route path="/wallet" element={<ProtectedRoute><Wallet /></ProtectedRoute>} />
             <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
-            <Route path="/following" element={<ProtectedRoute><Following /></ProtectedRoute>} />
             <Route path="/payment-callback" element={<ProtectedRoute><PaymentCallback /></ProtectedRoute>} />
             {/* The backend's Pesapal callback redirects the browser to these two — without
                 them the catch-all route below sent paying viewers silently to the home page. */}
             <Route path="/payments/success" element={<ProtectedRoute><PaymentCallback outcome="success" /></ProtectedRoute>} />
             <Route path="/payments/failure" element={<ProtectedRoute><PaymentCallback outcome="failure" /></ProtectedRoute>} />
-            <Route path="/filmmaker-followers" element={<FilmmakerRoute><FilmmakerFollowers /></FilmmakerRoute>} />
             <Route path="/filmmaker-views" element={<FilmmakerRoute><FilmmakerViews /></FilmmakerRoute>} />
             <Route path="/earnings-detail" element={<FilmmakerRoute><EarningsDetail /></FilmmakerRoute>} />
             <Route path="*" element={<NotFound />} />
@@ -304,6 +302,7 @@ function AppRoutes() {
             <Route path="earnings" element={<FilmmakerEarnings />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="profile" element={<FilmmakerStudioProfile />} />
+            <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
       </div>

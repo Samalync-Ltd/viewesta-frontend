@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../utils/apiClient';
 import './ForgotPassword.css';
+import { useLocale } from '../context/LocaleContext';
 
 export default function ResetPassword() {
+  const { tx } = useLocale();
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') || '';
   const navigate = useNavigate();
@@ -20,11 +22,11 @@ export default function ResetPassword() {
     setError('');
 
     if (password.length < 8) {
-      setError('Password is too short — use at least 8 characters');
+      setError(tx('Password is too short — use at least {{n}} characters', { n: 8 }));
       return;
     }
     if (password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(tx('Passwords do not match'));
       return;
     }
 
@@ -34,7 +36,7 @@ export default function ResetPassword() {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
-      setError(err.message || 'Failed to reset password. The link may have expired.');
+      setError(err.message || tx('Failed to reset password. The link may have expired.'));
     } finally {
       setLoading(false);
     }
@@ -44,13 +46,13 @@ export default function ResetPassword() {
     return (
       <div className="forgot-password-page">
         <div className="forgot-password-card">
-          <h1>Invalid Reset Link</h1>
+          <h1>{tx('Invalid Reset Link')}</h1>
           <p className="forgot-password-desc">
             This password reset link is invalid or missing. Please request a new one.
           </p>
-          <Link to="/forgot-password" className="btn btn-primary btn-full">Request new link</Link>
+          <Link to="/forgot-password" className="btn btn-primary btn-full">{tx('Request new link')}</Link>
           <p className="forgot-footer">
-            <Link to="/login" className="forgot-password-back">Back to sign in</Link>
+            <Link to="/login" className="forgot-password-back">{tx('Back to sign in')}</Link>
           </p>
         </div>
       </div>
@@ -60,50 +62,50 @@ export default function ResetPassword() {
   return (
     <div className="forgot-password-page">
       <div className="forgot-password-card">
-        <h1>Reset Password</h1>
+        <h1>{tx('Reset Password')}</h1>
         {success ? (
           <div className="forgot-password-sent">
-            <p>Your password has been reset successfully. Redirecting to sign in…</p>
+            <p>{tx('Your password has been reset successfully. Redirecting to sign in…')}</p>
           </div>
         ) : (
           <>
-            <p className="forgot-password-desc">Enter your new password below.</p>
+            <p className="forgot-password-desc">{tx('Enter your new password below.')}</p>
             <form onSubmit={handleSubmit} className="forgot-form">
               {error && <p className="forgot-password-error">{error}</p>}
               <div className="form-group">
-                <label htmlFor="reset-password">New Password</label>
+                <label htmlFor="reset-password">{tx('New Password')}</label>
                 <input
                   id="reset-password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => { setPassword(e.target.value); setError(''); }}
                   required
                   minLength={8}
-                  placeholder="At least 8 characters"
+                  placeholder={tx('At least {{n}} characters', { n: 8 })}
                   disabled={loading}
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="reset-confirm-password">Confirm Password</label>
+                <label htmlFor="reset-confirm-password">{tx('Confirm Password')}</label>
                 <input
                   id="reset-confirm-password"
                   type="password"
                   value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onChange={(e) => { setConfirmPassword(e.target.value); setError(''); }}
                   required
                   minLength={8}
-                  placeholder="Re-enter your new password"
+                  placeholder={tx('Re-enter your new password')}
                   disabled={loading}
                 />
               </div>
               <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
-                {loading ? 'Resetting…' : 'Reset Password'}
+                {tx(loading ? 'Resetting…' : 'Reset Password')}
               </button>
             </form>
           </>
         )}
         <p className="forgot-footer">
-          <Link to="/login" className="forgot-password-back">Back to sign in</Link>
+          <Link to="/login" className="forgot-password-back">{tx('Back to sign in')}</Link>
         </p>
       </div>
     </div>

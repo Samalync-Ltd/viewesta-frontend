@@ -38,6 +38,8 @@ export const MovieProvider = ({ children }) => {
   const [topRatedMovies, setTopRatedMovies] = useState([]);
   const [seriesList, setSeriesList] = useState([]);
   const [loading, setLoading] = useState(true);
+  // True once the trending and featured lists (the home banner's sources) have settled.
+  const [heroListsLoaded, setHeroListsLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [favorites, setFavorites] = useState([]);
@@ -76,25 +78,27 @@ export const MovieProvider = ({ children }) => {
   const refreshCatalog = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setHeroListsLoaded(false);
+    // Each list is published as soon as it arrives, so the home banner (trending /
+    // featured) shows without waiting for the full catalog, the slowest request.
+    const publish = (promise, set) => promise.then((value) => { set(value); return value; });
+    const heroLists = Promise.all([
+      publish(movieService.getTrendingMovies(24), setTrendingMovies),
+      publish(movieService.getFeaturedMovies(10), setFeaturedMovies),
+    ]);
+    heroLists.then(() => setHeroListsLoaded(true), () => setHeroListsLoaded(true));
     try {
-      const [catalog, trending, featured, newRel, topRated, shows] = await Promise.all([
-        movieService.getMovies({ limit: 100 }),
-        movieService.getTrendingMovies(24),
-        movieService.getFeaturedMovies(10),
-        movieService.getNewReleases(10),
-        movieService.getTopRatedMovies(12),
+      await Promise.all([
+        publish(movieService.getMovies({ limit: 100 }), setMovies),
+        heroLists,
+        publish(movieService.getNewReleases(10), setNewReleases),
+        publish(movieService.getTopRatedMovies(12), setTopRatedMovies),
         // A series failure must never take the movie catalog down with it.
-        seriesService.getSeries({ limit: 50 }).catch((err) => {
+        publish(seriesService.getSeries({ limit: 50 }).catch((err) => {
           console.error('Failed to load series', err);
           return [];
-        }),
+        }), setSeriesList),
       ]);
-      setMovies(catalog);
-      setTrendingMovies(trending);
-      setFeaturedMovies(featured);
-      setNewReleases(newRel);
-      setTopRatedMovies(topRated);
-      setSeriesList(shows);
     } catch (err) {
       console.error('Failed to load catalog', err);
       setError(err.message || 'Unable to load movies.');
@@ -374,6 +378,7 @@ export const MovieProvider = ({ children }) => {
       newSeries,
       topRatedSeries,
       loading,
+      heroListsLoaded,
       error,
       watchlist,
       favorites,
@@ -412,6 +417,7 @@ export const MovieProvider = ({ children }) => {
       newSeries,
       topRatedSeries,
       loading,
+      heroListsLoaded,
       error,
       watchlist,
       favorites,

@@ -24,7 +24,7 @@ const Header = () => {
   // `loading` is true while a saved session is being restored; the header shows
   // neither the account menu nor Sign In / Sign Up until that settles.
   const { user, logout, loading: authLoading } = useAuth();
-  const { locale, setLocale, t } = useLocale();
+  const { locale, setLocale, t, tx } = useLocale();
   const { unreadCount } = useNotification();
   const navigate = useNavigate();
 
@@ -311,7 +311,7 @@ const Header = () => {
         </button>
 
         {/* Mobile Search Icon */}
-        <button className="mobile-search-button" onClick={toggleMobileSearch} aria-label="Search">
+        <button className="mobile-search-button" onClick={toggleMobileSearch} aria-label={tx('Search')}>
           <FaSearch />
         </button>
 

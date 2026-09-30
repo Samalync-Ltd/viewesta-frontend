@@ -293,6 +293,16 @@
 
 .amount-input input::placeholder { color: #404040; }
 .amount-input input:focus        { border-color: var(--primary); }
+.amount-input--invalid input,
+.amount-input--invalid input:focus { border-color: var(--error, #ef4444); }
+
+.amount-hint {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--text-muted, #a3a3a3);
+}
+
+.amount-hint--error { color: #fca5a5; }
 
 /* ── Payment methods ─────────────────────────────────────── */
 .payment-methods { margin-bottom: 22px; }

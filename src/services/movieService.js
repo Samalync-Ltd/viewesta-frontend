@@ -24,6 +24,17 @@ export async function getMovies(params = {}) {
     queryParams.limit = params.limit || 100;
     queryParams.offset = params.offset || 0;
 
+    // The plain catalog (home page, context) shares the one in-flight
+    // GET /movies?limit=100 used by New Releases / Top Rated. The public API
+    // answers status=approved, status=pending and no status with the same
+    // approved list, so the approved + pending pair below only repeated it.
+    const isPlainCatalog = !params.status && !params.category_id && !params.filmmaker_id
+      && !params.search && queryParams.limit === 100 && queryParams.offset === 0;
+    if (isPlainCatalog) {
+      const raw = await fetchDefaultMovieList();
+      return raw.map(normalizeMovie);
+    }
+
     // Workaround: If no specific status is requested, fetch both approved and pending
     if (!params.status) {
       const [resApproved, resPending] = await Promise.all([

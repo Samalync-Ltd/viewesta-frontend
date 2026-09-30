@@ -89,13 +89,13 @@
   gap: 20px;
 }
 
-.form-group {
+.contact-page .form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.form-group label {
+.contact-page .form-group label {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
@@ -103,8 +103,8 @@
   letter-spacing: 0.5px;
 }
 
-.form-group input,
-.form-group textarea {
+.contact-page .form-group input,
+.contact-page .form-group textarea {
   width: 100%;
   padding: 13px 16px;
   background: #141414;
@@ -118,14 +118,14 @@
   font-family: inherit;
 }
 
-.form-group input:focus,
-.form-group textarea:focus {
+.contact-page .form-group input:focus,
+.contact-page .form-group textarea:focus {
   outline: none;
   border-color: #D06224;
 }
 
-.form-group input::placeholder,
-.form-group textarea::placeholder {
+.contact-page .form-group input::placeholder,
+.contact-page .form-group textarea::placeholder {
   color: #555;
 }
 

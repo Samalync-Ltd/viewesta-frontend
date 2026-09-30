@@ -6,8 +6,10 @@ import * as seriesService from '../services/seriesService';
 import MovieCard from '../components/MovieCard';
 import { SkeletonCard } from '../components/Skeleton';
 import './Search.css';
+import { useLocale } from '../context/LocaleContext';
 
 const Search = () => {
+  const { tx } = useLocale();
   const { searchMovies, loading: moviesLoading } = useMovies();
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get('q') || '');
@@ -62,14 +64,14 @@ const Search = () => {
 
   return (
     <div className="search-page layout-container">
-      <h1 className="search-title">Search</h1>
+      <h1 className="search-title">{tx('Search')}</h1>
       <div className="search-input-row">
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search movies and series"
-          aria-label="Search movies and series"
+          placeholder={tx('Search movies and series')}
+          aria-label={tx('Search movies and series')}
           className="search-input-control"
         />
       </div>

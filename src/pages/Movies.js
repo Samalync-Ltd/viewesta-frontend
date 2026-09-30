@@ -6,6 +6,7 @@ import { SkeletonCard } from '../components/Skeleton';
 import { useMovies } from '../context/MovieContext';
 import useCategories from '../hooks/useCategories';
 import './Movies.css';
+import { useLocale } from '../context/LocaleContext';
 
 const SORT_OPTIONS = [
   { value: 'popular', label: 'Popular' },
@@ -16,6 +17,7 @@ const SORT_OPTIONS = [
 const normalizeType = (item) => (item?.type || '').toLowerCase();
 
 const Movies = () => {
+  const { tx } = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
   const { movies, trendingMovies, loading, error, refreshCatalog } = useMovies();
   const { categories } = useCategories();
@@ -96,10 +98,10 @@ const Movies = () => {
         <div className="movies-header">
           <h1 className="movies-title">
             <FaFilm />
-            Movies
+            {tx('Movies')}
           </h1>
           <p className="movies-subtitle">
-            Discover African cinema — filter by genre, year, and sort by popularity, newest, or top rated.
+            {tx('Discover African cinema — filter by genre, year, and sort by popularity, newest, or top rated.')}
           </p>
         </div>
 
@@ -114,7 +116,7 @@ const Movies = () => {
 
         <div className="movies-filters">
           <div className="filter-group">
-            <label htmlFor="genre">Genre</label>
+            <label htmlFor="genre">{tx('Genre')}</label>
             <select
               id="genre"
               value={genreParam}
@@ -127,21 +129,21 @@ const Movies = () => {
             </select>
           </div>
           <div className="filter-group">
-            <label htmlFor="year">Year</label>
+            <label htmlFor="year">{tx('Year')}</label>
             <select
               id="year"
               value={yearParam}
               onChange={(e) => setFilter('year', e.target.value)}
               className="filter-select"
             >
-              <option value="">All years</option>
+              <option value="">{tx('All years')}</option>
               {years.map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
           </div>
           <div className="filter-group">
-            <label htmlFor="sort">Sort</label>
+            <label htmlFor="sort">{tx('Sort')}</label>
             <select
               id="sort"
               value={sortParam}
@@ -149,7 +151,7 @@ const Movies = () => {
               className="filter-select"
             >
               {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>{tx(o.label)}</option>
               ))}
             </select>
           </div>
@@ -162,7 +164,7 @@ const Movies = () => {
             ))}
           </div>
         ) : filteredAndSorted.length === 0 ? (
-          <p className="movies-empty">No movies match your filters. Try changing genre or year.</p>
+          <p className="movies-empty">{tx('No movies match your filters. Try changing genre or year.')}</p>
         ) : (
           <div className="movies-grid">
             {filteredAndSorted.map((movie) => (

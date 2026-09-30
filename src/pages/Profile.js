@@ -24,10 +24,12 @@ import {
 import MovieCard from '../components/MovieCard';
 import { getPurchases } from '../services/paymentService';
 import './Profile.css';
+import { useLocale } from '../context/LocaleContext';
 
 const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?background=D06224&color=fff&size=128&name=';
 
 const Profile = () => {
+  const { tx } = useLocale();
   const { user, updateProfile, changePassword, loading, uploadAvatar, logout } = useAuth();
   const navigate = useNavigate();
   // Navigate on the next tick, like the header: /profile is protected, and its
@@ -134,7 +136,7 @@ const Profile = () => {
   
   const handleSave = async () => {
     if (!editFirstName.trim() || !editLastName.trim()) {
-      setSaveError('First name and last name cannot be empty.');
+      setSaveError(tx('First name and last name cannot be empty.'));
       return;
     }
     setSaving(true);
@@ -149,7 +151,7 @@ const Profile = () => {
         currentAvatar = avatarRes.user?.avatar || currentAvatar;
       } else {
         avatarSuccess = false;
-        setSaveError(avatarRes.error || 'Failed to upload avatar.');
+        setSaveError(avatarRes.error || tx('Failed to upload avatar.'));
       }
     }
 
@@ -165,15 +167,15 @@ const Profile = () => {
     if (currentPassword || newPassword) {
       if (!currentPassword || !newPassword) {
         pwSuccess = false;
-        setSaveError('Enter both your current and new password to change it.');
+        setSaveError(tx('Enter both your current and new password to change it.'));
       } else if (newPassword.length < 8) {
         pwSuccess = false;
-        setSaveError('New password is too short — use at least 8 characters.');
+        setSaveError(tx('New password is too short — use at least 8 characters.'));
       } else {
         const pwResult = await changePassword(currentPassword, newPassword);
         if (!pwResult.success) {
           pwSuccess = false;
-          setSaveError(pwResult.error || 'Failed to change password.');
+          setSaveError(pwResult.error || tx('Failed to change password.'));
         } else {
           setCurrentPassword('');
           setNewPassword('');
@@ -188,7 +190,7 @@ const Profile = () => {
       setAvatarFile(null);
       setTimeout(() => setSaveSuccess(false), 3000);
     } else if (!result.success) {
-      setSaveError(result.error || 'Failed to save changes.');
+      setSaveError(result.error || tx('Failed to save changes.'));
     }
   };
 
@@ -212,9 +214,9 @@ const Profile = () => {
     return (
       <div className="profile-not-found">
         <div className="profile-nf-icon"><FaUser /></div>
-        <h2>Please log in to view your profile</h2>
-        <p>Sign in to access your wishlist, wallet, and settings.</p>
-        <Link to="/login" className="btn btn-primary">Sign In</Link>
+        <h2>{tx('Please log in to view your profile')}</h2>
+        <p>{tx('Sign in to access your wishlist, wallet, and settings.')}</p>
+        <Link to="/login" className="btn btn-primary">{tx('Sign In')}</Link>
       </div>
     );
   }
@@ -246,7 +248,7 @@ const Profile = () => {
               <button
                 className="avatar-camera-btn"
                 onClick={() => fileRef.current?.click()}
-                title="Upload photo"
+                title={tx('Upload photo')}
               >
                 <FaCamera />
               </button>
@@ -266,7 +268,7 @@ const Profile = () => {
               <div className="profile-edit-form">
                 <div className="edit-row">
                   <div className="edit-field">
-                    <label>First Name</label>
+                    <label>{tx('First Name')}</label>
                     <input
                       className="profile-edit-input"
                       value={editFirstName}
@@ -274,7 +276,7 @@ const Profile = () => {
                     />
                   </div>
                   <div className="edit-field">
-                    <label>Last Name</label>
+                    <label>{tx('Last Name')}</label>
                     <input
                       className="profile-edit-input"
                       value={editLastName}
@@ -284,7 +286,7 @@ const Profile = () => {
                 </div>
 
                 <div className="edit-field">
-                  <label>Username (Permanent)</label>
+                  <label>{tx('Username (Permanent)')}</label>
                   <input
                     className="profile-edit-input"
                     value={`@${user.username}`}
@@ -299,35 +301,35 @@ const Profile = () => {
 
                 <div className="edit-row">
                   <div className="edit-field">
-                    <label>Current Password</label>
+                    <label>{tx('Current Password')}</label>
                     <input
                       type="password"
                       className="profile-edit-input"
                       value={currentPassword}
                       onChange={(e) => setCurrentPassword(e.target.value)}
-                      placeholder="Leave blank to keep current"
+                      placeholder={tx('Leave blank to keep current')}
                     />
                   </div>
                   <div className="edit-field">
-                    <label>New Password</label>
+                    <label>{tx('New Password')}</label>
                     <input
                       type="password"
                       className="profile-edit-input"
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Leave blank to keep current"
+                      placeholder={tx('Leave blank to keep current')}
                     />
                   </div>
                 </div>
 
                 {/* BIO FIELD (DISABLED - BACKEND NOT SUPPORTED)
                 <div className="edit-field">
-                  <label>Bio</label>
+                  <label>{tx('Bio')}</label>
                   <textarea
                     className="profile-edit-input profile-edit-textarea"
                     value={editBio}
                     onChange={(e) => setEditBio(e.target.value)}
-                    placeholder="Tell us a little about yourself…"
+                    placeholder={tx('Tell us a little about yourself…')}
                     rows={2}
                   />
                 </div>
@@ -339,14 +341,14 @@ const Profile = () => {
                     onClick={handleSave}
                     disabled={saving}
                   >
-                    <FaSave /> {saving ? 'Saving…' : 'Save Changes'}
+                    <FaSave /> {tx(saving ? 'Saving…' : 'Save Changes')}
                   </button>
 
                   <button
                     className="btn btn-outline edit-cancel-btn"
                     onClick={handleCancel}
                   >
-                    <FaTimes /> Cancel
+                    <FaTimes /> {tx('Cancel')}
                   </button>
                 </div>
               </div>
@@ -367,13 +369,13 @@ const Profile = () => {
                     className="btn btn-outline edit-profile-btn"
                     onClick={handleEditStart}
                   >
-                    <FaEdit /> Edit Profile
+                    <FaEdit /> {tx('Edit Profile')}
                   </button>
                   <button
                     className="btn btn-outline edit-profile-btn"
                     onClick={handleLogout}
                   >
-                    <FaSignOutAlt /> Log Out
+                    <FaSignOutAlt /> {tx('Log Out')}
                   </button>
                 </div>
               </>
@@ -385,19 +387,19 @@ const Profile = () => {
         <div className="profile-stats-bar">
           <div className="pstat">
             <span className="pstat-value">{watchlistMovies.length}</span>
-            <span className="pstat-label">Wishlist</span>
+            <span className="pstat-label">{tx('Wishlist')}</span>
           </div>
           <div className="pstat-divider" />
           <div className="pstat">
             <span className="pstat-value">{historyMovies.length}</span>
-            <span className="pstat-label">Watched</span>
+            <span className="pstat-label">{tx('Watched')}</span>
           </div>
           <div className="pstat-divider" />
           <div className="pstat">
             <span className="pstat-value" style={{ color: '#22c55e' }}>
               ${Number(user.wallet_balance ?? 0).toFixed(0)}
             </span>
-            <span className="pstat-label">Balance</span>
+            <span className="pstat-label">{tx('Balance')}</span>
           </div>
         </div>
 
@@ -405,7 +407,7 @@ const Profile = () => {
 
           {/* ── Wallet ── */}
           <div className="profile-section">
-            <h2 className="section-title"><FaWallet /> Wallet</h2>
+            <h2 className="section-title"><FaWallet /> {tx('Wallet')}</h2>
             <div className="wallet-info">
               <div className="balance">
                 <span className="amount" style={{ color: '#22c55e' }}>
@@ -413,26 +415,26 @@ const Profile = () => {
                 </span>
                 <span className="currency">{user.currency || 'USD'}</span>
               </div>
-              <Link to="/wallet" className="btn btn-primary">Top Up</Link>
+              <Link to="/wallet" className="btn btn-primary">{tx('Top Up')}</Link>
             </div>
           </div>
 
           {/* ── Purchase History ── */}
           <div className="profile-section">
-            <h2 className="section-title"><FaReceipt /> Purchase History</h2>
-            <p className="section-desc">Movies and rentals you've paid for.</p>
+            <h2 className="section-title"><FaReceipt /> {tx('Purchase History')}</h2>
+            <p className="section-desc">{tx("Movies and rentals you've paid for.")}</p>
             {purchasesLoading ? (
-              <div className="purchase-loading"><FaSpinner className="spin-icon" /> Loading purchases…</div>
+              <div className="purchase-loading"><FaSpinner className="spin-icon" /> {tx('Loading purchases…')}</div>
             ) : purchasesError ? (
               <div className="profile-empty-state">
                 <FaExclamationTriangle className="empty-icon" />
-                <p>{purchasesError}</p>
+                <p>{tx(purchasesError)}</p>
               </div>
             ) : purchases.length === 0 ? (
               <div className="profile-empty-state">
                 <FaReceipt className="empty-icon" />
-                <p>No purchases yet.</p>
-                <Link to="/movies" className="btn btn-outline btn-small">Browse Movies</Link>
+                <p>{tx('No purchases yet.')}</p>
+                <Link to="/movies" className="btn btn-outline btn-small">{tx('Browse Movies')}</Link>
               </div>
             ) : (
               <div className="purchase-list">
@@ -443,13 +445,13 @@ const Profile = () => {
                   return (
                     <div key={p.id ?? idx} className="purchase-item">
                       <div className="purchase-info">
-                        <span className="purchase-title">{p.movie_title || 'Unknown title'}</span>
+                        <span className="purchase-title">{p.movie_title || tx('Unknown title')}</span>
                         <span className="purchase-meta">{p.quality ? `${p.quality} · ` : ''}{date}</span>
                       </div>
                       <div className="purchase-right">
-                        <span className="purchase-price">{price > 0 ? `$${price.toFixed(2)}` : 'Free'}</span>
+                        <span className="purchase-price">{price > 0 ? `$${price.toFixed(2)}` : tx('Free')}</span>
                         <span className={`status ${isActive ? 'active' : 'inactive'}`}>
-                          {isActive ? 'Active' : 'Expired'}
+                          {tx(isActive ? 'Active' : 'Expired')}
                         </span>
                       </div>
                     </div>
@@ -461,13 +463,13 @@ const Profile = () => {
 
           {/* ── Subscription ── */}
           <div className="profile-section">
-            <h2 className="section-title"><FaStar /> Subscription</h2>
+            <h2 className="section-title"><FaStar /> {tx('Subscription')}</h2>
             <div className="subscription-info">
               <div className="subscription-status">
                 <span className={`status ${user.subscription?.active ? 'active' : 'inactive'}`}>
-                  {user.subscription?.active ? 'Active' : 'Inactive'}
+                  {tx(user.subscription?.active ? 'Active' : 'Inactive')}
                 </span>
-                <span className="type">{user.subscription?.type || 'Free'}</span>
+                <span className="type">{user.subscription?.type || tx('Free')}</span>
               </div>
               {user.subscription?.active && user.subscription?.expiresAt && (
                 <p className="expires">
@@ -475,16 +477,16 @@ const Profile = () => {
                 </p>
               )}
               {!user.subscription?.active && (
-                <p className="expires">Upgrade to enjoy unlimited streaming.</p>
+                <p className="expires">{tx('Upgrade to enjoy unlimited streaming.')}</p>
               )}
-              <Link to="/subscription" className="btn btn-outline btn-small">Manage Plan</Link>
+              <Link to="/subscription" className="btn btn-outline btn-small">{tx('Manage Plan')}</Link>
             </div>
           </div>
 
           {/* ── Wishlist ── */}
           <div className="profile-section">
-            <h2 className="section-title"><FaHeart /> Wishlist</h2>
-            <p className="section-desc">Titles you saved to watch later.</p>
+            <h2 className="section-title"><FaHeart /> {tx('Wishlist')}</h2>
+            <p className="section-desc">{tx('Titles you saved to watch later.')}</p>
             {watchlistMovies.length > 0 ? (
               <div className="profile-movie-row">
                 {watchlistMovies.slice(0, 6).map((m) => (
@@ -494,19 +496,19 @@ const Profile = () => {
             ) : (
               <div className="profile-empty-state">
                 <FaHeart className="empty-icon" />
-                <p>Your wishlist is empty. Start adding titles!</p>
-                <Link to="/movies" className="btn btn-outline btn-small">Browse Movies</Link>
+                <p>{tx('Your wishlist is empty. Start adding titles!')}</p>
+                <Link to="/movies" className="btn btn-outline btn-small">{tx('Browse Movies')}</Link>
               </div>
             )}
             {watchlistMovies.length > 0 && (
-              <Link to="/watchlist" className="btn btn-outline">View full wishlist</Link>
+              <Link to="/watchlist" className="btn btn-outline">{tx('View full wishlist')}</Link>
             )}
           </div>
 
           {/* ── Watch History ── */}
           <div className="profile-section">
-            <h2 className="section-title"><FaHistory /> Watch History</h2>
-            <p className="section-desc">Recently watched titles.</p>
+            <h2 className="section-title"><FaHistory /> {tx('Watch History')}</h2>
+            <p className="section-desc">{tx('Recently watched titles.')}</p>
             {historyMovies.length > 0 ? (
               <div className="profile-movie-row">
                 {historyMovies.map((m) => (
@@ -516,18 +518,18 @@ const Profile = () => {
             ) : (
               <div className="profile-empty-state">
                 <FaHistory className="empty-icon" />
-                <p>No watch history yet. Start watching!</p>
-                <Link to="/movies" className="btn btn-outline btn-small">Explore</Link>
+                <p>{tx('No watch history yet. Start watching!')}</p>
+                <Link to="/movies" className="btn btn-outline btn-small">{tx('Explore')}</Link>
               </div>
             )}
           </div>
 
           {/* ── Account Settings ── */}
           <div className="profile-section">
-            <h2 className="section-title"><FaCog /> Account Settings</h2>
+            <h2 className="section-title"><FaCog /> {tx('Account Settings')}</h2>
             <div className="settings-grid">
               <div className="setting-item">
-                <label>Preferred Quality</label>
+                <label>{tx('Preferred Quality')}</label>
                 <select
                   value={isEditing ? qualityPref : (user.preferences?.quality || '1080p')}
                   onChange={(e) => setQualityPref(e.target.value)}
@@ -540,17 +542,17 @@ const Profile = () => {
                 </select>
               </div>
               <div className="setting-item notif-item">
-                <label>Push Notifications</label>
+                <label>{tx('Push Notifications')}</label>
                 <button
                   className={`notif-toggle ${(isEditing ? notifPref : (user.preferences?.notifications ?? true)) ? 'notif-on' : 'notif-off'}`}
                   onClick={() => isEditing && setNotifPref((v) => !v)}
                   type="button"
                 >
                   {(isEditing ? notifPref : (user.preferences?.notifications ?? true))
-                    ? <><FaBell /> Enabled</>
-                    : <><FaBellSlash /> Disabled</>}
+                    ? <><FaBell /> {tx('Enabled')}</>
+                    : <><FaBellSlash /> {tx('Disabled')}</>}
                 </button>
-                {!isEditing && <p className="setting-hint">Click Edit Profile to change</p>}
+                {!isEditing && <p className="setting-hint">{tx('Click Edit Profile to change')}</p>}
               </div>
             </div>
           </div>

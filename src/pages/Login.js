@@ -3,8 +3,10 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { useAuth } from '../context/AuthContext';
 import './Login.css';
+import { useLocale } from '../context/LocaleContext';
 
 const Login = () => {
+  const { tx } = useLocale();
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -26,6 +28,8 @@ const Login = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    // The error describes the last attempt; drop it once the viewer edits a field.
+    if (error) setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -39,10 +43,10 @@ const Login = () => {
         const isFilmmaker = (result.user?.role || result.user?.user_type || '').toLowerCase() === 'filmmaker';
         navigate(returnTo || (isFilmmaker ? '/filmmaker-studio' : '/'), { replace: Boolean(returnTo) });
       } else {
-        setError(result.error || 'Login failed');
+        setError(result.error || tx('Login failed'));
       }
     } catch (err) {
-      setError('Something went wrong');
+      setError(tx('Something went wrong'));
     } finally {
       setLoading(false);
     }
@@ -56,7 +60,7 @@ const Login = () => {
         <div className="login-brand-content">
           <h1 className="login-brand-title">Viewesta</h1>
           <p className="login-brand-tagline">
-            African cinema on demand. Stream the best of Nollywood and beyond — subscribe or pay per view.
+            {tx('African cinema on demand. Stream the best of Nollywood and beyond — subscribe or pay per view.')}
           </p>
         </div>
       </div>
@@ -64,15 +68,15 @@ const Login = () => {
       <div className="login-form-section">
         <div className="login-form-wrap">
           <div className="login-header">
-            <h1 className="login-title">Welcome back</h1>
-            <p className="login-subtitle">Sign in to your account to continue</p>
+            <h1 className="login-title">{tx('Welcome back')}</h1>
+            <p className="login-subtitle">{tx('Sign in to your account to continue')}</p>
           </div>
 
           {error && <div className="error-message">{error}</div>}
 
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
-              <label htmlFor="email" className="form-label">Email</label>
+              <label htmlFor="email" className="form-label">{tx('Email')}</label>
               <input
                 type="email"
                 id="email"
@@ -86,7 +90,7 @@ const Login = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="password" className="form-label">Password</label>
+              <label htmlFor="password" className="form-label">{tx('Password')}</label>
               <div className="password-input">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -102,7 +106,7 @@ const Login = () => {
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={tx(showPassword ? 'Hide password' : 'Show password')}
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -112,9 +116,9 @@ const Login = () => {
             <div className="form-options">
               <label className="checkbox-label">
                 <input type="checkbox" />
-                <span>Remember me</span>
+                <span>{tx('Remember me')}</span>
               </label>
-              <Link to="/forgot-password" className="forgot-link">Forgot password?</Link>
+              <Link to="/forgot-password" className="forgot-link">{tx('Forgot password?')}</Link>
             </div>
 
             <button
@@ -125,10 +129,10 @@ const Login = () => {
               {loading ? (
                 <>
                   <span className="loading" aria-hidden />
-                  Signing in...
+                  {tx('Signing in...')}
                 </>
               ) : (
-                'Sign in'
+                tx('Sign in')
               )}
             </button>
           </form>
@@ -136,8 +140,8 @@ const Login = () => {
 
           <div className="login-footer">
             <p>
-              Don&apos;t have an account?{' '}
-              <Link to="/register" className="link">Sign up</Link>
+              {tx("Don't have an account?")}{' '}
+              <Link to="/register" className="link">{tx('Sign up')}</Link>
             </p>
           </div>
         </div>

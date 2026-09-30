@@ -11,7 +11,7 @@ import './Watchlist.css';
 const Watchlist = () => {
   const { user } = useAuth();
   const { mutateWatchlist } = useMovies();
-  const { t } = useLocale();
+  const { t, tx } = useLocale();
   const [watchlistMovies, setWatchlistMovies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -50,14 +50,14 @@ const Watchlist = () => {
     if (result.success) {
       setWatchlistMovies(prev => prev.filter(m => String(m.id) !== String(movieId)));
     } else {
-      alert(result.error || 'Failed to remove from watchlist');
+      alert(result.error || tx('Failed to remove from watchlist'));
     }
   };
 
   if (!user) {
     return (
       <div className="watchlist-not-found">
-        <h2>Please log in to view your wishlist</h2>
+        <h2>{tx('Please log in to view your wishlist')}</h2>
       </div>
     );
   }
@@ -82,8 +82,8 @@ const Watchlist = () => {
         <div className="watchlist-container layout-container">
           <div className="empty-watchlist">
             <FaHeart className="empty-icon" />
-            <h3>Oops!</h3>
-            <p>{error}</p>
+            <h3>{tx('Oops!')}</h3>
+            <p>{tx(error)}</p>
           </div>
         </div>
       </div>
@@ -96,10 +96,10 @@ const Watchlist = () => {
         <div className="watchlist-header">
           <h1 className="watchlist-title">
             <FaHeart />
-            My Wishlist
+            {tx('My Wishlist')}
           </h1>
           <p className="watchlist-subtitle">
-            {watchlistMovies.length} movie{watchlistMovies.length !== 1 ? 's' : ''} saved
+            {tx(watchlistMovies.length === 1 ? '1 title saved' : '{{n}} titles saved', { n: watchlistMovies.length })}
           </p>
         </div>
 
@@ -124,8 +124,8 @@ const Watchlist = () => {
         ) : (
           <div className="empty-watchlist">
             <FaHeart className="empty-icon" />
-            <h3>Your wishlist is empty</h3>
-            <p>Start adding movies to your wishlist to see them here.</p>
+            <h3>{tx('Your wishlist is empty')}</h3>
+            <p>{tx('Start adding movies to your wishlist to see them here.')}</p>
           </div>
         )}
       </div>

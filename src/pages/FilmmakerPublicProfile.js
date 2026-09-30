@@ -1,5 +1,5 @@
 /**
- * Public filmmaker profile — /filmmaker/:id. Bio, avatar, films grid, Follow button.
+ * Public filmmaker profile — /filmmaker/:id. Bio, avatar, films grid.
  */
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -67,7 +67,6 @@ export default function FilmmakerPublicProfile() {
         {filmmaker.location && <p className="filmmaker-public-location">{filmmaker.location}</p>}
         <div className="filmmaker-public-stats">
           <span>{loading ? '...' : filmmakerFilms.length} films</span>
-          <span>{filmmaker.followersCount ?? 0} followers</span>
         </div>
 
       </div>

@@ -37,7 +37,7 @@ const TYPE_LABELS = {
 const PAGE_LIMIT = 20;
 
 export default function Notifications() {
-  const { t } = useLocale();
+  const { t, tx } = useLocale();
   const { user } = useAuth();
   const navigate = useNavigate();
   const {
@@ -246,7 +246,7 @@ export default function Notifications() {
           <div className="notifications-heading-icon" aria-hidden="true"><FaBell /></div>
           <div>
             <h1>{t('notifications') || 'Notifications'}</h1>
-            <p className="notifications-subtitle">Updates about your account and Viewesta activity</p>
+            <p className="notifications-subtitle">{tx('Updates about your account and Viewesta activity')}</p>
           </div>
           {unreadCount > 0 && (
             <span className="notifications-badge" aria-label={`${unreadCount} unread notifications`}>{unreadCount}</span>
@@ -256,16 +256,16 @@ export default function Notifications() {
           {unreadCount > 0 && (
             <button className="btn btn-ghost btn-small" onClick={handleMarkAllRead}>
               <FaCheck aria-hidden="true" />
-              Mark all as read
+              {tx('Mark all as read')}
             </button>
           )}
           <button
             className="btn btn-ghost btn-small"
             onClick={() => loadNotifications(true)}
             disabled={loading}
-            aria-label="Refresh notifications"
+            aria-label={tx('Refresh notifications')}
           >
-            Refresh
+            {tx('Refresh')}
           </button>
         </div>
       </div>
@@ -273,9 +273,9 @@ export default function Notifications() {
       {/* Push notification permission banner */}
       {pushStatus === null && user && (
         <div className="push-banner">
-          <span>🔔 Enable push notifications to get alerts about new movies and episodes.</span>
+          <span>🔔 {tx('Enable push notifications to get alerts about new movies and episodes.')}</span>
           <button className="btn btn-primary btn-small" onClick={handleEnablePush}>
-            Enable
+            {tx('Enable')}
           </button>
         </div>
       )}
@@ -286,7 +286,7 @@ export default function Notifications() {
       )}
       {pushStatus === 'denied' && (
         <div className="push-banner push-banner--warning">
-          ⚠️ Push notifications are blocked. Enable them in your browser settings to receive alerts.
+          ⚠️ {tx('Push notifications are blocked. Enable them in your browser settings to receive alerts.')}
         </div>
       )}
       {pushStatus === 'unsupported' && (
@@ -296,7 +296,7 @@ export default function Notifications() {
       )}
 
       {/* Filter tabs */}
-      <div className="notifications-filters" role="tablist" aria-label="Notification filters">
+      <div className="notifications-filters" role="tablist" aria-label={tx('Notification filters')}>
         {['all', 'unread', NOTIFICATION_TYPES.SYSTEM_ANNOUNCEMENT, NOTIFICATION_TYPES.NEW_CONTENT, NOTIFICATION_TYPES.PROMOTIONAL].map((f) => (
           <button
             key={f}
@@ -306,10 +306,10 @@ export default function Notifications() {
             aria-selected={activeFilter === f}
           >
             {f === 'all'
-              ? 'All'
+              ? tx('All')
               : f === 'unread'
-              ? `Unread${unreadCount > 0 ? ` (${unreadCount})` : ''}`
-              : TYPE_LABELS[f] || f}
+              ? `${tx('Unread')}${unreadCount > 0 ? ` (${unreadCount})` : ''}`
+              : tx(TYPE_LABELS[f] || f)}
           </button>
         ))}
       </div>
@@ -325,7 +325,7 @@ export default function Notifications() {
         /* ── Error state ──────────────────────────────────────────────────── */
         <div className="notifications-error">
           <div className="notifications-empty-icon">⚠️</div>
-          <p>{error}</p>
+          <p>{tx(error)}</p>
           <button
             className="btn btn-primary btn-small"
             onClick={() => loadNotifications(true)}
@@ -338,20 +338,18 @@ export default function Notifications() {
         <div className="notifications-empty">
           <div className="notifications-empty-icon">🔕</div>
           <p>
-            No notifications
             {activeFilter !== 'all'
-              ? ` in "${activeFilter === 'unread' ? 'Unread' : TYPE_LABELS[activeFilter] || activeFilter}"`
-              : ''}{' '}
-            yet.
+              ? tx('No notifications in “{{filter}}” yet.', { filter: tx(activeFilter === 'unread' ? 'Unread' : TYPE_LABELS[activeFilter] || activeFilter) })
+              : tx('No notifications yet.')}
           </p>
           {!user && (
             <p className="notifications-hint">
-              <Link to="/login">Log in</Link> to receive notifications.
+              <Link to="/login">{tx('Log in')}</Link> {tx('to receive notifications.')}
             </p>
           )}
           {user && (
             <p className="notifications-hint">
-              You'll be notified here when there is new activity.
+              {tx("You'll be notified here when there is new activity.")}
             </p>
           )}
         </div>
@@ -360,7 +358,7 @@ export default function Notifications() {
         <div className="notifications-list">
           {filtered.map((n) => {
             const nType = n.notification_type || NOTIFICATION_TYPES.SYSTEM_ANNOUNCEMENT;
-            const label = TYPE_LABELS[nType] || 'Notification';
+            const label = tx(TYPE_LABELS[nType] || 'Notification');
             const time = formatNotificationTime(n.sent_at || n.created_at);
 
             return (

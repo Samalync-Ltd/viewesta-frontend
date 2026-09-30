@@ -5,9 +5,8 @@ import MovieCard from '../components/MovieCard';
 import { SkeletonCard } from '../components/Skeleton';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
-import { mockMovies } from '../services/mockData/movies';
-import { normalizeMovie } from '../utils/mediaHelpers';
 import './Home.css';
+import { useLocale } from '../context/LocaleContext';
 
 const getMediaType = (movie = {}) => {
   const type = (movie.type || 'movie').toLowerCase();
@@ -29,8 +28,9 @@ const calculateMaxVisible = () => {
 const Home = () => {
   const {
     featuredMovies, trendingMovies, newReleases, topRatedMovies,
-    trendingSeries, newSeries, topRatedSeries, loading,
+    trendingSeries, newSeries, topRatedSeries, loading, heroListsLoaded,
   } = useMovies();
+  const { tx } = useLocale();
   const { user } = useAuth();
   const [trendingFilter, setTrendingFilter] = useState('movies');
   const maxVisibleItems = useMemo(() => calculateMaxVisible(), []);
@@ -38,10 +38,8 @@ const Home = () => {
 
 
   // Use trending movies for hero to allow auto-sliding between multiple items
-  let heroMovies = trendingMovies.length > 0 ? trendingMovies : featuredMovies;
-  if (heroMovies.length === 0) {
-    heroMovies = mockMovies.slice(0, 5).map(normalizeMovie);
-  }
+  // No placeholder titles: with nothing trending or featured there is no banner.
+  const heroMovies = trendingMovies.length > 0 ? trendingMovies : featuredMovies;
   
   // TEMP TESTING MODE: approval filter disabled temporarily for DRM/video testing
   // TODO: restore approval_status === 'APPROVED' before production
@@ -87,15 +85,22 @@ const Home = () => {
       .slice(0, 12);
   }, [topRatedMovies, topRatedSeries, activeType]);
 
+  // The banner shows as soon as its lists (trending / featured) arrive; the
+  // rows below keep their skeletons until the full catalog is in.
+  const heroSkeleton = (
+    <div className="skeleton-hero-wrap">
+      <div className="skeleton skeleton-backdrop" style={{ minHeight: 400 }} />
+    </div>
+  );
+  const hero = heroListsLoaded ? <HeroCarousel items={heroItems} /> : heroSkeleton;
+
   if (loading) {
     return (
       <div className="home">
-        <div className="skeleton-hero-wrap">
-          <div className="skeleton skeleton-backdrop" style={{ minHeight: 400 }} />
-        </div>
+        {hero}
         <div className="media-sections">
           <section className="media-section">
-            <h2 className="media-section-title">Trending</h2>
+            <h2 className="media-section-title">{tx('Trending')}</h2>
             <div className="media-grid skeleton-grid">
               {Array.from({ length: 6 }, (_, i) => (
                 <SkeletonCard key={i} />
@@ -103,7 +108,7 @@ const Home = () => {
             </div>
           </section>
           <section className="media-section">
-            <h2 className="media-section-title">New Releases</h2>
+            <h2 className="media-section-title">{tx('New Releases')}</h2>
             <div className="media-grid skeleton-grid">
               {Array.from({ length: 6 }, (_, i) => (
                 <SkeletonCard key={i} />
@@ -111,7 +116,7 @@ const Home = () => {
             </div>
           </section>
           <section className="media-section">
-            <h2 className="media-section-title">Top Rated</h2>
+            <h2 className="media-section-title">{tx('Top Rated')}</h2>
             <div className="media-grid skeleton-grid">
               {Array.from({ length: 6 }, (_, i) => (
                 <SkeletonCard key={i} />
@@ -125,32 +130,32 @@ const Home = () => {
 
   return (
     <div className="home">
-      <HeroCarousel items={heroItems} />
+      {hero}
 
       <div className="media-sections">
         <section className="media-section">
           <div className="media-section-header">
-            <h2 className="media-section-title">Trending</h2>
+            <h2 className="media-section-title">{tx('Trending')}</h2>
             <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
               <div className="trending-toggle">
                 <button
                   className={`toggle-button ${trendingFilter === 'movies' ? 'active' : ''}`}
                   onClick={() => setTrendingFilter('movies')}
                 >
-                  Movies
+                  {tx('Movies')}
                 </button>
                 <button
                   className={`toggle-button ${trendingFilter === 'tv' ? 'active' : ''}`}
                   onClick={() => setTrendingFilter('tv')}
                 >
-                  Series
+                  {tx('Series')}
                 </button>
               </div>
               <Link
                 to={trendingFilter === 'tv' ? '/series?trending=true' : '/movies?trending=true'}
                 className="view-all-link"
               >
-                View all
+                {tx('View all')}
               </Link>
             </div>
           </div>
@@ -168,13 +173,13 @@ const Home = () => {
         <section className="media-section">
           <div className="media-section-header">
             <h2 className="media-section-title">
-              {trendingFilter === 'tv' ? 'New Series' : 'New Releases'}
+              {tx(trendingFilter === 'tv' ? 'New Series' : 'New Releases')}
             </h2>
             <Link
               to={trendingFilter === 'tv' ? '/series?sort=newest' : '/movies?sort=newest'}
               className="view-all-link"
             >
-              View all
+              {tx('View all')}
             </Link>
           </div>
           {newReleasesSelection.length ? (
@@ -185,7 +190,7 @@ const Home = () => {
             </div>
           ) : (
             <p className="media-empty">
-              {trendingFilter === 'tv' ? 'New series will appear here.' : 'New releases will appear here.'}
+              {tx(trendingFilter === 'tv' ? 'New series will appear here.' : 'New releases will appear here.')}
             </p>
           )}
         </section>
@@ -193,13 +198,13 @@ const Home = () => {
         <section className="media-section">
           <div className="media-section-header">
             <h2 className="media-section-title">
-              {trendingFilter === 'tv' ? 'Top Rated Series' : 'Top Rated'}
+              {tx(trendingFilter === 'tv' ? 'Top Rated Series' : 'Top Rated')}
             </h2>
             <Link
               to={trendingFilter === 'tv' ? '/series?sort=top_rated' : '/movies?sort=top_rated'}
               className="view-all-link"
             >
-              View all
+              {tx('View all')}
             </Link>
           </div>
           {topRated.length ? (

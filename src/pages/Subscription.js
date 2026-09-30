@@ -10,6 +10,7 @@ import { getSubscriptionPlans, subscribe, cancelSubscription } from '../services
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
 import './Subscription.css';
+import { useLocale } from '../context/LocaleContext';
 
 function formatDate(value) {
   if (!value) return '—';
@@ -37,6 +38,7 @@ const trustItems = [
 
 
 const Subscription = () => {
+  const { tx } = useLocale();
   const { user, refreshProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -135,7 +137,7 @@ const Subscription = () => {
         await refreshProfile();
       }
       
-      setSubSuccess(`You're now subscribed to the ${selectedPlan.id} plan!`);
+      setSubSuccess(tx("You're now subscribed to the {{plan}} plan!", { plan: selectedPlan.name || selectedPlan.id }));
       
       if (returnTo && movieId) {
         setTimeout(() => {
@@ -148,7 +150,7 @@ const Subscription = () => {
       setSubError(
         err?.response?.data?.message ||
         err?.message ||
-        'Subscription failed. Please try again.'
+        tx('Subscription failed. Please try again.')
       );
     } finally {
       setSubscribing(null);
@@ -164,7 +166,7 @@ const Subscription = () => {
   const handleCancelSubscription = async () => {
     const subscriptionId = user.subscription?.id;
     if (!subscriptionId) {
-      setCancelError('Could not find your subscription. Please refresh the page and try again.');
+      setCancelError(tx('Could not find your subscription. Please refresh the page and try again.'));
       return;
     }
 
@@ -179,8 +181,8 @@ const Subscription = () => {
       setSubError('');
       setSubSuccess(
         sub?.already_cancelled
-          ? `Your subscription was already set to end on ${formatDate(sub.access_ends_at)}.`
-          : `Subscription cancelled — you'll keep full access until ${formatDate(sub?.access_ends_at)}.`
+          ? tx('Your subscription was already set to end on {{date}}.', { date: formatDate(sub.access_ends_at) })
+          : tx("Subscription cancelled — you'll keep full access until {{date}}.", { date: formatDate(sub?.access_ends_at) })
       );
       setTimeout(() => setSubSuccess(''), 6000);
 
@@ -198,16 +200,16 @@ const Subscription = () => {
         setCancelModalOpen(false);
         setSubError(
           data?.data?.access_ends_at
-            ? `Your access already ended on ${formatDate(data.data.access_ends_at)}. You can resubscribe anytime.`
-            : 'Your subscription has already ended.'
+            ? tx('Your access already ended on {{date}}. You can resubscribe anytime.', { date: formatDate(data.data.access_ends_at) })
+            : tx('Your subscription has already ended.')
         );
         if (refreshProfile) await refreshProfile();
       } else if (status === 404) {
-        setCancelError('Subscription not found. Please refresh the page and try again.');
+        setCancelError(tx('Subscription not found. Please refresh the page and try again.'));
       } else if (status === 403) {
-        setCancelError("You don't have permission to cancel this subscription.");
+        setCancelError(tx("You don't have permission to cancel this subscription."));
       } else {
-        setCancelError(data?.message || err?.message || 'Failed to cancel subscription. Please try again.');
+        setCancelError(data?.message || err?.message || tx('Failed to cancel subscription. Please try again.'));
       }
     } finally {
       setCancelling(false);
@@ -217,7 +219,7 @@ const Subscription = () => {
   if (!user) {
     return (
       <div className="subscription-not-found">
-        <h2>Please log in to view subscription options</h2>
+        <h2>{tx('Please log in to view subscription options')}</h2>
       </div>
     );
   }
@@ -229,15 +231,14 @@ const Subscription = () => {
       <div className="sub-hero">
         <div className="sub-hero-glow" />
         <FaCrown className="sub-hero-crown" />
-        <h1 className="sub-hero-title">Unlimited African Cinema</h1>
+        <h1 className="sub-hero-title">{tx('Unlimited African Cinema')}</h1>
         <p className="sub-hero-subtitle">
-          Stream the best Nollywood, Afrobeats docs, and pan-African originals —
-          in stunning 4K, with no interruptions.
+          {tx('Stream the best Nollywood, Afrobeats docs, and pan-African originals — in stunning 4K, with no interruptions.')}
         </p>
         <div className="sub-hero-badges">
-          <span><FaShieldAlt /> Secure payments</span>
-          <span><FaBan /> No ads, ever</span>
-          <span><FaCheck /> Cancel anytime</span>
+          <span><FaShieldAlt /> {tx('Secure payments')}</span>
+          <span><FaBan /> {tx('No ads, ever')}</span>
+          <span><FaCheck /> {tx('Cancel anytime')}</span>
         </div>
       </div>
 
@@ -261,17 +262,17 @@ const Subscription = () => {
             <div className="current-plan-info">
               <span className={`current-plan-badge ${user.subscription.autoRenew === false ? 'current-plan-badge--ending' : ''}`}>
                 {user.subscription.autoRenew === false ? <FaExclamationTriangle /> : <FaCheck />}
-                {user.subscription.autoRenew === false ? 'Ending — auto-renew off' : 'Active'}
+                {tx(user.subscription.autoRenew === false ? 'Ending — auto-renew off' : 'Active')}
               </span>
               <h3 className="current-plan-name">
-                {plans.find((p) => p.id === user.subscription.planId)?.name
-                  || `${user.subscription.type || user.subscription.planId || 'Subscription'} Plan`}
+                {tx(plans.find((p) => p.id === user.subscription.planId)?.name
+                  || `${user.subscription.type || user.subscription.planId || 'Subscription'} Plan`)}
               </h3>
               <p className="current-plan-detail">
                 <FaCalendarAlt />
                 {user.subscription.autoRenew === false
-                  ? <>You'll keep full access until <strong>{formatDate(user.subscription.expiresAt)}</strong> — no further payment will be taken.</>
-                  : <>Renews on <strong>{formatDate(user.subscription.expiresAt)}</strong></>}
+                  ? <>{tx("You'll keep full access until")} <strong>{formatDate(user.subscription.expiresAt)}</strong> — {tx('no further payment will be taken.')}</>
+                  : <>{tx('Renews on')} <strong>{formatDate(user.subscription.expiresAt)}</strong></>}
               </p>
             </div>
             {user.subscription.autoRenew !== false && (
@@ -293,7 +294,7 @@ const Subscription = () => {
           </div>
         ) : plansError ? (
           <div className="sub-error-msg">
-            ⚠ {plansError}
+            ⚠ {tx(plansError)}
           </div>
         ) : (
           <div className="plans-grid">
@@ -313,7 +314,7 @@ const Subscription = () => {
                 <div key={plan.id} className={`plan-card ${popular ? 'popular' : ''}`}>
                   {popular && (
                     <div className="popular-badge">
-                      <FaStar className="popular-icon" /> Most Popular
+                      <FaStar className="popular-icon" /> {tx('Most Popular')}
                     </div>
                   )}
 
@@ -321,17 +322,17 @@ const Subscription = () => {
 
                   <div className="plan-header">
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <h3 className="plan-name">{plan.name}</h3>
+                      <h3 className="plan-name">{tx(plan.name)}</h3>
                     </div>
-                    {tag && <span className="plan-tag">{tag}</span>}
+                    {tag && <span className="plan-tag">{tx(tag)}</span>}
                     <div className="plan-price">
                       <span className="price">
                         {currencySymbol}{hasPrice ? Number(rawPrice).toFixed(2) : '—'}
                       </span>
-                      <span className="period">/{plan.interval ?? plan.period ?? 'month'}</span>
+                      <span className="period">/{tx(plan.interval ?? plan.period ?? 'month')}</span>
                     </div>
                     {!hasPrice && plan.originalPrice && (
-                      <div className="original-price">was ${plan.originalPrice}</div>
+                      <div className="original-price">{tx('was')} ${plan.originalPrice}</div>
                     )}
                   </div>
 
@@ -341,7 +342,7 @@ const Subscription = () => {
                       {feats.map((feature, i) => (
                         <li key={i} className="feature-item">
                           <FaCheck className="check-icon" />
-                          {feature}
+                          {tx(feature)}
                         </li>
                       ))}
                     </ul>
@@ -353,10 +354,10 @@ const Subscription = () => {
                     disabled={isBusy || (user.subscription?.active && user.subscription?.planId === plan.id)}
                   >
                     {isBusy
-                      ? <><FaSpinner className="btn-spinner" /> Processing…</>
+                      ? <><FaSpinner className="btn-spinner" /> {tx('Processing…')}</>
                       : user.subscription?.active
-                        ? (user.subscription?.planId === plan.id ? 'Current Plan' : 'Change Plan')
-                        : 'Get Started'}
+                        ? tx(user.subscription?.planId === plan.id ? 'Current Plan' : 'Change Plan')
+                        : tx('Get Started')}
                   </button>
                 </div>
               );
@@ -366,13 +367,13 @@ const Subscription = () => {
 
         {/* ── Trust Grid ── */}
         <div className="trust-section">
-          <h2 className="trust-title">Why Viewesta?</h2>
+          <h2 className="trust-title">{tx('Why Viewesta?')}</h2>
           <div className="trust-grid">
             {trustItems.map((item, i) => (
               <div key={i} className="trust-item">
                 <div className="trust-icon">{item.icon}</div>
-                <h4>{item.title}</h4>
-                <p>{item.desc}</p>
+                <h4>{tx(item.title)}</h4>
+                <p>{tx(item.desc)}</p>
               </div>
             ))}
           </div>
@@ -382,8 +383,8 @@ const Subscription = () => {
         <div className="guarantee-strip">
           <FaShieldAlt className="guarantee-icon" />
           <div>
-            <strong>30-Day Money-Back Guarantee</strong>
-            <p>Not satisfied? We'll refund you in full — no questions asked.</p>
+            <strong>{tx('30-Day Money-Back Guarantee')}</strong>
+            <p>{tx("Not satisfied? We'll refund you in full — no questions asked.")}</p>
           </div>
         </div>
 
@@ -394,14 +395,14 @@ const Subscription = () => {
         onClose={() => setPaymentModalOpen(false)}
         onContinue={handleConfirmPayment}
         amount={selectedPlan?.finalAmount || 0}
-        title={`Subscribe to ${selectedPlan?.name || 'Plan'}`}
+        title={tx('Subscribe to {{plan}}', { plan: tx(selectedPlan?.name || 'Plan') })}
       />
 
       {cancelModalOpen && (
         <div className="modal-overlay" onClick={() => !cancelling && setCancelModalOpen(false)}>
           <div className="purchase-modal cancel-sub-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Cancel Subscription</h3>
+              <h3>{tx('Cancel Subscription')}</h3>
               <button
                 className="modal-close"
                 onClick={() => setCancelModalOpen(false)}
@@ -413,12 +414,12 @@ const Subscription = () => {
 
             <div className="modal-content">
               <p>
-                You'll keep full access to everything until{' '}
+                {tx("You'll keep full access to everything until")}{' '}
                 <strong>{formatDate(user.subscription?.expiresAt)}</strong>.
-                After that date, no further payment will be taken and your subscription will end.
+                {' '}{tx('After that date, no further payment will be taken and your subscription will end.')}
               </p>
               <p className="cancel-sub-note">
-                <FaShieldAlt /> No refunds are issued for time already paid for.
+                <FaShieldAlt /> {tx('No refunds are issued for time already paid for.')}
               </p>
 
               {cancelError && (
@@ -434,7 +435,7 @@ const Subscription = () => {
                 onClick={() => setCancelModalOpen(false)}
                 disabled={cancelling}
               >
-                Keep Subscription
+                {tx('Keep Subscription')}
               </button>
               <button
                 className="btn btn-danger"
@@ -442,8 +443,8 @@ const Subscription = () => {
                 disabled={cancelling}
               >
                 {cancelling
-                  ? <><FaSpinner className="btn-spinner" /> Cancelling…</>
-                  : 'Confirm Cancellation'}
+                  ? <><FaSpinner className="btn-spinner" /> {tx('Cancelling…')}</>
+                  : tx('Confirm Cancellation')}
               </button>
             </div>
           </div>

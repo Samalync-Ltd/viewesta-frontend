@@ -12,6 +12,11 @@
   margin-bottom: 1rem;
 }
 
+.edit-profile-error {
+  color: var(--error, #ef4444);
+  margin-bottom: 1rem;
+}
+
 .edit-profile-form {
   max-width: 400px;
   margin-bottom: 1.5rem;

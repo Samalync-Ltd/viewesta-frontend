@@ -18,6 +18,16 @@ const HeroCarousel = ({ items = [] }) => {
   const [addedIds, setAddedIds] = useState(new Set());
   const [isMutating, setIsMutating] = useState(false);
   const intervalRef = useRef(null);
+  // Backdrops are large; load the current and next slide only (plus any already
+  // shown), so the first image isn't competing with the other four at page load.
+  const [loadedSlides, setLoadedSlides] = useState(() => new Set([0, 1]));
+  useEffect(() => {
+    setLoadedSlides((prev) => {
+      const next = (currentIndex + 1) % Math.max(items.length, 1);
+      if (prev.has(currentIndex) && prev.has(next)) return prev;
+      return new Set([...prev, currentIndex, next]);
+    });
+  }, [currentIndex, items.length]);
 
   // Auto-scroll functionality
   useEffect(() => {
@@ -115,7 +125,14 @@ const HeroCarousel = ({ items = [] }) => {
                 className={`carousel-slide ${index === currentIndex ? 'active' : ''}`}
               >
                 <div className="slide-background">
-                  <img src={item.backdrop} alt={item.title} onError={showNoBackdrop} />
+                  {loadedSlides.has(index) && (
+                    <img
+                      src={item.backdrop}
+                      alt={item.title}
+                      onError={showNoBackdrop}
+                      fetchPriority={index === 0 ? 'high' : 'auto'}
+                    />
+                  )}
                   <div className="slide-overlay"></div>
                 </div>
                 

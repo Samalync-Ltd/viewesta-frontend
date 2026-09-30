@@ -76,6 +76,20 @@ const initialForm = {
   budget: '',
 };
 
+// Labels shared by the type picker and the review step.
+const MEDIA_TYPE_LABELS = {
+  [MEDIA_TYPES.MOVIE]: 'Movie',
+  [MEDIA_TYPES.SHORT_FILM]: 'Short Film',
+  [MEDIA_TYPES.SERIES]: 'Series',
+};
+
+// The release date field is <input type="month"> ("YYYY-MM"); show it as "March 2026".
+const formatReleaseMonth = (value) => {
+  const [year, month] = String(value || '').split('-').map(Number);
+  if (!year || !month) return '';
+  return new Date(year, month - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+};
+
 const FilmmakerUpload = () => {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState(initialForm);
@@ -190,8 +204,6 @@ const FilmmakerUpload = () => {
 
   const goNext = () => { if (validateStep(step)) setStep((s) => Math.min(s + 1, STEPS.length - 1)); };
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
-
-  const handleSaveDraft = () => alert('Draft saved (simulated).');
 
   const handleSubmit = async () => {
     // Final check
@@ -528,7 +540,7 @@ const FilmmakerUpload = () => {
                       {t === MEDIA_TYPES.MOVIE ? <FaFilm /> : t === MEDIA_TYPES.SHORT_FILM ? <FaBolt /> : <FaTv />}
                     </span>
                     <span className="fu-media-type-label">
-                      {t === MEDIA_TYPES.SHORT_FILM ? 'Short Film' : t}
+                      {MEDIA_TYPE_LABELS[t]}
                     </span>
                     <span className="fu-media-type-hint">
                       {t === MEDIA_TYPES.MOVIE
@@ -814,7 +826,7 @@ const FilmmakerUpload = () => {
             <div className="fu-review-card">
               <div className="fu-review-row">
                 <span className="fu-review-label">Type</span>
-                <span className="fu-review-value">{form.mediaType}</span>
+                <span className="fu-review-value">{MEDIA_TYPE_LABELS[form.mediaType] || form.mediaType}</span>
               </div>
               <div className="fu-review-row">
                 <span className="fu-review-label">Title</span>
@@ -825,8 +837,8 @@ const FilmmakerUpload = () => {
                 <span className="fu-review-value">{form.director || '—'}</span>
               </div>
               <div className="fu-review-row">
-                <span className="fu-review-label">Year</span>
-                <span className="fu-review-value">{form.year || '—'}</span>
+                <span className="fu-review-label">Release Date</span>
+                <span className="fu-review-value">{formatReleaseMonth(form.releaseDate) || '—'}</span>
               </div>
               {form.mediaType !== MEDIA_TYPES.SERIES && (
                 <div className="fu-review-row">
@@ -908,9 +920,6 @@ const FilmmakerUpload = () => {
               <FaArrowLeft /> Back
             </button>
           )}
-          <button className="fu-btn fu-btn--ghost" type="button" onClick={handleSaveDraft}>
-            Save Draft
-          </button>
           {step < STEPS.length - 1 ? (
             <button className="fu-btn fu-btn--primary" type="button" onClick={goNext} style={{ marginLeft: 'auto' }}>
               Next <FaArrowRight />

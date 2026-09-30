@@ -4,12 +4,14 @@ import { FaEye, FaEyeSlash, FaCheckCircle, FaExclamationCircle } from 'react-ico
 import { useAuth } from '../context/AuthContext';
 import { generateUsername } from '../utils/usernameUtils';
 import './Register.css';
+import { useLocale } from '../context/LocaleContext';
 
 const MIN_PASSWORD_LENGTH = 8;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // here I added the firsname and lastname instead of name to be applicable with the backend
 const Register = () => {
+  const { tx } = useLocale();
   const [formData, setFormData] = useState({
     firstname: '',
     lastname: '',
@@ -32,6 +34,8 @@ const Register = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
+    // The banner describes the last submit; drop it once the viewer edits a field.
+    if (error) setError('');
   };
 
   const handleBlur = (e) => {
@@ -50,7 +54,7 @@ const Register = () => {
     setError('');
 
     if (!EMAIL_REGEX.test(formData.email)) {
-      setError('Please enter a valid email address');
+      setError(tx('Please enter a valid email address'));
       return;
     }
 
@@ -58,12 +62,12 @@ const Register = () => {
     // otherwise a short password with an empty/different confirm field always
     // reports "Passwords do not match" and hides the real problem.
     if (formData.password.length < MIN_PASSWORD_LENGTH) {
-      setError(`Password is too short — use at least ${MIN_PASSWORD_LENGTH} characters`);
+      setError(tx('Password is too short — use at least {{n}} characters', { n: MIN_PASSWORD_LENGTH }));
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError(tx('Passwords do not match'));
       return;
     }
 
@@ -91,10 +95,10 @@ const Register = () => {
         navigate(isFilmmaker ? '/filmmaker-studio' : '/');
       } else {
         console.error('Registration failed:', result.error);
-        setError(result.error || 'Registration failed');
+        setError(result.error || tx('Registration failed'));
       }
     } catch (err) {
-      setError('Something went wrong');
+      setError(tx('Something went wrong'));
     } finally {
       setLoading(false);
     }
@@ -108,7 +112,7 @@ const Register = () => {
         <div className="register-brand-content">
           <h1 className="register-brand-title">Viewesta</h1>
           <p className="register-brand-tagline">
-            African cinema on demand. Join as a viewer or filmmaker — stream, subscribe, or upload.
+            {tx('African cinema on demand. Join as a viewer or filmmaker — stream, subscribe, or upload.')}
           </p>
         </div>
       </div>
@@ -116,8 +120,8 @@ const Register = () => {
       <div className="register-form-section">
         <div className="register-form-wrap">
           <div className="register-header">
-            <h1 className="register-title">Create account</h1>
-            <p className="register-subtitle">Sign up to start streaming or uploading</p>
+            <h1 className="register-title">{tx('Create account')}</h1>
+            <p className="register-subtitle">{tx('Sign up to start streaming or uploading')}</p>
           </div>
 
           {error && <div className="error-message">{error}</div>}
@@ -126,7 +130,7 @@ const Register = () => {
             <div className="form-group">
               <div className='name-input'>
                 <div>
-                  <label htmlFor='firstname' className='form-label'>First name</label>
+                  <label htmlFor='firstname' className='form-label'>{tx('First name')}</label>
                   <input
                     type="text"
                     id="firstname"
@@ -134,13 +138,13 @@ const Register = () => {
                     value={formData.firstname}
                     onChange={handleChange}
                     className="form-input"
-                    placeholder="Your first name"
+                    placeholder={tx('Your first name')}
                     required
                   />
                 </div>
 
                 <div>
-                  <label htmlFor="lastname" className="form-label">Last name</label>
+                  <label htmlFor="lastname" className="form-label">{tx('Last name')}</label>
                   <input
                     type="text"
                     id="lastname"
@@ -148,7 +152,7 @@ const Register = () => {
                     value={formData.lastname}
                     onChange={handleChange}
                     className="form-input"
-                    placeholder="Your last name"
+                    placeholder={tx('Your last name')}
                     required
                   />
                 </div>
@@ -156,7 +160,7 @@ const Register = () => {
             </div>
 
             <div className="form-group">
-              <label htmlFor="email" className="form-label">Email</label>
+              <label htmlFor="email" className="form-label">{tx('Email')}</label>
               <input
                 type="email"
                 id="email"
@@ -170,22 +174,22 @@ const Register = () => {
                 aria-describedby="email-hint"
                 required
               />
-              {touched.email && formData.email.length > 0 && (
-                <p
-                  id="email-hint"
-                  className={`field-hint ${emailInvalid ? 'field-hint--error' : 'field-hint--ok'}`}
-                >
-                  {emailInvalid ? (
-                    <><FaExclamationCircle /> Enter a valid email address (e.g. you@example.com)</>
-                  ) : (
-                    <><FaCheckCircle /> Looks good</>
-                  )}
-                </p>
-              )}
+              {/* Always rendered so the hint appearing on blur doesn't shift the form
+                  (that moved the Create account button away mid-click). */}
+              <p
+                id="email-hint"
+                className={`field-hint ${touched.email && formData.email.length > 0 ? (emailInvalid ? 'field-hint--error' : 'field-hint--ok') : ''}`}
+              >
+                {touched.email && formData.email.length > 0 && (emailInvalid ? (
+                  <><FaExclamationCircle /> {tx('Enter a valid email address (e.g. you@example.com)')}</>
+                ) : (
+                  <><FaCheckCircle /> {tx('Looks good')}</>
+                ))}
+              </p>
             </div>
 
             <div className="form-group">
-              <label className="form-label">I am a</label>
+              <label className="form-label">{tx('I am a')}</label>
               <div className="role-options">
                 <label className="role-option">
                   <input
@@ -195,7 +199,7 @@ const Register = () => {
                     checked={formData.user_type === 'viewer'}
                     onChange={handleChange}
                   />
-                  <span>Viewer</span>
+                  <span>{tx('Viewer')}</span>
                 </label>
                 <label className="role-option">
                   <input
@@ -205,17 +209,17 @@ const Register = () => {
                     checked={formData.user_type === 'filmmaker'}
                     onChange={handleChange}
                   />
-                  <span>Filmmaker</span>
+                  <span>{tx('Filmmaker')}</span>
                 </label>
               </div>
 
               <p className="form-hint">
-                Viewers watch and subscribe. Filmmakers upload and earn.
+                {tx('Viewers watch and subscribe. Filmmakers upload and earn.')}
               </p>
             </div>
 
             <div className="form-group">
-              <label htmlFor="password" className="form-label">Password</label>
+              <label htmlFor="password" className="form-label">{tx('Password')}</label>
               <div className={`password-input ${touched.password && passwordTooShort ? 'input-invalid' : ''}`}>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -235,7 +239,7 @@ const Register = () => {
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-label={tx(showPassword ? 'Hide password' : 'Show password')}
                 >
                   {showPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
@@ -245,17 +249,17 @@ const Register = () => {
                 className={`field-hint ${touched.password && passwordTooShort ? 'field-hint--error' : ''} ${formData.password.length >= MIN_PASSWORD_LENGTH ? 'field-hint--ok' : ''}`}
               >
                 {formData.password.length >= MIN_PASSWORD_LENGTH ? (
-                  <><FaCheckCircle /> Meets the minimum length</>
+                  <><FaCheckCircle /> {tx('Meets the minimum length')}</>
                 ) : touched.password ? (
-                  <><FaExclamationCircle /> {`Use at least ${MIN_PASSWORD_LENGTH} characters (${formData.password.length}/${MIN_PASSWORD_LENGTH})`}</>
+                  <><FaExclamationCircle /> {tx('Use at least {{n}} characters ({{count}}/{{n}})', { n: MIN_PASSWORD_LENGTH, count: formData.password.length })}</>
                 ) : (
-                  `At least ${MIN_PASSWORD_LENGTH} characters`
+                  tx('At least {{n}} characters', { n: MIN_PASSWORD_LENGTH })
                 )}
               </p>
             </div>
 
             <div className="form-group">
-              <label htmlFor="confirmPassword" className="form-label">Confirm password</label>
+              <label htmlFor="confirmPassword" className="form-label">{tx('Confirm password')}</label>
               <div className={`password-input ${touched.confirmPassword && passwordsMismatch ? 'input-invalid' : ''}`}>
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
@@ -275,31 +279,29 @@ const Register = () => {
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  aria-label={tx(showConfirmPassword ? 'Hide password' : 'Show password')}
                 >
                   {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
                 </button>
               </div>
-              {touched.confirmPassword && formData.confirmPassword.length > 0 && (
-                <p
-                  id="confirm-password-hint"
-                  className={`field-hint ${passwordsMismatch ? 'field-hint--error' : 'field-hint--ok'}`}
-                >
-                  {passwordsMismatch ? (
-                    <><FaExclamationCircle /> Passwords do not match</>
-                  ) : (
-                    <><FaCheckCircle /> Passwords match</>
-                  )}
-                </p>
-              )}
+              <p
+                id="confirm-password-hint"
+                className={`field-hint ${touched.confirmPassword && formData.confirmPassword.length > 0 ? (passwordsMismatch ? 'field-hint--error' : 'field-hint--ok') : ''}`}
+              >
+                {touched.confirmPassword && formData.confirmPassword.length > 0 && (passwordsMismatch ? (
+                  <><FaExclamationCircle /> {tx('Passwords do not match')}</>
+                ) : (
+                  <><FaCheckCircle /> {tx('Passwords match')}</>
+                ))}
+              </p>
             </div>
 
             <div className="form-group">
               <label className="checkbox-label">
-                <input type="checkbox" required />
+                <input type="checkbox" id="accept-terms" required />
                 <span>
-                  I agree to the <Link to="/terms" className="link">Terms of Use</Link> and{' '}
-                  <Link to="/privacy" className="link">Privacy Policy</Link>
+                  {tx('I agree to the')} <Link to="/terms" className="link">{tx('Terms of Use')}</Link> {tx('and the')}{' '}
+                  <Link to="/privacy" className="link">{tx('Privacy Policy')}</Link>
                 </span>
               </label>
             </div>
@@ -309,14 +311,14 @@ const Register = () => {
               className="btn btn-primary btn-full"
               disabled={loading}
             >
-              {loading ? 'Creating account...' : 'Create account'}
+              {tx(loading ? 'Creating account...' : 'Create account')}
             </button>
           </form>
 
 
           <div className="register-footer">
             <p>
-              Already have an account? <Link to="/login" className="link">Sign in</Link>
+              {tx('Already have an account?')} <Link to="/login" className="link">{tx('Sign in')}</Link>
             </p>
           </div>
         </div>

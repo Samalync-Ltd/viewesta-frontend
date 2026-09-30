@@ -63,7 +63,7 @@ function FilmmakerDashboard() {
     <div className="filmmaker-dashboard page-container">
       <div className="filmmaker-dashboard-header">
         <h1>{t('dashboard')}</h1>
-        <p className="subtitle">Welcome back, {user?.name || 'Filmmaker'}</p>
+        <p className="subtitle">Welcome back{user?.name ? `, ${user.name}` : ''}</p>
       </div>
 
       {/* Contract Status Section */}

@@ -6,6 +6,7 @@ import { SkeletonCard } from '../components/Skeleton';
 import * as seriesService from '../services/seriesService';
 import useCategories from '../hooks/useCategories';
 import './Series.css';
+import { useLocale } from '../context/LocaleContext';
 
 const SORT_OPTIONS = [
   { value: 'popular',   label: 'Popular' },
@@ -16,6 +17,7 @@ const SORT_OPTIONS = [
 
 
 const Series = () => {
+  const { tx } = useLocale();
   const [searchParams, setSearchParams] = useSearchParams();
   const [series, setSeries]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -141,14 +143,14 @@ const Series = () => {
             TV Series
           </h1>
           <p className="series-subtitle">
-            Discover African TV shows — filter by genre, year, and sort by popularity.
+            {tx('Discover African TV shows — filter by genre, year, and sort by popularity.')}
           </p>
         </div>
 
         {/* Inline error banner — shown regardless of whether data was loaded before */}
         {error && (
           <div className="series-inline-error">
-            <span>⚠ Unable to load series</span>
+            <span>⚠ {tx('Unable to load series')}</span>
             <button className="btn btn-ghost btn-small" onClick={loadSeries}>
               Retry
             </button>
@@ -158,7 +160,7 @@ const Series = () => {
         {/* Filters */}
         <div className="series-filters">
           <div className="filter-group">
-            <label htmlFor="sg-genre">Genre</label>
+            <label htmlFor="sg-genre">{tx('Genre')}</label>
             <select
               id="sg-genre"
               value={genreParam}
@@ -172,14 +174,14 @@ const Series = () => {
           </div>
 
           <div className="filter-group">
-            <label htmlFor="sg-year">Year</label>
+            <label htmlFor="sg-year">{tx('Year')}</label>
             <select
               id="sg-year"
               value={yearParam}
               onChange={(e) => setFilter('year', e.target.value)}
               className="filter-select"
             >
-              <option value="">All years</option>
+              <option value="">{tx('All years')}</option>
               {years.map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
@@ -187,7 +189,7 @@ const Series = () => {
           </div>
 
           <div className="filter-group">
-            <label htmlFor="sg-sort">Sort</label>
+            <label htmlFor="sg-sort">{tx('Sort')}</label>
             <select
               id="sg-sort"
               value={sortParam}
@@ -195,7 +197,7 @@ const Series = () => {
               className="filter-select"
             >
               {SORT_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>{tx(o.label)}</option>
               ))}
             </select>
           </div>
@@ -219,21 +221,21 @@ const Series = () => {
           // Error with no data — show a minimal placeholder where cards would be
           <div className="series-empty">
             <FaTv className="series-empty-icon" />
-            <p>Unable to load series</p>
-            <span>Check your connection and try again.</span>
+            <p>{tx('Unable to load series')}</p>
+            <span>{tx('Check your connection and try again.')}</span>
           </div>
         ) : filteredAndSorted.length === 0 ? (
           <div className="series-empty">
             {series.length === 0 ? (
               <>
                 <FaTv className="series-empty-icon" />
-                <p>No series available right now.</p>
-                <span>Check back later or explore other content.</span>
+                <p>{tx('No series available right now.')}</p>
+                <span>{tx('Check back later or explore other content.')}</span>
               </>
             ) : (
               <>
-                <p>No shows match your filters.</p>
-                <span>Try changing the genre or year.</span>
+                <p>{tx('No shows match your filters.')}</p>
+                <span>{tx('Try changing the genre or year.')}</span>
               </>
             )}
           </div>

@@ -17,8 +17,10 @@ import AgeRatingBadge from '../components/AgeRatingBadge';
 import VideoPlayer from '../components/VideoPlayer';
 import { formatRating, showNoPoster, showNoBackdrop, isRealArtwork } from '../utils/mediaHelpers';
 import './SeriesDetail.css';
+import { useLocale } from '../context/LocaleContext';
 
 const SeriesDetail = () => {
+  const { tx } = useLocale();
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -226,7 +228,7 @@ const SeriesDetail = () => {
     return (
       <div className="series-detail loading-state">
         <div className="loading" />
-        <p>Loading series...</p>
+        <p>{tx('Loading series...')}</p>
       </div>
     );
   }
@@ -234,11 +236,11 @@ const SeriesDetail = () => {
   if (error && !seriesData) {
     return (
       <div className="series-not-found">
-        <h2>Unable to load this series</h2>
-        <p>{error}</p>
+        <h2>{tx('Unable to load this series')}</h2>
+        <p>{tx(error)}</p>
         <div className="error-actions">
-          <button onClick={fetchSeriesDetail} className="btn btn-primary">Try Again</button>
-          <button onClick={() => navigate('/series')} className="btn btn-outline">Browse Series</button>
+          <button onClick={fetchSeriesDetail} className="btn btn-primary">{tx('Try Again')}</button>
+          <button onClick={() => navigate('/series')} className="btn btn-outline">{tx('Browse Series')}</button>
         </div>
       </div>
     );
@@ -247,9 +249,9 @@ const SeriesDetail = () => {
   if (!seriesData) {
     return (
       <div className="series-not-found">
-        <h2>Series not found</h2>
-        <p>The series you're looking for doesn't exist.</p>
-        <button onClick={() => navigate('/')} className="btn btn-primary">Go Home</button>
+        <h2>{tx('Series not found')}</h2>
+        <p>{tx("The series you're looking for doesn't exist.")}</p>
+        <button onClick={() => navigate('/')} className="btn btn-primary">{tx('Go Home')}</button>
       </div>
     );
   }
@@ -287,7 +289,7 @@ const SeriesDetail = () => {
       navigator.share({ title: seriesData.title, text: `Check out ${seriesData.title} on Viewesta`, url: window.location.href });
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
+      alert(tx('Link copied to clipboard!'));
     }
   };
 
@@ -306,7 +308,7 @@ const SeriesDetail = () => {
       setRatingMessage({ type: 'error', text: result.error });
       return;
     }
-    setRatingMessage({ type: 'success', text: 'Thanks — your rating was saved.' });
+    setRatingMessage({ type: 'success', text: tx('Thanks — your rating was saved.') });
     // Pull the updated average / rating count without a loading flash.
     seriesService.getSeriesById(seriesData.id)
       .then((fresh) => { if (fresh) setSeriesData(fresh); })
@@ -319,8 +321,8 @@ const SeriesDetail = () => {
     // No gallery photos: the real backdrop and poster, never the placeholders.
     const images = [];
     const coverUrl = s.cover || s.backdrop;
-    if (isRealArtwork(coverUrl)) images.push({ url: coverUrl, caption: `${s.title} — Featured` });
-    if (isRealArtwork(s.poster)) images.push({ url: s.poster, caption: `${s.title} — Poster` });
+    if (isRealArtwork(coverUrl)) images.push({ url: coverUrl, caption: `${s.title} — ${tx('Featured')}` });
+    if (isRealArtwork(s.poster)) images.push({ url: s.poster, caption: `${s.title} — ${tx('Poster')}` });
     return images;
   };
 
@@ -334,11 +336,11 @@ const SeriesDetail = () => {
   const episodeVideoSrc = pickBestSource(episodeSources, episodeQuality);
   let episodeEmptyProps = {};
   if (episodeSourcesError) {
-    episodeEmptyProps = { emptyTitle: episodeSourcesError, emptySubtitle: 'Try refreshing the page in a moment.' };
+    episodeEmptyProps = { emptyTitle: episodeSourcesError, emptySubtitle: tx('Try refreshing the page in a moment.') };
   } else if (!episodeVideoSrc && planMaxQuality && qualityRank(planMaxQuality) < qualityRank('1080p')) {
     episodeEmptyProps = {
-      emptyTitle: `This episode isn't available in ${planMaxQuality} yet.`,
-      emptySubtitle: `Your ${planName || 'current'} plan streams up to ${planMaxQuality}. Try another episode, or upgrade your plan to watch it in higher quality.`,
+      emptyTitle: tx("This episode isn't available in {{quality}} yet.", { quality: planMaxQuality }),
+      emptySubtitle: tx('Your {{plan}} plan streams up to {{quality}}. Try another episode, or upgrade your plan to watch it in higher quality.', { plan: planName || tx('current'), quality: planMaxQuality }),
     };
   }
 
@@ -346,8 +348,8 @@ const SeriesDetail = () => {
     <div className="series-detail">
       {error && (
         <div className="series-detail-alert">
-          <span>{error}</span>
-          <button className="btn btn-ghost btn-small" onClick={fetchSeriesDetail}>Retry</button>
+          <span>{tx(error)}</span>
+          <button className="btn btn-ghost btn-small" onClick={fetchSeriesDetail}>{tx('Retry')}</button>
         </div>
       )}
 
@@ -377,13 +379,13 @@ const SeriesDetail = () => {
                 <span>
                   {averageRating
                     ? <>{averageRating}{seriesData.rating_count > 0 && <> ({seriesData.rating_count})</>}</>
-                    : 'No ratings yet'}
+                    : tx('No ratings yet')}
                 </span>
               </div>
               <div className="series-year"><FaCalendar /><span>{seriesData.year}</span></div>
               {seasonCount > 0 && (
                 <div className="series-seasons">
-                  <span>{seasonCount} Season{seasonCount !== 1 ? 's' : ''}</span>
+                  <span>{tx(seasonCount === 1 ? '1 Season' : '{{n}} Seasons', { n: seasonCount })}</span>
                 </div>
               )}
             </div>
@@ -394,22 +396,22 @@ const SeriesDetail = () => {
             )}
             <p className="series-description">{seriesData.description}</p>
             <div className="series-details">
-              <div className="detail-item"><strong>Creator:</strong> {seriesData.director || seriesData.creator || 'Unknown'}</div>
-              <div className="detail-item"><strong>Cast:</strong> {Array.isArray(seriesData.cast) ? seriesData.cast.join(', ') : '—'}</div>
-              <div className="detail-item"><strong>Premiered:</strong> {seriesData.raw?.release_date || seriesData.year || '—'}</div>
-              <div className="detail-item"><strong>Seasons:</strong> {seasonCount || '—'}</div>
-              {totalEpisodes > 0 && <div className="detail-item"><strong>Episodes:</strong> {totalEpisodes}</div>}
+              <div className="detail-item"><strong>{tx('Creator:')}</strong> {seriesData.director || seriesData.creator || tx('Unknown')}</div>
+              <div className="detail-item"><strong>{tx('Cast:')}</strong> {Array.isArray(seriesData.cast) ? seriesData.cast.join(', ') : '—'}</div>
+              <div className="detail-item"><strong>{tx('Premiered:')}</strong> {seriesData.raw?.release_date || seriesData.year || '—'}</div>
+              <div className="detail-item"><strong>{tx('Seasons:')}</strong> {seasonCount || '—'}</div>
+              {totalEpisodes > 0 && <div className="detail-item"><strong>{tx('Episodes:')}</strong> {totalEpisodes}</div>}
             </div>
             <div className="detail-your-rating">
-              <span className="detail-your-rating-label">Your rating:</span>
-              <div className="detail-stars" role="group" aria-label="Rate this series">
+              <span className="detail-your-rating-label">{tx('Your rating:')}</span>
+              <div className="detail-stars" role="group" aria-label={tx('Rate this series')}>
                 {[1, 2, 3, 4, 5].map((star) => (
                   <button
                     key={star}
                     type="button"
                     className={`detail-star-btn ${userRating >= star ? 'filled' : ''}`}
                     onClick={() => handleRate(star)}
-                    aria-label={`Rate ${star} star${star !== 1 ? 's' : ''}`}
+                    aria-label={tx(star === 1 ? 'Rate 1 star' : 'Rate {{n}} stars', { n: star })}
                   >
                     <FaStar />
                   </button>
@@ -427,11 +429,11 @@ const SeriesDetail = () => {
             </div>
             <div className="series-actions">
               <button onClick={handleStartWatching} className="btn btn-primary">
-                <FaPlay /> Start Watching
+                <FaPlay /> {tx('Start Watching')}
               </button>
               {user && (
                 <button onClick={handleWatchlistToggle} className={`btn btn-secondary ${isInWatchlist ? 'active' : ''}`}>
-                  <FaHeart /> {isInWatchlist ? 'In Wishlist' : 'Add to Wishlist'}
+                  <FaHeart /> {tx(isInWatchlist ? 'In Wishlist' : 'Add to Wishlist')}
                 </button>
               )}
               {user && (
@@ -441,7 +443,7 @@ const SeriesDetail = () => {
                 </button>
               )}
               <button onClick={handleShare} className="btn btn-secondary">
-                <FaShareAlt /> Share
+                <FaShareAlt /> {tx('Share')}
               </button>
             </div>
           </div>
@@ -467,18 +469,18 @@ const SeriesDetail = () => {
       {/* Episodes */}
       <div className="seasons-section" ref={episodesRef} id="episodes">
         <div className="seasons-container">
-          <h2 className="seasons-title">Episodes</h2>
+          <h2 className="seasons-title">{tx('Episodes')}</h2>
           {seasonsLoading && (
-            <p className="seasons-empty">Loading episodes…</p>
+            <p className="seasons-empty">{tx('Loading episodes…')}</p>
           )}
           {!seasonsLoading && seasonsError && (
             <div className="seasons-empty">
-              <p>{seasonsError}</p>
-              <button type="button" className="btn btn-ghost btn-small" onClick={fetchSeasons}>Retry</button>
+              <p>{tx(seasonsError)}</p>
+              <button type="button" className="btn btn-ghost btn-small" onClick={fetchSeasons}>{tx('Retry')}</button>
             </div>
           )}
           {!seasonsLoading && !seasonsError && seasons.length === 0 && (
-            <p className="seasons-empty">Episodes will appear here once they are published.</p>
+            <p className="seasons-empty">{tx('Episodes will appear here once they are published.')}</p>
           )}
           {seasons.map((season) => (
             <div key={season.seasonNumber} className="season-container">
@@ -512,7 +514,7 @@ const SeriesDetail = () => {
                         <button
                           onClick={() => handleWatchEpisode(season, episode)}
                           className="btn btn-primary btn-small"
-                          aria-label={`Play ${episode.title}`}
+                          aria-label={tx('Play {{title}}', { title: episode.title })}
                         >
                           <FaPlay />
                         </button>
@@ -530,7 +532,7 @@ const SeriesDetail = () => {
       {relatedSeries.length > 0 && (
         <div className="related-series-section">
           <div className="related-series-container">
-            <h2 className="related-series-title">More Like This</h2>
+            <h2 className="related-series-title">{tx('More Like This')}</h2>
             <div className="related-series-grid">
               {relatedSeries.map((related) => (
                 <MovieCard key={related.id} movie={related} />
@@ -551,7 +553,7 @@ const SeriesDetail = () => {
                   className="btn btn-ghost btn-small"
                   onClick={() => goToEpisode(epIdx - 1)}
                   disabled={!hasPrev}
-                  aria-label="Previous episode"
+                  aria-label={tx('Previous episode')}
                 >
                   <FaArrowLeft />
                 </button>
@@ -562,7 +564,7 @@ const SeriesDetail = () => {
                   className="btn btn-ghost btn-small"
                   onClick={() => goToEpisode(epIdx + 1)}
                   disabled={!hasNext}
-                  aria-label="Next episode"
+                  aria-label={tx('Next episode')}
                 >
                   <FaArrowRight />
                 </button>

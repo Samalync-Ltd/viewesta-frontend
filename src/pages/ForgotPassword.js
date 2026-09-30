@@ -5,7 +5,7 @@ import { requestPasswordReset } from '../utils/apiClient';
 import './ForgotPassword.css';
 
 export default function ForgotPassword() {
-  const { t } = useLocale();
+  const { t, tx } = useLocale();
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ export default function ForgotPassword() {
       await requestPasswordReset({ email: email.trim() });
       setSubmitted(true);
     } catch (err) {
-      setError(err.message || 'Something went wrong. Please try again.');
+      setError(err.message || tx('Something went wrong. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -30,11 +30,11 @@ export default function ForgotPassword() {
     <div className="forgot-password-page">
       <div className="forgot-password-card">
         <h1>{t('auth.forgotPassword')}</h1>
-        <p className="forgot-password-desc">Enter your email and we&apos;ll send you a link to reset your password.</p>
+        <p className="forgot-password-desc">{tx("Enter your email and we'll send you a link to reset your password.")}</p>
         {submitted ? (
           <div className="forgot-password-sent">
-            <p>If an account exists for that email, you will receive a reset link shortly.</p>
-            <Link to="/login" className="btn btn-primary">Back to sign in</Link>
+            <p>{tx('If an account exists for that email, you will receive a reset link shortly.')}</p>
+            <Link to="/login" className="btn btn-primary">{tx('Back to sign in')}</Link>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="forgot-form">
@@ -45,19 +45,19 @@ export default function ForgotPassword() {
                 id="forgot-email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => { setEmail(e.target.value); setError(''); }}
                 required
                 placeholder="you@example.com"
                 disabled={loading}
               />
             </div>
             <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
-              {loading ? 'Sending…' : 'Send reset link'}
+              {tx(loading ? 'Sending…' : 'Send reset link')}
             </button>
           </form>
         )}
         <p className="forgot-footer">
-          <Link to="/login" className="forgot-password-back">Back to sign in</Link>
+          <Link to="/login" className="forgot-password-back">{tx('Back to sign in')}</Link>
         </p>
       </div>
     </div>

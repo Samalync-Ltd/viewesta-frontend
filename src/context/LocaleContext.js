@@ -52,8 +52,19 @@ export function LocaleProvider({ children }) {
     [locale]
   );
 
+  // Interface text written in English in the components: tx('Watch Trailer').
+  // French versions live in fr.json under "text", keyed by the English wording;
+  // {{name}} placeholders are filled from `vars`. English is the fallback.
+  const tx = useCallback(
+    (text, vars) => {
+      const translated = locale === 'fr' ? (fr.text?.[text] ?? text) : text;
+      return vars ? translated.replace(/\{\{(\w+)\}\}/g, (_, name) => String(vars[name] ?? '')) : translated;
+    },
+    [locale]
+  );
+
   return (
-    <LocaleContext.Provider value={{ locale, setLocale, t }}>
+    <LocaleContext.Provider value={{ locale, setLocale, t, tx }}>
       {children}
     </LocaleContext.Provider>
   );

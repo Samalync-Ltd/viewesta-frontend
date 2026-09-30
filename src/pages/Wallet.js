@@ -17,7 +17,12 @@ import { getWallet, getWalletTransactions, getWalletSummary, topUpWallet } from 
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
 import { ENABLE_MOBILE_MONEY } from '../config/features';
 import { friendlyApiError } from '../utils/apiErrors';
+import { useLocale } from '../context/LocaleContext';
 import './Wallet.css';
+
+// Backend limits for one wallet top-up (USD).
+const MIN_TOP_UP = 1;
+const MAX_TOP_UP = 10000;
 
 const TxIcon = ({ type }) => (
   <div className={`tx-icon tx-icon--${type}`}>
@@ -36,6 +41,7 @@ function isCreditTransaction(tx) {
 }
 
 const Wallet = () => {
+  const { tx: tr } = useLocale();
   const { user } = useAuth();
 
   /* ── Wallet state (from backend) ── */
@@ -78,6 +84,8 @@ const Wallet = () => {
   ];
 
   const finalAmount = customValue !== '' ? Number(customValue) : topUpAmount;
+  const amountTooHigh = finalAmount > MAX_TOP_UP;
+  const amountTooLow = customValue !== '' && !(finalAmount >= MIN_TOP_UP);
 
   /* ── Fetch wallet (always resets the transaction list back to page 1) ── */
   const fetchWallet = useCallback(async () => {
@@ -97,7 +105,7 @@ const Wallet = () => {
       // isn't documented as page-count vs. lifetime-total.
       setTxHasMore(txResult.transactions.length === TX_PAGE_SIZE);
     } catch (err) {
-      setWalletError(friendlyApiError(err, 'We couldn\'t load your wallet. Please try again.'));
+      setWalletError(friendlyApiError(err, "We couldn't load your wallet. Please try again."));
     } finally {
       setWalletLoading(false);
     }
@@ -117,7 +125,7 @@ const Wallet = () => {
         // rather than show an error or placeholder numbers.
         setSummaryUnavailable(true);
       } else {
-        setSummaryError(friendlyApiError(err, 'We couldn\'t load your wallet totals.'));
+        setSummaryError(friendlyApiError(err, "We couldn't load your wallet totals."));
       }
     } finally {
       setSummaryLoading(false);
@@ -142,14 +150,14 @@ const Wallet = () => {
       setTxOffset((prev) => prev + result.transactions.length);
       setTxHasMore(result.transactions.length === TX_PAGE_SIZE);
     } catch (err) {
-      setTxLoadMoreError(friendlyApiError(err, 'We couldn\'t load more transactions. Please try again.'));
+      setTxLoadMoreError(friendlyApiError(err, "We couldn't load more transactions. Please try again."));
     } finally {
       setTxLoadingMore(false);
     }
   };
 
   const handleTopUp = async () => {
-    if (!finalAmount || finalAmount < 1) return;
+    if (!finalAmount || finalAmount < MIN_TOP_UP || finalAmount > MAX_TOP_UP) return;
     setTopping(true);
     setTopError('');
     setTopSuccess(false);
@@ -227,8 +235,8 @@ const Wallet = () => {
     return (
       <div className="wallet-not-found">
         <FaWallet className="wallet-nf-icon" />
-        <h2>Sign in to view your wallet</h2>
-        <p>Track your balance and transactions in one place.</p>
+        <h2>{tr('Sign in to view your wallet')}</h2>
+        <p>{tr('Track your balance and transactions in one place.')}</p>
       </div>
     );
   }
@@ -239,8 +247,8 @@ const Wallet = () => {
 
         {/* ── Header ── */}
         <div className="wallet-header">
-          <h1 className="wallet-title"><FaWallet /> My Wallet</h1>
-          <p className="wallet-subtitle">Manage your balance and payment methods</p>
+          <h1 className="wallet-title"><FaWallet /> {tr('My Wallet')}</h1>
+          <p className="wallet-subtitle">{tr('Manage your balance and payment methods')}</p>
         </div>
 
         <div className="wallet-content">
@@ -249,7 +257,7 @@ const Wallet = () => {
           <div className="balance-card">
             <div className="balance-card__shine" aria-hidden="true" />
             <div className="balance-info">
-              <p className="balance-label">Current Balance</p>
+              <p className="balance-label">{tr('Current Balance')}</p>
               <div className="balance-amount">
                 {walletLoading ? (
                   <span className="balance-loading"><FaSpinner className="spin-icon" /></span>
@@ -263,7 +271,7 @@ const Wallet = () => {
                 )}
               </div>
               <p className="balance-subtitle">
-                {currency} · Available for purchases &amp; rentals
+                {currency} · {tr('Available for purchases & rentals')}
               </p>
               {!walletLoading && !walletError && explanationMessage && (
                 <div className={`balance-explanation ${balance < 0 ? 'balance-explanation--negative' : ''}`}>
@@ -283,8 +291,8 @@ const Wallet = () => {
           {/* ── Wallet error ── */}
           {walletError && !walletLoading && (
             <div className="wallet-fetch-error">
-              <FaExclamationTriangle /> {walletError}
-              <button className="btn btn-ghost btn-small" onClick={fetchWallet}>Retry</button>
+              <FaExclamationTriangle /> {tr(walletError)}
+              <button className="btn btn-ghost btn-small" onClick={fetchWallet}>{tr('Retry')}</button>
             </div>
           )}
 
@@ -293,32 +301,32 @@ const Wallet = () => {
             <div className="quick-stats">
               {['Total Topped Up', 'Total Spent', 'Transactions'].map((label) => (
                 <div className="stat-card" key={label}>
-                  <span className="stat-label">{label}</span>
+                  <span className="stat-label">{tr(label)}</span>
                   <span className="stat-value stat-value--neutral"><FaSpinner className="spin-icon" /></span>
                 </div>
               ))}
             </div>
           ) : summaryError ? (
             <div className="wallet-fetch-error">
-              <FaExclamationTriangle /> {summaryError}
-              <button className="btn btn-ghost btn-small" onClick={fetchSummary}>Retry</button>
+              <FaExclamationTriangle /> {tr(summaryError)}
+              <button className="btn btn-ghost btn-small" onClick={fetchSummary}>{tr('Retry')}</button>
             </div>
           ) : (
             <div className="quick-stats">
               <div className="stat-card">
-                <span className="stat-label">Total Topped Up</span>
+                <span className="stat-label">{tr('Total Topped Up')}</span>
                 <span className="stat-value stat-value--green">
                   {totalToppedUp !== null ? `$${totalToppedUp.toFixed(2)}` : '—'}
                 </span>
               </div>
               <div className="stat-card">
-                <span className="stat-label">Total Spent</span>
+                <span className="stat-label">{tr('Total Spent')}</span>
                 <span className="stat-value stat-value--red">
                   {totalSpent !== null ? `$${totalSpent.toFixed(2)}` : '—'}
                 </span>
               </div>
               <div className="stat-card">
-                <span className="stat-label">Transactions</span>
+                <span className="stat-label">{tr('Transactions')}</span>
                 <span className="stat-value stat-value--neutral">
                   {transactionCount !== null ? transactionCount : '—'}
                 </span>
@@ -328,7 +336,7 @@ const Wallet = () => {
 
           {/* ── Top Up ── */}
           <div className="wallet-card">
-            <h3 className="section-title">Top Up Wallet</h3>
+            <h3 className="section-title">{tr('Top Up Wallet')}</h3>
 
             <div className="top-up-options">
               {topUpOptions.map((amt) => (
@@ -343,23 +351,32 @@ const Wallet = () => {
             </div>
 
             <div className="custom-amount">
-              <label htmlFor="customAmount">Or enter a custom amount</label>
-              <div className="amount-input">
+              <label htmlFor="customAmount">{tr('Or enter a custom amount')}</label>
+              <div className={`amount-input ${amountTooHigh || amountTooLow ? 'amount-input--invalid' : ''}`}>
                 <span className="currency-symbol">$</span>
                 <input
                   type="number"
                   id="customAmount"
                   placeholder="0.00"
                   value={customValue}
-                  onChange={(e) => setCustomValue(e.target.value)}
-                  min="1"
-                  max="1000"
+                  onChange={(e) => { setCustomValue(e.target.value); setTopError(''); }}
+                  min={MIN_TOP_UP}
+                  max={MAX_TOP_UP}
+                  aria-describedby="customAmount-hint"
+                  aria-invalid={amountTooHigh || amountTooLow}
                 />
               </div>
+              <p id="customAmount-hint" className={`amount-hint ${amountTooHigh || amountTooLow ? 'amount-hint--error' : ''}`}>
+                {amountTooHigh
+                  ? tr('The maximum top-up is {{max}}. Enter a smaller amount.', { max: `$${MAX_TOP_UP.toLocaleString('en-US')}` })
+                  : amountTooLow
+                    ? tr('The minimum top-up is {{min}}.', { min: `$${MIN_TOP_UP}` })
+                    : tr('From {{min}} up to {{max}} per top-up.', { min: `$${MIN_TOP_UP}`, max: `$${MAX_TOP_UP.toLocaleString('en-US')}` })}
+              </p>
             </div>
 
             <div className="payment-methods">
-              <h4 className="pm-label">Payment Provider</h4>
+              <h4 className="pm-label">{tr('Payment Provider')}</h4>
               <div className="method-options">
                 {paymentProviders.map((provider) => (
                   <label
@@ -381,7 +398,7 @@ const Wallet = () => {
             </div>
 
             <div className="payment-methods" style={{ marginTop: '20px' }}>
-              <h4 className="pm-label">Payment Method</h4>
+              <h4 className="pm-label">{tr('Payment Method')}</h4>
               <div className="method-options">
                 {paymentMethods.map((method) => {
                   const Icon = method.icon;
@@ -398,7 +415,7 @@ const Wallet = () => {
                         onChange={(e) => setSelectedMethod(e.target.value)}
                       />
                       <Icon className="method-icon" />
-                      <span className="method-name">{method.name}</span>
+                      <span className="method-name">{tr(method.name)}</span>
                       {selectedMethod === method.id && <FaCheckCircle className="method-check" />}
                     </label>
                   );
@@ -414,32 +431,32 @@ const Wallet = () => {
 
             {topError && (
               <div className="topup-error">
-                <FaExclamationTriangle /> {topError}
+                <FaExclamationTriangle /> {tr(topError)}
               </div>
             )}
 
             <button
               className="btn btn-primary topup-btn"
               onClick={handleTopUp}
-              disabled={topping || !finalAmount || finalAmount < 1}
+              disabled={topping || !finalAmount || finalAmount < MIN_TOP_UP || amountTooHigh}
             >
               {topping ? (
-                <><FaSpinner className="btn-spin" /> Processing…</>
+                <><FaSpinner className="btn-spin" /> {tr('Processing…')}</>
               ) : (
-                <><FaPlus /> Add ${(finalAmount || 0).toFixed(2)} to Wallet</>
+                <><FaPlus /> {tr('Add {{amount}} to Wallet', { amount: `$${(finalAmount || 0).toFixed(2)}` })}</>
               )}
             </button>
 
-            <p className="topup-note"><FaShieldAlt /> Secured with 256-bit encryption</p>
+            <p className="topup-note"><FaShieldAlt /> {tr('Secured with 256-bit encryption')}</p>
           </div>
 
           {/* ── Transactions ── */}
           <div className="wallet-card">
-            <h3 className="section-title">Recent Transactions</h3>
+            <h3 className="section-title">{tr('Recent Transactions')}</h3>
             {walletLoading ? (
-              <div className="tx-loading"><FaSpinner className="spin-icon" /> Loading transactions…</div>
+              <div className="tx-loading"><FaSpinner className="spin-icon" /> {tr('Loading transactions…')}</div>
             ) : transactions.length === 0 ? (
-              <p className="tx-empty">No transactions yet. Top up to get started.</p>
+              <p className="tx-empty">{tr('No transactions yet. Top up to get started.')}</p>
             ) : (
               <div className="transaction-list">
                 {transactions.map((tx, idx) => {
@@ -470,7 +487,7 @@ const Wallet = () => {
               <>
                 {txLoadMoreError && (
                   <div className="tx-load-more-error">
-                    <FaExclamationTriangle /> {txLoadMoreError}
+                    <FaExclamationTriangle /> {tr(txLoadMoreError)}
                   </div>
                 )}
                 {txHasMore && (
@@ -480,8 +497,8 @@ const Wallet = () => {
                     disabled={txLoadingMore}
                   >
                     {txLoadingMore
-                      ? <><FaSpinner className="btn-spin" /> Loading…</>
-                      : 'Load more transactions'}
+                      ? <><FaSpinner className="btn-spin" /> {tr('Loading…')}</>
+                      : tr('Load more transactions')}
                   </button>
                 )}
               </>
@@ -490,24 +507,24 @@ const Wallet = () => {
 
           {/* ── How It Works ── */}
           <div className="wallet-card">
-            <h3 className="section-title">How It Works</h3>
+            <h3 className="section-title">{tr('How It Works')}</h3>
             <div className="info-grid">
               <div className="info-item">
                 <div className="info-icon info-icon--orange"><FaBolt /></div>
-                <h4>Flexible Spending</h4>
-                <p>Pay only for content you watch — no forced subscriptions.</p>
+                <h4>{tr('Flexible Spending')}</h4>
+                <p>{tr('Pay only for content you watch — no forced subscriptions.')}</p>
               </div>
               <div className="info-item">
                 <div className="info-icon info-icon--blue"><FaCreditCard /></div>
-                <h4>Multiple Methods</h4>
+                <h4>{tr('Multiple Methods')}</h4>
                 <p>{ENABLE_MOBILE_MONEY
-                  ? 'Top up via credit card, debit card, or mobile money.'
-                  : 'Top up securely with your credit or debit card.'}</p>
+                  ? tr('Top up via credit card, debit card, or mobile money.')
+                  : tr('Top up securely with your credit or debit card.')}</p>
               </div>
               <div className="info-item">
                 <div className="info-icon info-icon--green"><FaShieldAlt /></div>
-                <h4>Secure &amp; Safe</h4>
-                <p>Your payment info is encrypted end-to-end at all times.</p>
+                <h4>{tr('Secure & Safe')}</h4>
+                <p>{tr('Your payment info is encrypted end-to-end at all times.')}</p>
               </div>
             </div>
           </div>

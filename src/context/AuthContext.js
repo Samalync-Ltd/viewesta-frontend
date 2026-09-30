@@ -49,6 +49,10 @@ export const AuthProvider = ({ children }) => {
       const u = {
         ...rawUser,
         username: rawUser.username || rawUser.user_name || '',
+        // The API has no `name`; build it from first/last name so greetings and
+        // the header show the person (and follow profile edits).
+        name: [rawUser.first_name, rawUser.last_name].filter(Boolean).join(' ').trim()
+          || rawUser.username || rawUser.user_name || rawUser.name || '',
         role: rawUser.user_role || rawUser.role || rawUser.user_type || 'viewer',
         avatar: rawUser.avatar_url || rawUser.avatar || rawUser.profile_image || rawUser.profile_image_url || '',
         purchasedMovies: rawUser.purchasedMovies || [],
