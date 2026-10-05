@@ -35,6 +35,10 @@ export default function FilmmakerEarnings() {
         getPayouts(),
       ]);
 
+      // The service calls return null on failure; with nothing at all, say so rather than show empty cards.
+      if (!contractData && !balanceData && !(payoutsData || []).length && !(moviesData || []).length) {
+        throw new Error('no earnings data');
+      }
       setMovies(moviesData || []);
       setContract(contractData);
       setBalance(balanceData);

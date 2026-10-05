@@ -55,8 +55,8 @@ const GENRE_BG = {
 
 const Genre = () => {
   const { name } = useParams();
-  const { getMoviesByGenre, loading } = useMovies();
-  const { t } = useLocale();
+  const { getMoviesByGenre, seriesList, loading } = useMovies();
+  const { t, tx } = useLocale();
   const { categories } = useCategories();
 
   const slug = (name || '').toLowerCase();
@@ -66,6 +66,11 @@ const Genre = () => {
   const category = categories.find((c) => c.slug === slug);
   const actualGenre = category?.name || (slug ? slug.charAt(0).toUpperCase() + slug.slice(1) : '');
   const genreMovies = actualGenre ? getMoviesByGenre(actualGenre) : [];
+  // Series carry their category as a genre too, so they belong on the same page.
+  const genreSeries = actualGenre
+    ? seriesList.filter((s) => (s.genres || []).some((g) => String(g).toLowerCase() === actualGenre.toLowerCase()))
+    : [];
+  const titleCount = genreMovies.length + genreSeries.length;
   const Icon = GENRE_ICONS[actualGenre] || FaVideo;
   const bg = GENRE_BG[actualGenre] || '';
   const localizedName = actualGenre ? genreLabel(t, actualGenre) : 'Genre';
@@ -85,7 +90,7 @@ const Genre = () => {
             <h1 className="genre-hero-title">{localizedName}</h1>
             {!loading && (
               <p className="genre-hero-count">
-                {genreMovies.length} {genreMovies.length === 1 ? 'title' : 'titles'}
+                {tx(titleCount === 1 ? '1 title' : '{{n}} titles', { n: titleCount })}
               </p>
             )}
           </div>
@@ -102,8 +107,16 @@ const Genre = () => {
             showViewAll={false}
           />
         )}
+        {!loading && genreSeries.length > 0 && (
+          <CategoryRow
+            title={`${localizedName} ${tx('Series')}`}
+            movies={genreSeries}
+            isTrending={false}
+            showViewAll={false}
+          />
+        )}
         {loading && <div className="genre-loading">Loading...</div>}
-        {!loading && genreMovies.length === 0 && (
+        {!loading && titleCount === 0 && (
           <div className="genre-empty">
             <Icon className="genre-empty-icon" />
             <p>{t('noMoviesForGenre')} <strong>{localizedName}</strong></p>

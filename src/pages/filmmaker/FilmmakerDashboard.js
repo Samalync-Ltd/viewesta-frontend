@@ -3,20 +3,48 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocaleContext';
 import { getFilmmakerMovies } from '../../services/movieService';
+import { getContract, getPayoutBalance } from '../../services/earningsService';
+import { summarizeContract } from '../../utils/contract';
 import { FaFilm, FaDollarSign, FaPlus, FaFileContract, FaCheckCircle, FaExclamationCircle, FaTimesCircle } from 'react-icons/fa';
 import './FilmmakerDashboard.css';
 
 /**
  * Filmmaker dashboard — integrated with translations and updated states.
  */
+// "2 years", "6 months" … from the two contract dates; '—' when either is missing.
+function durationLabel(start, end) {
+  if (!start || !end) return '—';
+  const months = Math.round((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24 * 30.44));
+  if (!Number.isFinite(months) || months <= 0) return '—';
+  if (months % 12 === 0) return `${months / 12} ${months === 12 ? 'year' : 'years'}`;
+  return `${months} ${months === 1 ? 'month' : 'months'}`;
+}
+
 function FilmmakerDashboard() {
   const { user } = useAuth();
+  const userId = user?.id;
   const { t } = useLocale();
 
   const [movieCount, setMovieCount] = useState(0);
   const [loadingMovies, setLoadingMovies] = useState(true);
 
-  const earnings = user?.earnings || { total: 0, pending: 0, currency: 'USD' };
+  // Contract and earnings come from their own endpoints (the profile payload has neither).
+  const [contractRaw, setContractRaw] = useState(undefined); // undefined = loading
+  const [balance, setBalance] = useState(null);
+  useEffect(() => {
+    if (!userId) return undefined;
+    let active = true;
+    Promise.all([getContract(), getPayoutBalance()]).then(([c, b]) => {
+      if (!active) return;
+      setContractRaw(c);
+      setBalance(b);
+    });
+    return () => { active = false; };
+  }, [userId]);
+  const earnings = {
+    total: Number(balance?.total_earnings ?? balance?.balance ?? 0),
+    currency: balance?.currency || 'USD',
+  };
 
   useEffect(() => {
     const fetchMovies = async () => {
@@ -31,17 +59,13 @@ function FilmmakerDashboard() {
       }
     };
 
-    if (user) {
+    if (userId) {
       fetchMovies();
     }
-  }, [user]);
+  }, [userId]);
 
   // Try to use contract data from the backend user profile, otherwise show 'No Contract'
-  const contract = user?.contract || {
-    startDate: null,
-    endDate: null,
-    status: 'none', // valid, terminated, expired, none
-  };
+  const contract = summarizeContract(contractRaw);
 
   const getContractStatus = () => {
     switch (contract.status) {
@@ -86,8 +110,20 @@ function FilmmakerDashboard() {
           </div>
           <div className="date-item">
              <span className="date-label">{t('contractDuration') || 'Duration'}</span>
-             <span className="date-value">{contract.startDate && contract.endDate ? '1 Year' : '—'}</span>
+             <span className="date-value">{durationLabel(contract.startDate, contract.endDate)}</span>
           </div>
+          {contract.split !== null && (
+            <div className="date-item">
+              <span className="date-label">Your revenue share</span>
+              <span className="date-value">{Number(contract.split)}%</span>
+            </div>
+          )}
+          {contract.minimumGuarantee !== null && (
+            <div className="date-item">
+              <span className="date-label">Minimum guarantee</span>
+              <span className="date-value">{earnings.currency} {Number(contract.minimumGuarantee).toFixed(2)}</span>
+            </div>
+          )}
         </div>
       </div>
 

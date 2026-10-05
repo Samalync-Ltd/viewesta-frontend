@@ -11,6 +11,7 @@
 
 import client from '../api/client';
 import { qualityRank } from '../utils/quality';
+import { listFromHistoryResponse } from '../utils/watchHistory';
 
 // ─── Video Files ──────────────────────────────────────────────────────────────
 
@@ -126,7 +127,7 @@ export function buildSourcesMap(videoFiles = []) {
  * Pick the source URL to start with from a sources map.
  * With `preferred` (the viewer's quality): that quality if present, else the
  * highest one below it, else the lowest available. Without it:
- * 1080p → 720p → 480p → 4K → 360p → first available.
+ * 720p → 1080p → 480p → 4K → 360p → first available.
  */
 export function pickBestSource(sourcesMap = {}, preferred = null) {
   const keys = Object.keys(sourcesMap);
@@ -138,7 +139,7 @@ export function pickBestSource(sourcesMap = {}, preferred = null) {
     if (below) return sourcesMap[below];
     if (ranked.length) return sourcesMap[ranked[ranked.length - 1]];
   }
-  for (const q of ['1080p', '720p', '480p', '4K', '360p']) {
+  for (const q of ['720p', '1080p', '480p', '4K', '360p']) {
     if (sourcesMap[q]) return sourcesMap[q];
   }
   return sourcesMap[keys[0]];
@@ -212,6 +213,38 @@ export async function updateMovieProgress(movieId, data) {
   } catch (err) {
     // Silently ignore — progress tracking is non-critical
     console.warn(`updateMovieProgress(${movieId}):`, err?.message);
+  }
+}
+
+/**
+ * Update watch progress for an episode (puts the show in the viewer's history).
+ * PUT /watch-history/episodes/:episodeId — same body as for movies.
+ */
+export async function updateEpisodeProgress(episodeId, data) {
+  if (!episodeId) return;
+  try {
+    const response = await client.put(`/watch-history/episodes/${episodeId}`, {
+      watch_time_seconds: data.watch_time_seconds ?? 0,
+      last_position_seconds: data.last_position_seconds ?? 0,
+      is_completed: data.is_completed ?? false,
+    });
+    return response.data;
+  } catch (err) {
+    console.warn(`updateEpisodeProgress(${episodeId}):`, err?.message);
+  }
+}
+
+/**
+ * The viewer's watch history (movies and shows), most recent first.
+ * GET /watch-history  → entries; see utils/watchHistory for the accepted shapes.
+ */
+export async function getWatchHistory() {
+  try {
+    const response = await client.get('/watch-history', { params: { limit: 50 } });
+    return listFromHistoryResponse(response.data?.data ?? response.data);
+  } catch (err) {
+    console.warn('getWatchHistory:', err?.message);
+    return [];
   }
 }
 

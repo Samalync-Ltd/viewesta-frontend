@@ -1,3 +1,5 @@
+import { API_ORIGIN } from '../config/api';
+
 const DEFAULT_PRICE = {
   '480p': 2.99,
   '720p': 4.99,
@@ -24,7 +26,7 @@ export const normalizeMediaUrl = (url) => {
     return strUrl;
   }
   if (strUrl.startsWith('/')) {
-    return process.env.REACT_APP_API_BASE ? `${process.env.REACT_APP_API_BASE}${strUrl}` : strUrl;
+    return `${API_ORIGIN}${strUrl}`;
   }
   return `https://viewesta-movies.s3.us-east-1.amazonaws.com/${strUrl}`;
 };

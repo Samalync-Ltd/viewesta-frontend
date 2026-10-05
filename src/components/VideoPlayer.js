@@ -4,6 +4,7 @@ import {
   FaExpand, FaCompress, FaClosedCaptioning, FaSpinner
 } from 'react-icons/fa';
 import { MdReplay10, MdForward10, MdPictureInPicture } from 'react-icons/md';
+import { qualityRank } from '../utils/quality';
 import './VideoPlayer.css';
 
 import Hls from 'hls.js';
@@ -63,7 +64,8 @@ const formatTime = (seconds) => {
 const VideoPlayer = ({
   src,
   sources = {},
-  initialQuality = '1080p',
+  // 720p buffers far less than 1080p on ordinary connections.
+  initialQuality = '720p',
   title = '',
   poster = '',
   onEnded,
@@ -84,6 +86,8 @@ const VideoPlayer = ({
   const progressSaveRef = useRef(null);
 
   const [quality, setQuality] = useState(initialQuality);
+  // The parent's pick changes once the plan is known (e.g. capped to 480p).
+  useEffect(() => { setQuality(initialQuality); }, [initialQuality]);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [error, setError] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
@@ -125,7 +129,10 @@ const VideoPlayer = ({
   }, []);
 
   // ─── Resolve active source URL ────────────────────────────────────────────
-  const availableQualities = Object.keys(sources).length > 0 ? Object.keys(sources) : (src ? ['default'] : []);
+  // Highest first; unknown labels keep their order at the end.
+  const availableQualities = Object.keys(sources).length > 0
+    ? Object.keys(sources).sort((a, b) => qualityRank(b) - qualityRank(a))
+    : (src ? ['default'] : []);
   const activeSrc = (() => {
     if (Object.keys(sources).length > 0) {
       // `src` is the parent's pick for this viewer (their quality, or the best
@@ -135,6 +142,9 @@ const VideoPlayer = ({
     return src || '';
   })();
   const hasVideoElement = Boolean(activeSrc) && !isEmbedUrl(activeSrc);
+  // The quality actually playing: the menu must not highlight a choice the
+  // viewer's plan or the title's files can't deliver.
+  const playingQuality = Object.keys(sources).find((q) => sources[q] === activeSrc) || quality;
 
   // ─── HLS / native source setup ────────────────────────────────────────────
   const attachSource = useCallback((url) => {
@@ -304,8 +314,12 @@ const VideoPlayer = ({
       }
     };
     const onVolume = () => { setVolume(video.volume); setIsMuted(video.muted); };
-    const onWaiting = () => setIsLoading(true);
-    const onCanPlay = () => setIsLoading(false);
+    // Show the spinner only for a real stall: the browser fires `waiting` for
+    // every brief gap, and flashing the overlay each time reads as constant buffering.
+    let waitTimer = null;
+    const onWaiting = () => { clearTimeout(waitTimer); waitTimer = setTimeout(() => setIsLoading(true), 500); };
+    const onCanPlay = () => { clearTimeout(waitTimer); setIsLoading(false); };
+    const onPlaying = () => { clearTimeout(waitTimer); setIsLoading(false); };
     const onEnded_ = () => {
       setIsPlaying(false);
       if (onEnded) onEnded();
@@ -334,10 +348,13 @@ const VideoPlayer = ({
     video.addEventListener('volumechange', onVolume);
     video.addEventListener('waiting', onWaiting);
     video.addEventListener('canplay', onCanPlay);
+    video.addEventListener('playing', onPlaying);
     video.addEventListener('ended', onEnded_);
     video.addEventListener('error', onError_);
 
     return () => {
+      clearTimeout(waitTimer);
+      video.removeEventListener('playing', onPlaying);
       video.removeEventListener('timeupdate', onTimeUpdate);
       video.removeEventListener('loadedmetadata', onLoaded);
       video.removeEventListener('play', onPlay);
@@ -498,6 +515,7 @@ const VideoPlayer = ({
             ref={videoRef}
             className="video"
             playsInline
+            preload="auto"
             poster={poster}
             onContextMenu={(e) => e.preventDefault()}
             controlsList="nodownload"
@@ -589,7 +607,8 @@ const VideoPlayer = ({
                           {availableQualities.map((q) => (
                             <button
                               key={q}
-                              className={`quality-option${quality === q ? ' active' : ''}`}
+                              className={`quality-option${playingQuality === q ? ' active' : ''}`}
+                              aria-pressed={playingQuality === q}
                               onClick={() => { setQuality(q); setIsSettingsOpen(false); }}
                             >
                               {q}

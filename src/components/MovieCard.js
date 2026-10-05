@@ -25,8 +25,8 @@ const MovieCard = ({ movie, showWatchlist = true, isTrending = false }) => {
     e.preventDefault();
     e.stopPropagation();
     if (!user) return;
-    if (isInWatchlist) removeFromWatchlist(movie.id);
-    else addToWatchlist(movie.id);
+    if (isInWatchlist) removeFromWatchlist(movie.id, movie.type);
+    else addToWatchlist(movie.id, movie.type);
   };
 
   const handleTrailerPlay = (e) => {

@@ -4,11 +4,9 @@
  */
 
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
-const apiBase = process.env.REACT_APP_API_BASE || 'https://api.viewesta.com';
-const apiVersion = process.env.REACT_APP_API_VERSION || 'v1';
-const normalizedApiBase = apiBase.trim().replace(/\/$/, '');
-const baseURL = `${normalizedApiBase}/api/${apiVersion}`;
+const baseURL = API_BASE_URL;
 
 const client = axios.create({
   baseURL,

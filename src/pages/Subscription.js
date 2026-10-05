@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   FaCheck, FaCrown, FaStar, FaFilm, FaDownload,
   FaBan, FaHeadset, FaShieldAlt, FaBolt, FaGem, FaSpinner,
@@ -38,6 +38,7 @@ const trustItems = [
 
 
 const Subscription = () => {
+  const [planMode, setPlanMode] = useState('subscription'); // 'subscription' | 'ppv'
   const { tx } = useLocale();
   const { user, refreshProfile } = useAuth();
   const location = useLocation();
@@ -287,8 +288,42 @@ const Subscription = () => {
           </div>
         )}
 
+        {/* ── Subscription | Pay Per View ── */}
+        <div className="plan-mode-tabs" role="tablist" aria-label={tx('How to watch')}>
+          <button
+            type="button" role="tab" aria-selected={planMode === 'subscription'}
+            className={`plan-mode-tab ${planMode === 'subscription' ? 'active' : ''}`}
+            onClick={() => setPlanMode('subscription')}
+          >
+            {tx('Subscription')}
+          </button>
+          <button
+            type="button" role="tab" aria-selected={planMode === 'ppv'}
+            className={`plan-mode-tab ${planMode === 'ppv' ? 'active' : ''}`}
+            onClick={() => setPlanMode('ppv')}
+          >
+            {tx('Pay Per View')}
+          </button>
+        </div>
+
+        {planMode === 'ppv' && (
+          <div className="ppv-panel" role="tabpanel">
+            <h2 className="ppv-title">{tx('Pay once, watch one title')}</h2>
+            <p className="ppv-lead">{tx('No subscription needed. Buy only the movies you want to watch.')}</p>
+            <ol className="ppv-steps">
+              <li>{tx('Open a movie and choose Watch.')}</li>
+              <li>{tx('Pick a quality. The price for each quality is shown on the movie.')}</li>
+              <li>{tx('Pay from your wallet or by card, then watch right away.')}</li>
+            </ol>
+            <div className="ppv-actions">
+              <Link to="/movies" className="btn btn-primary">{tx('Browse movies')}</Link>
+              <Link to="/wallet" className="btn btn-outline">{tx('Top up wallet')}</Link>
+            </div>
+          </div>
+        )}
+
         {/* ── Plan Cards ── */}
-        {plansLoading ? (
+        {planMode !== 'subscription' ? null : plansLoading ? (
           <div className="sub-loading">
             <FaSpinner className="sub-spinner" /> Loading plans…
           </div>

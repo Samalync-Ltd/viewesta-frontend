@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   FaFilm, FaUsers, FaEye, FaCheck, FaArrowLeft, FaArrowRight,
@@ -7,7 +7,6 @@ import {
 } from 'react-icons/fa';
 import { MEDIA_TYPES, SHORT_FILM_THRESHOLD_MINUTES } from '../../types';
 import { useLocale } from '../../context/LocaleContext';
-import client from '../../api/client';
 import { validateUploadForm } from '../../utils/uploadValidation';
 import uploadService from '../../services/uploadService';
 import { createMovie, addMovieVideoFile } from '../../services/movieService';
@@ -16,12 +15,9 @@ import { createShow, createSeason, createEpisode, addEpisodeVideoFile } from '..
 import MediaUploadZone from '../../components/MediaUploadZone';
 import EpisodeBuilder from '../../components/EpisodeBuilder';
 import AgeRatingBadge from '../../components/AgeRatingBadge';
+import useCategories from '../../hooks/useCategories';
+import { friendlyApiError } from '../../utils/apiErrors';
 import './FilmmakerUpload.css';
-
-const GENRES = [
-  'Drama', 'Action', 'Comedy', 'Romance', 'Thriller', 'Documentary',
-  'Animation', 'Horror', 'Sci-Fi', 'Adventure', 'Historical', 'Fantasy',
-];
 
 const AGE_RATINGS = {
   'G':    { description: 'General audiences — all ages admitted.' },
@@ -97,27 +93,13 @@ const FilmmakerUpload = () => {
   const warnings = []; // TODO: populate from form validation warnings if needed
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [uploadStatus, setUploadStatus] = useState('');
+  // What has already been created for the series being submitted (see handleSubmit).
+  const seriesProgressRef = useRef({ seriesId: null, seasons: {}, episodes: {} });
   const [success, setSuccess] = useState(false);
-  const [categories, setCategories] = useState([]);
-
-  // Fetch categories from backend to ensure valid UUIDs are used
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const response = await client.get('/categories');
-        if (response.data?.success && response.data?.data) {
-          // Response structure is often { success: true, data: { categories: [...] } }
-          const fetchedCats = response.data.data.categories || response.data.data;
-          if (Array.isArray(fetchedCats)) {
-            setCategories(fetchedCats);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to fetch categories:', err);
-      }
-    };
-    fetchCategories();
-  }, []);
+  // The genres are the platform's own categories (GET /categories), the same
+  // list the viewer's Genres page uses, with the ids the backend expects.
+  const { categories, loading: genresLoading, error: genresError, reload: reloadGenres } = useCategories();
 
   const { t } = useLocale();
 
@@ -130,13 +112,9 @@ const FilmmakerUpload = () => {
     });
   }, []);
 
+  // A title has one category on the platform, so picking a genre replaces the last pick.
   const toggleGenre = (g) => {
-    setForm((prev) => ({
-      ...prev,
-      genres: prev.genres.includes(g)
-        ? prev.genres.filter((x) => x !== g)
-        : [...prev.genres, g],
-    }));
+    setForm((prev) => ({ ...prev, genres: prev.genres[0] === g ? [] : [g] }));
   };
 
   const addCastMember = () =>
@@ -209,6 +187,7 @@ const FilmmakerUpload = () => {
     // Final check
     setSubmitting(true);
     setSubmitError('');
+    let currentStep = ''; // what was being done, for the error message
 
     try {
       const isDirect = form.mode === MODES.DIRECT;
@@ -296,49 +275,78 @@ const FilmmakerUpload = () => {
            seriesFormData.append('trailer', form.trailer_file);
          }
 
-         const createdShow = await createShow(seriesFormData);
-         const seriesId =
-           createdShow?.data?.series?.id ||
-           createdShow?.data?.show?.id ||
-           createdShow?.data?.id ||
-           createdShow?.id;
+         // Progress is remembered across attempts: if a later step fails, pressing
+         // Submit again continues from there instead of creating a second series.
+         const progress = seriesProgressRef.current;
+         const percent = (e) => (e?.total ? Math.round((e.loaded / e.total) * 100) : null);
+         let seriesId = progress.seriesId;
+         if (!seriesId) {
+           currentStep = 'creating the series';
+           setUploadStatus('Creating the series and uploading its artwork…');
+           const createdShow = await createShow(seriesFormData, (e) => {
+             const p = percent(e);
+             setUploadStatus(`Uploading the series artwork${p === null ? '' : ` ${p}%`}…`);
+           });
+           seriesId =
+             createdShow?.data?.series?.id ||
+             createdShow?.data?.show?.id ||
+             createdShow?.data?.id ||
+             createdShow?.id;
+           if (!seriesId) throw new Error('Failed to get Series ID from response.');
+           progress.seriesId = seriesId;
+         }
 
-         if (!seriesId) throw new Error("Failed to get Series ID from response.");
-
-         // ── Upload Seasons and Episodes ──────
          for (const season of form.seasons) {
-           const seasonPayload = {
-             season_number: season.season_number,
-             title: season.title || `Season ${season.season_number}`,
-             release_date: season.year ? `${season.year}-01-01` : seriesReleaseDate,
-           };
-           const createdSeason = await createSeason(seriesId, seasonPayload);
-           const seasonId = createdSeason?.data?.season?.id || createdSeason?.data?.id || createdSeason?.id;
-
-           if (!seasonId) throw new Error("Failed to get Season ID from response.");
+           let seasonId = progress.seasons[season.season_number];
+           if (!seasonId) {
+             currentStep = `season ${season.season_number}`;
+             setUploadStatus(`Creating season ${season.season_number}…`);
+             const createdSeason = await createSeason(seriesId, {
+               season_number: season.season_number,
+               title: season.title || `Season ${season.season_number}`,
+               release_date: season.year ? `${season.year}-01-01` : seriesReleaseDate,
+             });
+             seasonId = createdSeason?.data?.season?.id || createdSeason?.data?.id || createdSeason?.id;
+             if (!seasonId) throw new Error('Failed to get Season ID from response.');
+             progress.seasons[season.season_number] = seasonId;
+           }
 
            for (const episode of season.episodes) {
-             const epPayload = {
-               episode_number: episode.episode_number,
-               title: episode.title || `Episode ${episode.episode_number}`,
-               description: episode.description || '',
-               duration_minutes: Number.parseInt(episode.duration, 10) || 45,
-             };
-             const createdEp = await createEpisode(seasonId, epPayload);
-             const episodeId = createdEp?.data?.episode?.id || createdEp?.data?.id || createdEp?.id;
-             
-             if (!episodeId) throw new Error("Failed to get Episode ID from response.");
+             const key = `${season.season_number}-${episode.episode_number}`;
+             const done = progress.episodes[key] || (progress.episodes[key] = { id: null, videoDone: false });
+             const label = `season ${season.season_number}, episode ${episode.episode_number}`;
 
-             if (isDirect && episode.video_file) {
+             if (!done.id) {
+               currentStep = label;
+               setUploadStatus(`Creating ${label}…`);
+               const createdEp = await createEpisode(seasonId, {
+                 episode_number: episode.episode_number,
+                 title: episode.title || `Episode ${episode.episode_number}`,
+                 description: episode.description || '',
+                 duration_minutes: Number.parseInt(episode.duration, 10) || 45,
+               });
+               done.id = createdEp?.data?.episode?.id || createdEp?.data?.id || createdEp?.id;
+               if (!done.id) throw new Error('Failed to get Episode ID from response.');
+             }
+
+             if (isDirect && episode.video_file && !done.videoDone) {
+               currentStep = `the video for ${label}`;
+               setUploadStatus(`Uploading the video for ${label}…`);
                const formData = new FormData();
                formData.append('video', episode.video_file);
                formData.append('quality', '1080p');
-               await addEpisodeVideoFile(episodeId, formData);
+               await addEpisodeVideoFile(done.id, formData, (e) => {
+                 const p = percent(e);
+                 setUploadStatus(`Uploading the video for ${label}${p === null ? '' : ` ${p}%`}…`);
+               });
+               done.videoDone = true;
              }
            }
          }
 
-         // ── Submit series for admin review (triggers admin notification) ──────
+         currentStep = 'submitting for review';
+         setUploadStatus('Submitting for review…');
+
          if (seriesId) {
            await submitForReview(seriesId, true).catch((err) =>
              console.warn('[FilmmakerUpload] submitForReview (series) failed silently:', err?.message)
@@ -421,11 +429,19 @@ const FilmmakerUpload = () => {
          }
       }
       
+      seriesProgressRef.current = { seriesId: null, seasons: {}, episodes: {} };
       setSuccess(true);
     } catch (err) {
       console.error('Upload Error:', err);
-      setSubmitError(err.response?.data?.message || err.message || 'Submission failed.');
+      // Errors from the API (or a timeout) get a plain-language reason; errors we
+      // threw ourselves already are.
+      const reason = err.response || err.code ? friendlyApiError(err, err.message || 'Submission failed.') : (err.message || 'Submission failed.');
+      const partial = seriesProgressRef.current.seriesId;
+      setSubmitError(partial
+        ? `"${form.title}" was created, but the upload stopped${currentStep ? ` while ${currentStep}` : ''}: ${reason} Press Submit again to continue where it stopped. Nothing will be created twice.`
+        : reason);
     } finally {
+      setUploadStatus('');
       setSubmitting(false);
     }
   };
@@ -664,16 +680,24 @@ const FilmmakerUpload = () => {
             <div className={`fu-field ${errors.genres ? 'has-error' : ''}`}>
               <label className="fu-label">
                 Genres <span className="fu-required">*</span>
-                <span className="fu-label-hint">(select all that apply)</span>
+                <span className="fu-label-hint">(choose one)</span>
               </label>
               <div className="fu-genre-grid">
-                {GENRES.map((g) => (
+                {genresLoading && <span className="fu-label-hint">Loading genres…</span>}
+                {!genresLoading && genresError && (
+                  <span className="fu-error">
+                    <FaExclamationTriangle /> We couldn't load the genres.{' '}
+                    <button type="button" className="btn btn-ghost btn-small" onClick={reloadGenres}>Try again</button>
+                  </span>
+                )}
+                {categories.map((c) => (
                   <button
-                    key={g} type="button"
-                    className={`fu-genre-btn ${form.genres.includes(g) ? 'active' : ''}`}
-                    onClick={() => toggleGenre(g)}
+                    key={c.id || c.slug} type="button"
+                    className={`fu-genre-btn ${form.genres.includes(c.name) ? 'active' : ''}`}
+                    onClick={() => toggleGenre(c.name)}
+                    aria-pressed={form.genres.includes(c.name)}
                   >
-                    {g}
+                    {c.name}
                   </button>
                 ))}
               </div>
@@ -904,6 +928,10 @@ const FilmmakerUpload = () => {
                 </p>
               </div>
             </div>
+
+            {submitting && uploadStatus && (
+              <p className="fu-upload-status" role="status">{uploadStatus}</p>
+            )}
 
             {submitError && (
               <p className="fu-submit-error">

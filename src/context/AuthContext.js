@@ -8,6 +8,7 @@ import { getCurrentUser, updateUserProfile, changePassword as apiChangePassword 
 import { getMySubscription } from '../services/subscriptionService.js';
 import axios from 'axios';
 import client from '../api/client';
+import { API_BASE_URL } from '../config/api';
 import { registerPushNotifications, unregisterPushNotifications } from '../services/notificationService.js';
 
 const AuthContext = createContext();
@@ -316,7 +317,7 @@ const register = async (data) => {
 
       // Bypass apiClient to prevent Content-Type: application/json overriding FormData boundaries
       const token = localStorage.getItem('viewesta_token');
-      const updateRes = await axios.put(`${process.env.REACT_APP_API_BASE || 'https://api.viewesta.com'}/api/v1/auth/profile/avatar`, formData, {
+      const updateRes = await axios.put(`${API_BASE_URL}/auth/profile/avatar`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`
           // Do NOT set Content-Type, browser will automatically set it to multipart/form-data with the correct boundary

@@ -24,6 +24,7 @@ const DEFAULT_AVATAR =
 
 export default function FilmmakerStudioProfile() {
   const { user, updateProfile, changePassword, logout, loading, uploadAvatar } = useAuth();
+  const userId = user?.id;
   const navigate = useNavigate();
   const fileRef = useRef(null);
 
@@ -57,10 +58,10 @@ export default function FilmmakerStudioProfile() {
         setLoadingCount(false);
       }
     };
-    if (user) {
+    if (userId) {
       fetchCount();
     }
-  }, [user]);
+  }, [userId]);
 
   /* ── derived values ── */
   const displayName =

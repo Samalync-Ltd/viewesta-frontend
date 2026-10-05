@@ -217,11 +217,13 @@ export async function searchSeries(query, limit = 20) {
  * requests is what lets axios/the browser compute the real multipart
  * boundary instead.
  */
-export async function createShow(payload) {
+export async function createShow(payload, onUploadProgress) {
   try {
     const isMultipart = typeof FormData !== 'undefined' && payload instanceof FormData;
+    // Poster, backdrop and trailer travel with this request, so a multipart
+    // create gets the long upload timeout rather than the 30 s default.
     const response = await client.post('/shows', payload, isMultipart
-      ? { headers: { 'Content-Type': undefined } }
+      ? { headers: { 'Content-Type': undefined }, timeout: 600000, onUploadProgress }
       : undefined);
     return response.data;
   } catch (err) {

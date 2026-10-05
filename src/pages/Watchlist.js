@@ -24,7 +24,7 @@ const Watchlist = () => {
     const fetchMovies = async () => {
       setLoading(true);
       try {
-        const movies = await watchlistService.getWatchlist();
+        const movies = await watchlistService.getFullWatchlist();
         if (isMounted) {
           setWatchlistMovies(movies);
           setError(null);
@@ -43,9 +43,9 @@ const Watchlist = () => {
     };
   }, [user]);
 
-  const handleRemove = async (movieId) => {
+  const handleRemove = async (movieId, type) => {
     setRemovingId(movieId);
-    const result = await mutateWatchlist(movieId, 'remove');
+    const result = await mutateWatchlist(movieId, 'remove', type);
     setRemovingId(null);
     if (result.success) {
       setWatchlistMovies(prev => prev.filter(m => String(m.id) !== String(movieId)));
@@ -110,7 +110,7 @@ const Watchlist = () => {
                 <MovieCard movie={movie} showWatchlist={false} />
                 <button
                   className={`wishlist-heart-btn${removingId === movie.id ? ' removing' : ''}`}
-                  onClick={() => handleRemove(movie.id)}
+                  onClick={() => handleRemove(movie.id, movie.type)}
                   disabled={removingId === movie.id}
                   title={t('removeFromWatchlist')}
                   aria-label={t('removeFromWatchlist')}

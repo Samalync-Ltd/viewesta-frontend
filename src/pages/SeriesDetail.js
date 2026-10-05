@@ -2,13 +2,13 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   FaPlay, FaHeart, FaStar, FaClock, FaCalendar,
-  FaShareAlt, FaChevronDown, FaChevronUp, FaArrowLeft, FaArrowRight,
+  FaShareAlt, FaThumbsUp, FaChevronDown, FaChevronUp, FaArrowLeft, FaArrowRight,
 } from 'react-icons/fa';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
 import * as seriesService from '../services/seriesService';
-import { getEpisodeVideoFiles, buildSourcesMap, pickBestSource, sourcesExpireAt, videoErrorMessage } from '../services/videoService';
-import { capSources, qualityRank } from '../utils/quality';
+import { updateEpisodeProgress, getEpisodeVideoFiles, buildSourcesMap, pickBestSource, sourcesExpireAt, videoErrorMessage } from '../services/videoService';
+import { capSources, clampQuality, qualityRank } from '../utils/quality';
 import usePlaybackQuality from '../hooks/usePlaybackQuality';
 import MovieCard from '../components/MovieCard';
 import CastCrewSection from '../components/CastCrewSection';
@@ -26,7 +26,7 @@ const SeriesDetail = () => {
   const location = useLocation();
   // Sign-in brings the viewer back to this page afterwards.
   const goToLogin = () => navigate('/login', { state: { from: location } });
-  const { addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating, seriesList } = useMovies();
+  const { addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating, seriesList, addToDownloads } = useMovies();
   const episodesRef = useRef(null);
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id;
@@ -214,8 +214,21 @@ const SeriesDetail = () => {
   };
 
   const handleWatchEpisode = (season, episode) => {
+    addToDownloads(seriesData.id);
     setWatchEpisode({ season, episode });
   };
+
+  // One progress save per 30-second mark of the episode being watched.
+  const lastSavedMarkRef = useRef(-1);
+  const handleEpisodeProgress = useCallback(({ currentTime, duration, percent }) => {
+    const episodeId = watchEpisode?.episode?.id;
+    if (!user || !episodeId || !duration) return;
+    const second = Math.floor(currentTime);
+    if (second <= 0 || second % 30 !== 0 || second === lastSavedMarkRef.current) return;
+    lastSavedMarkRef.current = second;
+    updateEpisodeProgress(episodeId, { watch_time_seconds: second, last_position_seconds: second, is_completed: percent >= 95 });
+  }, [user, watchEpisode]);
+  useEffect(() => { lastSavedMarkRef.current = -1; }, [watchEpisode]);
 
   const handleAutoplayNext = () => {
     const idx = getCurrentEpisodeIndex();
@@ -260,19 +273,14 @@ const SeriesDetail = () => {
     if (episodesRef.current) episodesRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
+  // The shows wishlist (GET/POST/DELETE /watchlist/shows).
   const handleWatchlistToggle = async () => {
     if (!user) { goToLogin(); return; }
-    try {
-      if (isInWatchlist) await seriesService.unsaveShow(seriesData.id);
-      else await seriesService.saveShow(seriesData.id);
-    } catch {}
-    if (isInWatchlist) {
-      const result = await removeFromWatchlist(seriesData.id);
-      if (result?.success) setIsInWatchlist(false);
-    } else {
-      const result = await addToWatchlist(seriesData.id);
-      if (result?.success) setIsInWatchlist(true);
-    }
+    const result = isInWatchlist
+      ? await removeFromWatchlist(seriesData.id, 'Series')
+      : await addToWatchlist(seriesData.id, 'Series');
+    if (result?.success) setIsInWatchlist(!isInWatchlist);
+    else alert(tx('Failed to update watchlist. Please try again.'));
   };
 
   const handleLikeToggle = async () => {
@@ -331,7 +339,7 @@ const SeriesDetail = () => {
   const hasPrev = epIdx > 0;
   const hasNext = epIdx >= 0 && epIdx < allEps.length - 1;
   // Only offer qualities the viewer is entitled to, starting from theirs.
-  const episodeQuality = maxQuality || '1080p';
+  const episodeQuality = clampQuality('720p', maxQuality);
   const episodeSources = capSources(episodePlayback.map, maxQuality);
   const episodeVideoSrc = pickBestSource(episodeSources, episodeQuality);
   let episodeEmptyProps = {};
@@ -438,8 +446,8 @@ const SeriesDetail = () => {
               )}
               {user && (
                 <button onClick={handleLikeToggle} className={`btn btn-secondary ${isLiked ? 'active' : ''}`}>
-                  <FaHeart style={{ color: isLiked ? '#ff4081' : 'inherit' }} />
-                  {isLiked ? 'Liked' : 'Like'}
+                  <FaThumbsUp style={{ color: isLiked ? 'var(--primary)' : 'inherit' }} />
+                  {tx(isLiked ? 'Liked' : 'Like')}
                 </button>
               )}
               <button onClick={handleShare} className="btn btn-secondary">
@@ -587,6 +595,7 @@ const SeriesDetail = () => {
                   onRequestRefresh={handleRefreshSource}
                   sourceVersion={episodePlayback.version}
                   sourcesExpireAt={episodePlayback.expiresAt}
+                  onProgress={handleEpisodeProgress}
                   onEnded={handleAutoplayNext}
                   {...episodeEmptyProps}
                 />

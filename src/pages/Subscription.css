@@ -601,3 +601,46 @@
     font-size: 42px;
   }
 }
+
+/* Subscription | Pay Per View */
+.plan-mode-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin: 8px auto 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.plan-mode-tab {
+  min-height: 44px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.plan-mode-tab.active { background: var(--primary); color: #fff; }
+
+.ppv-panel {
+  max-width: 640px;
+  margin: 0 auto 40px;
+  padding: 28px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: var(--bg-secondary);
+  text-align: left;
+}
+
+.ppv-title { font-size: 22px; margin: 0 0 6px; color: var(--text-primary); }
+.ppv-lead { margin: 0 0 16px; color: var(--text-muted); }
+.ppv-steps { margin: 0 0 22px 20px; padding: 0; display: grid; gap: 8px; color: var(--text-secondary); line-height: 1.5; }
+.ppv-actions { display: flex; flex-wrap: wrap; gap: 12px; }

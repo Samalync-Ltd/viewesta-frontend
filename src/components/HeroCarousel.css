@@ -82,7 +82,30 @@
   padding: 0 40px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
+  gap: 40px;
+}
+
+.slide-poster {
+  flex: 0 0 auto;
+  width: clamp(200px, 22vw, 300px);
+  aspect-ratio: 2 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  background: var(--bg-secondary);
+}
+
+.slide-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Phones have no room for a side image; the backdrop carries the slide. */
+@media (max-width: 768px) {
+  .slide-poster { display: none; }
 }
 
 .slide-info {

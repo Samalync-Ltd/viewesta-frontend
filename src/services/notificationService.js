@@ -36,6 +36,21 @@ const resolveData = (response) =>
 // ─── Notification CRUD ────────────────────────────────────────────────────────
 
 /**
+ * The unread total from a notifications response. The server rewrites every key
+ * to snake_case, so the count arrives as `unread_count` (list) or `count`
+ * (unread list), never `unreadCount`: reading only that always gave 0 and the
+ * badge never appeared. All spellings are accepted; with none of them, the
+ * unread rows in the page of results are counted.
+ */
+export function readUnreadCount(data) {
+  const raw = data?.unread_count ?? data?.unreadCount ?? data?.count;
+  const n = Number(raw);
+  if (raw !== undefined && raw !== null && Number.isFinite(n)) return n;
+  const rows = Array.isArray(data?.notifications) ? data.notifications : [];
+  return rows.filter((row) => row && row.is_read === false).length;
+}
+
+/**
  * Fetch paginated notifications.
  * GET /notifications?limit=&offset=
  * Returns { notifications: [], unreadCount: number }
@@ -46,7 +61,7 @@ export async function getNotifications(limit = 20, offset = 0) {
     const data = resolveData(response);
     return {
       notifications: Array.isArray(data.notifications) ? data.notifications : [],
-      unreadCount: typeof data.unreadCount === 'number' ? data.unreadCount : 0,
+      unreadCount: readUnreadCount(data),
     };
   } catch (err) {
     console.warn('[NotificationService] getNotifications:', err?.message);
@@ -65,7 +80,7 @@ export async function getUnreadNotifications() {
     const data = resolveData(response);
     return {
       notifications: Array.isArray(data.notifications) ? data.notifications : [],
-      count: typeof data.count === 'number' ? data.count : 0,
+      count: readUnreadCount(data) || (Array.isArray(data.notifications) ? data.notifications.length : 0),
     };
   } catch (err) {
     console.warn('[NotificationService] getUnreadNotifications:', err?.message);
@@ -133,6 +148,47 @@ export async function updateNotificationPreferences(prefs) {
 
 // ─── Deep Linking ─────────────────────────────────────────────────────────────
 
+const pick = (...values) => values.find((v) => v !== undefined && v !== null && String(v).trim() !== '');
+const UUID_OR_ID = '([^/?#]+)';
+
+/**
+ * Where a notification should open: the movie or show it is about.
+ * Order: the ids in `data` (movie_id / show_id / series_id / content_id with a
+ * type), then `action_url`. The backend's plural paths (/movies/ID, /shows/ID)
+ * have no page of their own, so they are mapped to the real detail pages
+ * (/movie/ID, /series/ID). Returns null when nothing usable is found.
+ */
+export function resolveNotificationRoute(notification) {
+  const data = notification?.data && typeof notification.data === 'object' ? notification.data : {};
+
+  const showId = pick(data.show_id, data.showId, data.series_id, data.seriesId);
+  if (showId) return `/series/${encodeURIComponent(showId)}`;
+  const movieId = pick(data.movie_id, data.movieId);
+  if (movieId) return `/movie/${encodeURIComponent(movieId)}`;
+  const contentId = pick(data.content_id, data.contentId, data.target_id, data.entity_id);
+  if (contentId) {
+    const kind = String(pick(data.content_type, data.contentType, data.entity_type, data.type, '')).toLowerCase();
+    return `${/show|series/.test(kind) ? '/series' : '/movie'}/${encodeURIComponent(contentId)}`;
+  }
+
+  const raw = pick(data.action_url, notification?.action_url);
+  if (typeof raw !== 'string') return null;
+  let path = raw.trim();
+  // A full address of this site is fine; anything else is not an internal route.
+  try {
+    const url = new URL(path, window.location.origin);
+    if (url.origin !== window.location.origin) return null;
+    path = `${url.pathname}${url.search}`;
+  } catch { return null; }
+  if (!path.startsWith('/') || path.startsWith('//')) return null;
+
+  const detail = path.match(new RegExp(`^/(?:movies?|film|films)/${UUID_OR_ID}/?$`));
+  if (detail) return `/movie/${detail[1]}`;
+  const show = path.match(new RegExp(`^/(?:shows?|series)/${UUID_OR_ID}/?$`));
+  if (show) return `/series/${show[1]}`;
+  return path;
+}
+
 /**
  * Navigate using `data.action_url` from a notification.
  * Falls back to /notifications when action_url is missing, null, or malformed.
@@ -147,26 +203,8 @@ export function handleNotificationClick(notification, navigate) {
   }
 
   try {
-    // data.action_url comes from the backend; can also live at top-level action_url
-    const actionUrl =
-      notification?.data?.action_url ||
-      notification?.action_url ||
-      null;
-
-    if (!actionUrl || typeof actionUrl !== 'string' || actionUrl.trim() === '') {
-      navigate('/notifications');
-      return;
-    }
-
-    // Only allow relative paths (internal routes) for security
-    const trimmed = actionUrl.trim();
-    if (trimmed.startsWith('/')) {
-      navigate(trimmed);
-    } else {
-      // Unexpected format — fall back
-      console.warn('[NotificationService] Unexpected action_url format:', trimmed);
-      navigate('/notifications');
-    }
+    const route = resolveNotificationRoute(notification);
+    navigate(route || '/notifications');
   } catch (err) {
     console.warn('[NotificationService] handleNotificationClick error:', err?.message);
     navigate('/notifications');

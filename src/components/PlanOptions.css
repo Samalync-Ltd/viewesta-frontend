@@ -1,0 +1,41 @@
+.plan-options {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  text-align: left;
+}
+
+.plan-option {
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-primary);
+}
+
+.plan-option-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+.plan-option-name { font-weight: 700; color: var(--text-primary); }
+.plan-option-price { font-weight: 700; color: var(--primary); }
+.plan-option-price small { font-weight: 400; color: var(--text-muted); }
+
+.plan-option-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.plan-option-features svg { color: var(--primary); margin-right: 4px; font-size: 11px; }
+
+.plan-options-note { margin: 0 0 12px; color: var(--text-muted); font-size: 14px; }

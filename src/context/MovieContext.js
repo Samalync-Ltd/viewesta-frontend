@@ -41,7 +41,8 @@ export const MovieProvider = ({ children }) => {
   // True once the trending and featured lists (the home banner's sources) have settled.
   const [heroListsLoaded, setHeroListsLoaded] = useState(false);
   const [error, setError] = useState(null);
-  const [watchlist, setWatchlist] = useState([]);
+  const [watchlist, setWatchlist] = useState([]);          // ids of movies and series
+  const [watchlistItems, setWatchlistItems] = useState([]);  // the titles themselves
   const [favorites, setFavorites] = useState([]);
   const [purchasedMovies, setPurchasedMovies] = useState([]);
   const [purchaseQualities, setPurchaseQualities] = useState({}); // { movieId: '1080p' }
@@ -54,14 +55,18 @@ export const MovieProvider = ({ children }) => {
       return {};
     }
   });
-  const [downloads, setDownloads] = useState(() => {
+  // Downloads belong to the signed-in account, not the browser.
+  const downloadsKey = user?.id ? `${DOWNLOADS_KEY}_${user.id}` : null;
+  const [downloads, setDownloads] = useState([]);
+  useEffect(() => {
+    if (!downloadsKey) { setDownloads([]); return; }
     try {
-      const raw = localStorage.getItem(DOWNLOADS_KEY);
-      return raw ? JSON.parse(raw) : [];
+      const raw = localStorage.getItem(downloadsKey);
+      setDownloads(raw ? JSON.parse(raw) : []);
     } catch {
-      return [];
+      setDownloads([]);
     }
-  });
+  }, [downloadsKey]);
 
   // Every change to the locally cached star ratings goes through here so the
   // in-memory map and localStorage never drift apart.
@@ -155,10 +160,25 @@ export const MovieProvider = ({ children }) => {
     }
   }, [user]);
 
+  // The wishlist: movies and series together, straight from the API.
+  const refreshWatchlist = useCallback(async () => {
+    if (!user) return [];
+    try {
+      const items = await watchlistService.getFullWatchlist();
+      setWatchlistItems(items);
+      setWatchlist(items.map((item) => String(item.id)));
+      return items;
+    } catch (err) {
+      console.error('Failed to load watchlist:', err);
+      return [];
+    }
+  }, [user]);
+
   // Fetch real watchlist + purchases from backend on login
   useEffect(() => {
     if (!user) {
       setWatchlist([]);
+      setWatchlistItems([]);
       setFavorites([]);
       setPurchasedMovies([]);
       setPurchaseQualities({});
@@ -166,51 +186,50 @@ export const MovieProvider = ({ children }) => {
       writeUserRatings(() => ({}));
       return;
     }
-    const fetchWatchlist = async () => {
-      try {
-        const items = await watchlistService.getWatchlist();
-        setWatchlist(items.map((item) => String(item.id)));
-      } catch (err) {
-        console.error('Failed to load watchlist:', err);
-      }
-    };
-    fetchWatchlist();
+    refreshWatchlist();
     refreshPurchases();
 
     const fav = coerceArray(user.favorites || []).map((id) => (typeof id === 'object' ? coerceMovieId(id) : String(id))).filter(Boolean);
     setFavorites(fav);
-  }, [user, refreshPurchases, writeUserRatings]);
+  }, [user, refreshPurchases, refreshWatchlist, writeUserRatings]);
 
+  // `type` is 'Series' for a show; otherwise a series is recognised by its id.
   const mutateWatchlist = useCallback(
-    async (movieId, action) => {
+    async (titleId, action, type) => {
       if (!user) return { success: false, error: 'Please log in first.' };
-      
-      const strId = String(movieId);
+
+      const strId = String(titleId);
+      const isSeries = type
+        ? /series|show/i.test(String(type))
+        : seriesList.some((s) => String(s.id) === strId);
+      const title = (isSeries ? seriesList : movies).find((m) => String(m.id) === strId);
+
       // Optimistic UI update
       if (action === 'add') {
         setWatchlist((prev) => (prev.includes(strId) ? prev : [...prev, strId]));
+        if (title) setWatchlistItems((prev) => (prev.some((m) => String(m.id) === strId) ? prev : [title, ...prev]));
       } else {
         setWatchlist((prev) => prev.filter((id) => id !== strId));
+        setWatchlistItems((prev) => prev.filter((m) => String(m.id) !== strId));
       }
-      
+
       try {
-        if (action === 'add') {
-          await watchlistService.addToWatchlist(movieId);
+        if (isSeries) {
+          if (action === 'add') await watchlistService.addShowToWatchlist(strId);
+          else await watchlistService.removeShowFromWatchlist(strId);
+        } else if (action === 'add') {
+          await watchlistService.addToWatchlist(strId);
         } else {
-          await watchlistService.removeFromWatchlist(movieId);
+          await watchlistService.removeFromWatchlist(strId);
         }
         return { success: true };
       } catch (err) {
-        // Revert on error
-        if (action === 'add') {
-          setWatchlist((prev) => prev.filter((id) => id !== strId));
-        } else {
-          setWatchlist((prev) => (prev.includes(strId) ? prev : [...prev, strId]));
-        }
+        // Put the list back the way the server has it.
+        refreshWatchlist();
         return { success: false, error: 'Failed to update watchlist.' };
       }
     },
-    [user]
+    [user, movies, seriesList, refreshWatchlist]
   );
 
   const mutateFavorites = useCallback(
@@ -230,9 +249,10 @@ export const MovieProvider = ({ children }) => {
   const getMovieById = useCallback(
     (id) => {
       if (!id) return undefined;
-      return movies.find((m) => String(m.id) === String(id));
+      return movies.find((m) => String(m.id) === String(id))
+        || seriesList.find((s) => String(s.id) === String(id));
     },
-    [movies]
+    [movies, seriesList]
   );
 
   const searchMovies = useCallback(
@@ -260,8 +280,8 @@ export const MovieProvider = ({ children }) => {
     [movies]
   );
 
-  const addToWatchlist = useCallback((movieId) => mutateWatchlist(movieId, 'add'), [mutateWatchlist]);
-  const removeFromWatchlist = useCallback((movieId) => mutateWatchlist(movieId, 'remove'), [mutateWatchlist]);
+  const addToWatchlist = useCallback((titleId, type) => mutateWatchlist(titleId, 'add', type), [mutateWatchlist]);
+  const removeFromWatchlist = useCallback((titleId, type) => mutateWatchlist(titleId, 'remove', type), [mutateWatchlist]);
   const addToFavorites = useCallback((movieId) => mutateFavorites(movieId, 'add'), [mutateFavorites]);
   const removeFromFavorites = useCallback((movieId) => mutateFavorites(movieId, 'remove'), [mutateFavorites]);
 
@@ -325,18 +345,18 @@ export const MovieProvider = ({ children }) => {
   );
 
   const addToDownloads = useCallback((contentId) => {
-    if (!contentId) return;
+    if (!contentId || !downloadsKey) return;
     setDownloads((prev) => {
       const id = String(contentId);
       if (prev.includes(id)) return prev;
       const next = [...prev, id];
       try {
-        localStorage.setItem(DOWNLOADS_KEY, JSON.stringify(next));
+        localStorage.setItem(downloadsKey, JSON.stringify(next));
       } catch {}
       return next;
     });
     // TODO: API - POST /downloads/:id
-  }, []);
+  }, [downloadsKey]);
 
   const rateMovie = rateContent;
 
@@ -403,7 +423,8 @@ export const MovieProvider = ({ children }) => {
       getRecommendations,
       refreshCatalog,
       refreshPurchases,
-      refreshWatchlist: () => {},
+      refreshWatchlist,
+      watchlistItems,
       refreshFavorites: () => {},
     }),
     [
@@ -420,6 +441,8 @@ export const MovieProvider = ({ children }) => {
       heroListsLoaded,
       error,
       watchlist,
+      watchlistItems,
+      refreshWatchlist,
       favorites,
       purchasedMovies,
       purchaseQualities,

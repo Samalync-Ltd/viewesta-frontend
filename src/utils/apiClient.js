@@ -1,20 +1,7 @@
 import axios from 'axios';
+import { API_BASE_URL } from '../config/api';
 
-const defaultBaseUrl = 'http://localhost:3000/api/v1';
-
-
-const API_BASE = process.env.REACT_APP_API_BASE;
-const API_VERSION = process.env.REACT_APP_API_VERSION || 'v1';
-
-const normalizedBaseUrl = (() => {
-  if (!API_BASE) return defaultBaseUrl;
-
-  const trimmed = API_BASE.trim().replace(/\/$/, '');
-
-  return `${trimmed}/api/${API_VERSION}`;
-})();
-
-export const API_BASE_URL = normalizedBaseUrl;
+export { API_BASE_URL };
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

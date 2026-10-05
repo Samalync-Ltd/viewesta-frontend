@@ -4,7 +4,7 @@ import { FaChevronLeft, FaChevronRight, FaPlay, FaCheck } from 'react-icons/fa';
 import { useLocale } from '../context/LocaleContext';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
-import { formatRating, formatRuntime, showNoBackdrop } from '../utils/mediaHelpers';
+import { formatRating, formatRuntime, showNoBackdrop, showNoPoster } from '../utils/mediaHelpers';
 import './HeroCarousel.css';
 
 const HeroCarousel = ({ items = [] }) => {
@@ -56,11 +56,11 @@ const HeroCarousel = ({ items = [] }) => {
     setCurrentIndex((prevIndex) => (prevIndex + 1) % items.length);
   };
 
-  const handleWatchNow = (movieId) => {
-    navigate(`/movie/${movieId}`);
+  const handleWatchNow = (item) => {
+    navigate(`${item.type === 'Series' ? '/series' : '/movie'}/${item.id}`);
   };
 
-  const handleAddToWatchlist = async (movieId, e) => {
+  const handleAddToWatchlist = async (movieId, e, type) => {
     e.preventDefault();
     
     if (!user) {
@@ -80,7 +80,7 @@ const HeroCarousel = ({ items = [] }) => {
     const isInWatchlist = watchlist.includes(strId);
     
     try {
-      const result = await mutateWatchlist(movieId, isInWatchlist ? 'remove' : 'add');
+      const result = await mutateWatchlist(movieId, isInWatchlist ? 'remove' : 'add', type);
       
       if (!result.success) {
         alert(result.error || 'Failed to update watchlist. Please try again.');
@@ -151,14 +151,14 @@ const HeroCarousel = ({ items = [] }) => {
                     </div>
                     <div className="slide-actions">
                       <button 
-                        onClick={() => handleWatchNow(item.id)} 
+                        onClick={() => handleWatchNow(item)} 
                         className="btn btn-primary btn-large"
                       >
                         <FaPlay />
                         {t('watchNow')}
                       </button>
                       <button 
-                        onClick={(e) => handleAddToWatchlist(item.id, e)} 
+                        onClick={(e) => handleAddToWatchlist(item.id, e, item.type)} 
                         disabled={isMutating}
                         className={`btn ${String(item.id) === String(currentItem?.id) && isCurrentInWatchlist ? 'btn-success' : 'btn-outline'} ${isCurrentJustAdded && String(item.id) === String(currentItem?.id) ? 'btn-success' : ''}`}
                       >
@@ -175,6 +175,13 @@ const HeroCarousel = ({ items = [] }) => {
                       </button>
                     </div>
                   </div>
+
+                  {/* The title's own image on the side; the backdrop stays behind everything. */}
+                  {loadedSlides.has(index) && (
+                    <div className="slide-poster">
+                      <img src={item.poster} alt={item.title} onError={showNoPoster} />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

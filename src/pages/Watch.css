@@ -170,3 +170,6 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+.watch-access-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin-top: 8px; }
+

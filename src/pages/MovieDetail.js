@@ -10,6 +10,7 @@ import MovieCard from '../components/MovieCard';
 import AgeRatingBadge from '../components/AgeRatingBadge';
 import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
+import PlanOptions from '../components/PlanOptions';
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
 import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime, showNoPoster, showNoBackdrop, isRealArtwork } from '../utils/mediaHelpers';
@@ -329,7 +330,7 @@ const MovieDetail = () => {
       addToDownloads(movie.id);
       sessionStorage.setItem(`playback_auth_${movie.id}`, 'true');
       // Open the player at the viewer's own quality (e.g. 480p on the Mobile plan).
-      const playQuality = clampQuality(selectedQuality || maxPlaybackQuality || '1080p', maxPlaybackQuality);
+      const playQuality = clampQuality(selectedQuality || '720p', maxPlaybackQuality);
       navigate(`/watch/${movie.id}?q=${encodeURIComponent(playQuality)}`);
       return;
     }
@@ -799,6 +800,7 @@ const MovieDetail = () => {
               ) : (
                 <div className="subscribe-option">
                   <p>{tx('Get unlimited access to all movies with a monthly subscription.')}</p>
+                  <PlanOptions />
                   <button
                     type="button"
                     className="btn btn-primary"

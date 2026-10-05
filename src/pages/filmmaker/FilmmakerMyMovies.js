@@ -19,26 +19,25 @@ function FilmmakerMyMovies() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Keyed on the account id, not the user object: the object is replaced every
+  // time the profile refreshes (after watching or paying), which re-ran this
+  // while an earlier failure's message stayed on screen.
+  const userId = user?.id;
+  const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
-    const fetchMovies = async () => {
-      setLoading(true);
-      try {
-        const movies = await getFilmmakerMovies();
-        setMyMovies(movies || []);
-      } catch (err) {
+    if (!userId) { setLoading(false); return undefined; }
+    let active = true;
+    setLoading(true);
+    setError('');
+    getFilmmakerMovies()
+      .then((movies) => { if (active) setMyMovies(movies || []); })
+      .catch((err) => {
         console.error('Error fetching filmmaker movies:', err);
-        setError('Failed to load your movies. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    if (user) {
-      fetchMovies();
-    } else {
-      setLoading(false);
-    }
-  }, [user]);
+        if (active) setError('Failed to load your movies. Please try again.');
+      })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [userId, reloadKey]);
 
   const getStatusBadge = (status) => {
     const s = String(status).toUpperCase();
@@ -68,6 +67,7 @@ function FilmmakerMyMovies() {
       ) : error ? (
         <div className="empty-state">
           <p>{error}</p>
+          <button type="button" className="btn btn-primary btn-small" onClick={() => setReloadKey((k) => k + 1)}>Try again</button>
         </div>
       ) : myMovies.length === 0 ? (
         <div className="empty-state">

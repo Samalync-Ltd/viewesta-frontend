@@ -5,6 +5,7 @@
 import React from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
+import { useNotification } from '../context/NotificationContext';
 import { FaFilm, FaTv, FaPlus, FaDollarSign, FaUser, FaBell, FaBars, FaTimes } from 'react-icons/fa';
 import './FilmmakerStudioLayout.css';
 
@@ -19,6 +20,7 @@ const navItems = [
 
 export default function FilmmakerStudioLayout() {
   const { t } = useLocale();
+  const { unreadCount } = useNotification();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
@@ -56,6 +58,9 @@ export default function FilmmakerStudioLayout() {
               >
                 <item.icon className="studio-nav-icon" />
                 <span>{t(item.key)}</span>
+                {item.key === 'notifications' && unreadCount > 0 && (
+                  <span className="studio-nav-badge" aria-label={`${unreadCount} unread`}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+                )}
               </Link>
             ))}
           </nav>

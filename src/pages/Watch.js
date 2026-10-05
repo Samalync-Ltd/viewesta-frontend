@@ -17,7 +17,8 @@ import VideoPlayer from '../components/VideoPlayer';
 import './Watch.css';
 
 const NEEDS_ACCESS_MESSAGE = 'You need to purchase this title or have an active subscription to watch it.';
-const DEFAULT_QUALITY = '1080p';
+// Start at 720p (buffers far less than 1080p); the player's menu offers the rest.
+const DEFAULT_QUALITY = '720p';
 const PROGRESS_SAVE_EVERY_S = 30;
 
 const Watch = () => {
@@ -42,7 +43,7 @@ const Watch = () => {
   // ─── Quality the viewer is entitled to (Mobile plan = 480p) ──────────────
   const { maxQuality, planName, planMaxQuality, ready: qualityReady } = usePlaybackQuality(movie);
   const requestedQuality = searchParams.get('q');
-  const quality = clampQuality(requestedQuality || maxQuality || DEFAULT_QUALITY, maxQuality);
+  const quality = clampQuality(requestedQuality || DEFAULT_QUALITY, maxQuality);
 
   // Keep the address bar honest: ?q=1080p on a 480p plan becomes ?q=480p.
   useEffect(() => {
@@ -243,13 +244,26 @@ const Watch = () => {
   }
 
   if (needsAccess) {
+    const monetization = getMonetizationType(movie);
+    const subscribeOffered = monetization === 'both' || monetization === 'subscription';
+    const ppvOffered = (monetization === 'both' || monetization === 'pay_per_view') && movie.is_purchasable !== false;
     return (
       <div className="watch-not-found">
-        <h2>Purchase or subscribe to watch</h2>
-        <p>{NEEDS_ACCESS_MESSAGE}</p>
-        <button onClick={() => navigate(`/movie/${id}`)} className="btn btn-primary">
-          View movie details
-        </button>
+        <h2>{tx(subscribeOffered && ppvOffered ? 'Subscribe or buy to watch' : subscribeOffered ? 'Subscribe to watch' : ppvOffered ? 'Buy this title to watch' : 'This title is not available to watch yet')}</h2>
+        <p>{tx(NEEDS_ACCESS_MESSAGE)}</p>
+        <div className="watch-access-actions">
+          {subscribeOffered && (
+            <Link
+              to={`/subscription?return_to=${encodeURIComponent(`/watch/${id}`)}&movie_id=${id}`}
+              className="btn btn-primary"
+            >
+              {tx('View subscription plans')}
+            </Link>
+          )}
+          <button onClick={() => navigate(`/movie/${id}`)} className={`btn ${subscribeOffered ? 'btn-outline' : 'btn-primary'}`}>
+            {tx(ppvOffered ? 'Buy this title' : 'View movie details')}
+          </button>
+        </div>
       </div>
     );
   }
@@ -266,7 +280,7 @@ const Watch = () => {
   let emptyProps = {};
   if (sourcesError) {
     emptyProps = { emptyTitle: sourcesError, emptySubtitle: 'Try refreshing the page in a moment.' };
-  } else if (!finalSrc && planMaxQuality && qualityRank(planMaxQuality) < qualityRank(DEFAULT_QUALITY)) {
+  } else if (!finalSrc && planMaxQuality && qualityRank(planMaxQuality) < qualityRank('1080p')) {
     emptyProps = {
       emptyTitle: `This title isn't available in ${planMaxQuality} yet.`,
       emptySubtitle: `Your ${planName || 'current'} plan streams up to ${planMaxQuality}. Try another title, or upgrade your plan to watch it in higher quality.`,

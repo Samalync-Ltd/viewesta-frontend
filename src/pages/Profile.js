@@ -23,6 +23,8 @@ import {
 } from 'react-icons/fa';
 import MovieCard from '../components/MovieCard';
 import { getPurchases } from '../services/paymentService';
+import { getWatchHistory } from '../services/videoService';
+import { titlesFromHistory } from '../utils/watchHistory';
 import './Profile.css';
 import { useLocale } from '../context/LocaleContext';
 
@@ -38,7 +40,7 @@ const Profile = () => {
     logout();
     setTimeout(() => navigate('/', { replace: true }), 0);
   };
-  const { watchlist, getMovieById } = useMovies();
+  const { watchlistItems, getMovieById } = useMovies();
 
   const [isEditing, setIsEditing] = useState(false);
 
@@ -86,9 +88,17 @@ const Profile = () => {
     return () => { cancelled = true; };
   }, [user]);
 
-  const watchlistMovies = watchlist.map((id) => getMovieById(id)).filter(Boolean);
-  const watchHistory = (user?.watchHistory || []).slice(0, 6);
-  const historyMovies = watchHistory.map((h) => getMovieById(h.movieId)).filter(Boolean);
+  // Straight from the wishlist API (movies and series), so the count and the grid always agree.
+  const watchlistMovies = watchlistItems;
+  // Watch history comes from the API (the profile payload doesn't carry it).
+  const [historyEntries, setHistoryEntries] = useState([]);
+  useEffect(() => {
+    if (!user) { setHistoryEntries([]); return undefined; }
+    let cancelled = false;
+    getWatchHistory().then((entries) => { if (!cancelled) setHistoryEntries(entries); });
+    return () => { cancelled = true; };
+  }, [user]);
+  const historyMovies = titlesFromHistory(historyEntries, getMovieById);
 
   const avatarSrc =
     user?.avatar ||
@@ -489,7 +499,7 @@ const Profile = () => {
             <p className="section-desc">{tx('Titles you saved to watch later.')}</p>
             {watchlistMovies.length > 0 ? (
               <div className="profile-movie-row">
-                {watchlistMovies.slice(0, 6).map((m) => (
+                {watchlistMovies.map((m) => (
                   <MovieCard key={m.id} movie={m} showWatchlist />
                 ))}
               </div>
