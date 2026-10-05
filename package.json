@@ -58,6 +58,7 @@
     },
     "webpack-dev-server": {
       "webpack-dev-middleware": "^7.4.6"
-    }
+    },
+    "@grpc/grpc-js": "^1.14.5"
   }
 }
