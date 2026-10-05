@@ -203,7 +203,10 @@ const Watch = () => {
     if (!user || !id || !duration) return;
     mediaDurationRef.current = duration;
     const second = Math.floor(currentTime);
-    if (second <= 0 || second % PROGRESS_SAVE_EVERY_S !== 0 || second === lastSavedMarkRef.current) return;
+    // First save a couple of seconds in (so a short viewing still reaches the
+    // history), then once per 30-second mark.
+    const firstSave = lastSavedMarkRef.current === -1 && second >= 2;
+    if (!firstSave && (second <= 0 || second % PROGRESS_SAVE_EVERY_S !== 0 || second === lastSavedMarkRef.current)) return;
     lastSavedMarkRef.current = second;
     updateMovieProgress(id, {
       watch_time_seconds: second,
@@ -272,10 +275,6 @@ const Watch = () => {
   const playableSources = capSources(playback.map, maxQuality);
   const finalSrc = pickBestSource(playableSources, quality) || '';
 
-  // A plan capped below HD (e.g. Mobile = 480p) plays at its cap instead of being
-  // blocked; say so, and point to the plans page.
-  const cappedBelowHd = Boolean(finalSrc && maxQuality && qualityRank(maxQuality) >= 0 && qualityRank(maxQuality) < qualityRank('720p'));
-
   // Why there is nothing to play, in the viewer's terms.
   let emptyProps = {};
   if (sourcesError) {
@@ -308,16 +307,11 @@ const Watch = () => {
           </div>
         ) : (
           <>
-          {cappedBelowHd && (
-            <p className="watch-quality-note" role="status">
-              {tx('Playing in {{quality}}. Upgrade your plan for HD.', { quality: maxQuality })}{' '}
-              <Link to="/subscription">{tx('View plans')}</Link>
-            </p>
-          )}
           <VideoPlayer
             src={finalSrc}
             sources={playableSources}
             initialQuality={quality}
+            autoPlay
             title={movie.title}
             poster={movie.backdrop || movie.poster}
             onRequestRefresh={handleRefreshSource}

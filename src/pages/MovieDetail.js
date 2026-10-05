@@ -34,7 +34,7 @@ const MovieDetail = () => {
   // Which tab of the "Watch Options" modal is open. Kept apart from
   // `selectedQuality`: that is '' both for "Subscribe tab" and for "Pay-per-view
   // tab on a title with no prices", which made the PPV tab impossible to open.
-  const [purchaseTab, setPurchaseTab] = useState('subscribe'); // 'subscribe' | 'ppv'
+  const [purchaseTab, setPurchaseTab] = useState(''); // '' (choosing) | 'subscribe' | 'ppv'
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
   const [showPaymentMethodModal, setShowPaymentMethodModal] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
@@ -125,7 +125,7 @@ const MovieDetail = () => {
   // A different title starts from a clean purchase / rating state.
   useEffect(() => {
     setSelectedQuality('');
-    setPurchaseTab('subscribe');
+    setPurchaseTab('');
     setShowPurchaseModal(false);
     setShowPaymentMethodModal(false);
     setPurchaseError('');
@@ -337,7 +337,8 @@ const MovieDetail = () => {
 
     // Everyone else gets the unlock modal, opened on a tab they can actually use.
     setSelectedQuality('');
-    setPurchaseTab(subscribeAllowed ? 'subscribe' : 'ppv');
+    // Both ways in: the viewer picks first. Only one: go straight to it.
+    setPurchaseTab(subscribeAllowed && ppvAllowed ? '' : (subscribeAllowed ? 'subscribe' : 'ppv'));
     setShowPurchaseModal(true);
   };
 
@@ -723,6 +724,25 @@ const MovieDetail = () => {
             </div>
             
             <div className="modal-content">
+              {!purchaseTab && (
+                <div className="watch-choice">
+                  <p className="watch-choice-lead">{tx('How would you like to watch?')}</p>
+                  {subscribeAllowed && (
+                    <button type="button" className="watch-choice-card" onClick={() => setPurchaseTab('subscribe')}>
+                      <strong>{tx('Subscription')}</strong>
+                      <span>{tx('Unlimited access to all movies with a monthly or yearly plan.')}</span>
+                    </button>
+                  )}
+                  {ppvAllowed && (
+                    <button type="button" className="watch-choice-card" onClick={() => setPurchaseTab('ppv')}>
+                      <strong>{tx('Pay Per View')}</strong>
+                      <span>{tx('Pay once for this movie only, in the quality you choose.')}</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {purchaseTab && subscribeAllowed && ppvAllowed && (
               <div className="watch-options-tabs">
                 {subscribeAllowed && (
                   <button
@@ -730,7 +750,7 @@ const MovieDetail = () => {
                     className={`option-tab ${purchaseTab === 'subscribe' ? 'active' : ''}`}
                     onClick={() => setPurchaseTab('subscribe')}
                   >
-                    {tx('Subscribe')}
+                    {tx('Subscription')}
                   </button>
                 )}
                 {ppvAllowed && (
@@ -739,10 +759,11 @@ const MovieDetail = () => {
                     className={`option-tab ${purchaseTab === 'ppv' ? 'active' : ''}`}
                     onClick={() => setPurchaseTab('ppv')}
                   >
-                    {tx('Pay-per-view')}
+                    {tx('Pay Per View')}
                   </button>
                 )}
               </div>
+              )}
 
               {purchaseTab === 'ppv' ? (
                 (() => {
@@ -797,7 +818,7 @@ const MovieDetail = () => {
                     </>
                   );
                 })()
-              ) : (
+              ) : purchaseTab === 'subscribe' ? (
                 <div className="subscribe-option">
                   <p>{tx('Get unlimited access to all movies with a monthly subscription.')}</p>
                   <PlanOptions />
@@ -809,7 +830,7 @@ const MovieDetail = () => {
                     {tx('View Plans')}
                   </button>
                 </div>
-              )}
+              ) : null}
             </div>
 
             <div className="modal-actions">

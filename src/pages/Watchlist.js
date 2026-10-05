@@ -10,7 +10,7 @@ import './Watchlist.css';
 
 const Watchlist = () => {
   const { user } = useAuth();
-  const { mutateWatchlist } = useMovies();
+  const { mutateWatchlist, getMovieById } = useMovies();
   const { t, tx } = useLocale();
   const [watchlistMovies, setWatchlistMovies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,6 +42,9 @@ const Watchlist = () => {
       isMounted = false;
     };
   }, [user]);
+
+  // Show each title from the catalog record when there is one (it has the signed artwork).
+  const items = watchlistMovies.map((m) => getMovieById(m.id) || m);
 
   const handleRemove = async (movieId, type) => {
     setRemovingId(movieId);
@@ -99,13 +102,13 @@ const Watchlist = () => {
             {tx('My Wishlist')}
           </h1>
           <p className="watchlist-subtitle">
-            {tx(watchlistMovies.length === 1 ? '1 title saved' : '{{n}} titles saved', { n: watchlistMovies.length })}
+            {tx(items.length === 1 ? '1 title saved' : '{{n}} titles saved', { n: items.length })}
           </p>
         </div>
 
-        {watchlistMovies.length > 0 ? (
+        {items.length > 0 ? (
           <div className="watchlist-grid">
-            {watchlistMovies.map((movie) => (
+            {items.map((movie) => (
               <div key={movie.id} className="watchlist-item-wrapper">
                 <MovieCard movie={movie} showWatchlist={false} />
                 <button

@@ -137,6 +137,13 @@ const HeroCarousel = ({ items = [] }) => {
                 </div>
                 
                 <div className="slide-content">
+                  {/* The title's own image on the left; the backdrop stays behind everything. */}
+                  {loadedSlides.has(index) && (
+                    <div className="slide-poster">
+                      <img src={item.poster} alt={item.title} onError={showNoPoster} />
+                    </div>
+                  )}
+
                   <div className="slide-info">
                     <h1 className="slide-title">{item.title}</h1>
                     <p className="slide-description">{item.description}</p>
@@ -175,13 +182,6 @@ const HeroCarousel = ({ items = [] }) => {
                       </button>
                     </div>
                   </div>
-
-                  {/* The title's own image on the side; the backdrop stays behind everything. */}
-                  {loadedSlides.has(index) && (
-                    <div className="slide-poster">
-                      <img src={item.poster} alt={item.title} onError={showNoPoster} />
-                    </div>
-                  )}
                 </div>
               </div>
             ))}

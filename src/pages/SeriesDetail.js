@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   FaPlay, FaHeart, FaStar, FaClock, FaCalendar,
-  FaShareAlt, FaThumbsUp, FaChevronDown, FaChevronUp, FaArrowLeft, FaArrowRight,
+  FaShareAlt, FaChevronDown, FaChevronUp, FaArrowLeft, FaArrowRight,
 } from 'react-icons/fa';
 import { useMovies } from '../context/MovieContext';
 import { useAuth } from '../context/AuthContext';
@@ -32,7 +32,6 @@ const SeriesDetail = () => {
   const userId = user?.id;
 
   const [isInWatchlist, setIsInWatchlist] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
   const [expandedSeason, setExpandedSeason] = useState(1);
   const [seriesData, setSeriesData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -224,7 +223,8 @@ const SeriesDetail = () => {
     const episodeId = watchEpisode?.episode?.id;
     if (!user || !episodeId || !duration) return;
     const second = Math.floor(currentTime);
-    if (second <= 0 || second % 30 !== 0 || second === lastSavedMarkRef.current) return;
+    const firstSave = lastSavedMarkRef.current === -1 && second >= 2; // so a short viewing reaches the history
+    if (!firstSave && (second <= 0 || second % 30 !== 0 || second === lastSavedMarkRef.current)) return;
     lastSavedMarkRef.current = second;
     updateEpisodeProgress(episodeId, { watch_time_seconds: second, last_position_seconds: second, is_completed: percent >= 95 });
   }, [user, watchEpisode]);
@@ -281,15 +281,6 @@ const SeriesDetail = () => {
       : await addToWatchlist(seriesData.id, 'Series');
     if (result?.success) setIsInWatchlist(!isInWatchlist);
     else alert(tx('Failed to update watchlist. Please try again.'));
-  };
-
-  const handleLikeToggle = async () => {
-    if (!user) { goToLogin(); return; }
-    setIsLiked(!isLiked);
-    try {
-      if (isLiked) await seriesService.unlikeShow(seriesData.id);
-      else await seriesService.likeShow(seriesData.id);
-    } catch { setIsLiked(isLiked); }
   };
 
   const handleShare = () => {
@@ -444,12 +435,6 @@ const SeriesDetail = () => {
                   <FaHeart /> {tx(isInWatchlist ? 'In Wishlist' : 'Add to Wishlist')}
                 </button>
               )}
-              {user && (
-                <button onClick={handleLikeToggle} className={`btn btn-secondary ${isLiked ? 'active' : ''}`}>
-                  <FaThumbsUp style={{ color: isLiked ? 'var(--primary)' : 'inherit' }} />
-                  {tx(isLiked ? 'Liked' : 'Like')}
-                </button>
-              )}
               <button onClick={handleShare} className="btn btn-secondary">
                 <FaShareAlt /> {tx('Share')}
               </button>
@@ -590,6 +575,7 @@ const SeriesDetail = () => {
                   src={episodeVideoSrc || ''}
                   sources={episodeSources}
                   initialQuality={episodeQuality}
+                  autoPlay
                   title={`S${watchEpisode.season.seasonNumber} E${watchEpisode.episode.episodeNumber}: ${watchEpisode.episode.title}`}
                   poster={seriesData.backdrop || seriesData.poster}
                   onRequestRefresh={handleRefreshSource}

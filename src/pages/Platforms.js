@@ -3,7 +3,6 @@
  * Route: /platforms
  */
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { FaFilm, FaTv } from 'react-icons/fa';
 import Movies from './Movies';
 import Series from './Series';

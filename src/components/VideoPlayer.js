@@ -66,6 +66,8 @@ const VideoPlayer = ({
   sources = {},
   // 720p buffers far less than 1080p on ordinary connections.
   initialQuality = '720p',
+  // Start playing as soon as the video is ready (the viewer already chose to watch).
+  autoPlay = false,
   title = '',
   poster = '',
   onEnded,
@@ -115,6 +117,7 @@ const VideoPlayer = ({
   const sourceArrivedAtRef = useRef(Date.now()); // wall-clock time the current URLs arrived
   const wasPlayingRef = useRef(false);
   const lastTimeRef = useRef(0);
+  const autoStartedRef = useRef(false);
 
   const requestFreshSource = useCallback((resume) => {
     const refresh = onRequestRefreshRef.current;
@@ -240,7 +243,8 @@ const VideoPlayer = ({
     // quality switch) keep the current position and play state.
     const resume = resumeRef.current;
     resumeRef.current = null;
-    const wasPlaying = resume ? resume.play : !video.paused;
+    const autoStart = autoPlay && !autoStartedRef.current;
+    const wasPlaying = resume ? resume.play : (!video.paused || autoStart);
     const savedTime = resume ? resume.time : (video.currentTime || 0);
 
     sourceArrivedAtRef.current = Date.now();
@@ -255,7 +259,14 @@ const VideoPlayer = ({
       if (savedTime > 0) {
         try { video.currentTime = savedTime; } catch { /* not seekable yet */ }
       }
-      if (wasPlaying) video.play().catch(() => {});
+      if (wasPlaying) {
+        autoStartedRef.current = true;
+        // Browsers may refuse sound-on autoplay; start muted rather than not at all.
+        video.play().catch(() => {
+          video.muted = true;
+          video.play().catch(() => {});
+        });
+      }
       setIsLoading(false);
     };
 
@@ -263,7 +274,7 @@ const VideoPlayer = ({
     return () => {
       video.removeEventListener('loadedmetadata', onMetadata);
     };
-  }, [activeSrc, sourceVersion, attachSource]);
+  }, [activeSrc, sourceVersion, attachSource, autoPlay]);
 
   // ─── Video event listeners ────────────────────────────────────────────────
   useEffect(() => {

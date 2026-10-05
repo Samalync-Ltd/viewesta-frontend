@@ -75,7 +75,47 @@ export async function getWalletTransactions({ limit = 20, offset = 0 } = {}) {
  * as 0, so a naming mismatch can't masquerade as a real zero total.
  * @returns {{ totalToppedUp: number|null, totalSpent: number|null, transactionCount: number|null }}
  */
+const NOT_COUNTED = /fail|cancel|reject|pending/i;
+
+/**
+ * Lifetime totals worked out from the complete transaction history, for when
+ * /wallet/summary does not carry a figure. Every page is read, so these are the
+ * real totals and not a sum of the first page.
+ */
+export async function totalsFromTransactions() {
+  const PAGE = 100;
+  let topped = 0; let spent = 0; let count = 0;
+  for (let offset = 0; offset < PAGE * 50; offset += PAGE) {
+    const { transactions } = await getWalletTransactions({ limit: PAGE, offset });
+    for (const tx of transactions) {
+      if (NOT_COUNTED.test(String(tx.status || ''))) continue;
+      const amount = Math.abs(Number(tx.amount) || 0);
+      count += 1;
+      if (tx.transaction_type === 'wallet_topup') topped += amount;
+      else if (tx.transaction_type !== 'refund') spent += amount;
+    }
+    if (transactions.length < PAGE) break;
+  }
+  return { totalToppedUp: topped, totalSpent: spent, transactionCount: count };
+}
+
+/** GET /wallet/summary, with any missing figure filled from the transaction history. */
 export async function getWalletSummary() {
+  const summary = await fetchWalletSummary();
+  if (summary.totalToppedUp !== null && summary.totalSpent !== null && summary.transactionCount !== null) return summary;
+  try {
+    const computed = await totalsFromTransactions();
+    return {
+      totalToppedUp: summary.totalToppedUp ?? computed.totalToppedUp,
+      totalSpent: summary.totalSpent ?? computed.totalSpent,
+      transactionCount: summary.transactionCount ?? computed.transactionCount,
+    };
+  } catch {
+    return summary;
+  }
+}
+
+async function fetchWalletSummary() {
   const { data } = await client.get('/wallet/summary');
   const root = data?.data?.summary ?? data?.data ?? data ?? {};
 

@@ -33,7 +33,7 @@ export function normalizeUser(raw) {
       ...raw.wallet,
     },
     preferences: {
-      quality: raw.preferences?.quality || '1080p',
+      quality: raw.preferences?.quality || '720p',
       notifications: raw.preferences?.notifications ?? true,
       ...raw.preferences,
     },

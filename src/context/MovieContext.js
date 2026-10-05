@@ -42,7 +42,7 @@ export const MovieProvider = ({ children }) => {
   const [heroListsLoaded, setHeroListsLoaded] = useState(false);
   const [error, setError] = useState(null);
   const [watchlist, setWatchlist] = useState([]);          // ids of movies and series
-  const [watchlistItems, setWatchlistItems] = useState([]);  // the titles themselves
+  const [watchlistRaw, setWatchlistRaw] = useState([]);  // the titles themselves
   const [favorites, setFavorites] = useState([]);
   const [purchasedMovies, setPurchasedMovies] = useState([]);
   const [purchaseQualities, setPurchaseQualities] = useState({}); // { movieId: '1080p' }
@@ -165,7 +165,7 @@ export const MovieProvider = ({ children }) => {
     if (!user) return [];
     try {
       const items = await watchlistService.getFullWatchlist();
-      setWatchlistItems(items);
+      setWatchlistRaw(items);
       setWatchlist(items.map((item) => String(item.id)));
       return items;
     } catch (err) {
@@ -178,7 +178,7 @@ export const MovieProvider = ({ children }) => {
   useEffect(() => {
     if (!user) {
       setWatchlist([]);
-      setWatchlistItems([]);
+      setWatchlistRaw([]);
       setFavorites([]);
       setPurchasedMovies([]);
       setPurchaseQualities({});
@@ -207,10 +207,10 @@ export const MovieProvider = ({ children }) => {
       // Optimistic UI update
       if (action === 'add') {
         setWatchlist((prev) => (prev.includes(strId) ? prev : [...prev, strId]));
-        if (title) setWatchlistItems((prev) => (prev.some((m) => String(m.id) === strId) ? prev : [title, ...prev]));
+        if (title) setWatchlistRaw((prev) => (prev.some((m) => String(m.id) === strId) ? prev : [title, ...prev]));
       } else {
         setWatchlist((prev) => prev.filter((id) => id !== strId));
-        setWatchlistItems((prev) => prev.filter((m) => String(m.id) !== strId));
+        setWatchlistRaw((prev) => prev.filter((m) => String(m.id) !== strId));
       }
 
       try {
@@ -253,6 +253,14 @@ export const MovieProvider = ({ children }) => {
         || seriesList.find((s) => String(s.id) === String(id));
     },
     [movies, seriesList]
+  );
+
+  // The wishlist endpoints return a thin record (often without the signed
+  // artwork the catalog has), so each title is shown from the catalog record
+  // when it is loaded, and from the wishlist record otherwise.
+  const watchlistItems = useMemo(
+    () => watchlistRaw.map((item) => getMovieById(item.id) || item),
+    [watchlistRaw, getMovieById]
   );
 
   const searchMovies = useCallback(

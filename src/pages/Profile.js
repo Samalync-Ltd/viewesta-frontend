@@ -16,13 +16,9 @@ import {
   FaCheckCircle,
   FaBell,
   FaBellSlash,
-  FaReceipt,
-  FaSpinner,
-  FaExclamationTriangle,
   FaSignOutAlt,
 } from 'react-icons/fa';
 import MovieCard from '../components/MovieCard';
-import { getPurchases } from '../services/paymentService';
 import { getWatchHistory } from '../services/videoService';
 import { titlesFromHistory } from '../utils/watchHistory';
 import './Profile.css';
@@ -62,32 +58,6 @@ const Profile = () => {
   const [avatarFile, setAvatarFile] = useState(null);
   const fileRef = useRef(null);
 
-  const [purchases, setPurchases] = useState([]);
-  const [purchasesLoading, setPurchasesLoading] = useState(true);
-  const [purchasesError, setPurchasesError] = useState('');
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    setPurchasesLoading(true);
-    setPurchasesError('');
-    getPurchases()
-      .then((data) => {
-        if (cancelled) return;
-        // Confirmed real shape: { data: { purchases: [...] } }
-        const items = Array.isArray(data?.data?.purchases) ? data.data.purchases
-          : Array.isArray(data?.data) ? data.data
-          : Array.isArray(data) ? data
-          : [];
-        setPurchases(items);
-      })
-      .catch((err) => {
-        if (!cancelled) setPurchasesError(err?.message || 'Failed to load purchase history.');
-      })
-      .finally(() => { if (!cancelled) setPurchasesLoading(false); });
-    return () => { cancelled = true; };
-  }, [user]);
-
   // Straight from the wishlist API (movies and series), so the count and the grid always agree.
   const watchlistMovies = watchlistItems;
   // Watch history comes from the API (the profile payload doesn't carry it).
@@ -114,7 +84,7 @@ const Profile = () => {
     setAvatarPreview(user?.avatar || '');
     setCurrentPassword('');
     setNewPassword('');
-    setQualityPref(user?.preferences?.quality || '1080p');
+    setQualityPref(user?.preferences?.quality || '720p');
     setNotifPref(user?.preferences?.notifications ?? true);
     setSaveSuccess(false);
     setSaveError('');
@@ -427,48 +397,6 @@ const Profile = () => {
               </div>
               <Link to="/wallet" className="btn btn-primary">{tx('Top Up')}</Link>
             </div>
-          </div>
-
-          {/* ── Purchase History ── */}
-          <div className="profile-section">
-            <h2 className="section-title"><FaReceipt /> {tx('Purchase History')}</h2>
-            <p className="section-desc">{tx("Movies and rentals you've paid for.")}</p>
-            {purchasesLoading ? (
-              <div className="purchase-loading"><FaSpinner className="spin-icon" /> {tx('Loading purchases…')}</div>
-            ) : purchasesError ? (
-              <div className="profile-empty-state">
-                <FaExclamationTriangle className="empty-icon" />
-                <p>{tx(purchasesError)}</p>
-              </div>
-            ) : purchases.length === 0 ? (
-              <div className="profile-empty-state">
-                <FaReceipt className="empty-icon" />
-                <p>{tx('No purchases yet.')}</p>
-                <Link to="/movies" className="btn btn-outline btn-small">{tx('Browse Movies')}</Link>
-              </div>
-            ) : (
-              <div className="purchase-list">
-                {purchases.map((p, idx) => {
-                  const isActive = p.is_active !== false && (!p.access_expires_at || new Date(p.access_expires_at) > new Date());
-                  const price = Number(p.price_paid ?? 0);
-                  const date = p.created_at ? new Date(p.created_at).toLocaleDateString() : '';
-                  return (
-                    <div key={p.id ?? idx} className="purchase-item">
-                      <div className="purchase-info">
-                        <span className="purchase-title">{p.movie_title || tx('Unknown title')}</span>
-                        <span className="purchase-meta">{p.quality ? `${p.quality} · ` : ''}{date}</span>
-                      </div>
-                      <div className="purchase-right">
-                        <span className="purchase-price">{price > 0 ? `$${price.toFixed(2)}` : tx('Free')}</span>
-                        <span className={`status ${isActive ? 'active' : 'inactive'}`}>
-                          {tx(isActive ? 'Active' : 'Expired')}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
 
           {/* ── Subscription ── */}
