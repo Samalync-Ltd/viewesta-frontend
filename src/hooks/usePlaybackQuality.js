@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useMovies } from '../context/MovieContext';
 import { getPlanLimits } from '../services/subscriptionService';
 import { qualityRank } from '../utils/quality';
+import { hasActiveSubscription } from '../utils/access';
 
 /**
  * The highest quality the signed-in viewer may stream for a title.
@@ -20,9 +21,10 @@ export default function usePlaybackQuality(title) {
   const { purchaseQualities } = useMovies();
 
   const sub = user?.subscription;
-  const planType = sub?.active ? (sub.plan_type || sub.type || sub.planId || null) : null;
+  const subscribed = hasActiveSubscription(user);
+  const planType = subscribed ? (sub.plan_type || sub.type || sub.planId || null) : null;
   // Prefer a limit sent with the subscription itself, if the backend includes one.
-  const subMax = sub?.active ? (sub.max_quality || sub.plan?.max_quality || null) : null;
+  const subMax = subscribed ? (sub.max_quality || sub.plan?.max_quality || null) : null;
 
   const [plan, setPlan] = useState({ key: null, maxQuality: null, name: null });
   useEffect(() => {

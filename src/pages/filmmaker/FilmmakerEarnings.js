@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { viewsOf, earningsFromViews, totalEarningsFromViews } from '../../utils/earnings';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getFilmmakerMovies } from '../../services/movieService';
+import { getFilmmakerMoviesWithPricing } from '../../services/movieService';
 import { getContract, getPayoutBalance, getPayouts } from '../../services/earningsService';
 import { FaArrowLeft } from 'react-icons/fa';
 // Reuse existing styles where possible. We'll rely on the existing layout.
@@ -29,7 +30,7 @@ export default function FilmmakerEarnings() {
     setError('');
     try {
       const [moviesData, contractData, balanceData, payoutsData] = await Promise.all([
-        getFilmmakerMovies(),
+        getFilmmakerMoviesWithPricing(),
         getContract(),
         getPayoutBalance(),
         getPayouts(),
@@ -61,13 +62,13 @@ export default function FilmmakerEarnings() {
   const platformSplitPct = filmmakerSplitPct ? (100 - filmmakerSplitPct) : null;
 
   // Earnings/Balance
-  const totalEarnings = balance?.total_earnings;
-  const totalRevenue = balance?.total_revenue; // If backend tracks gross revenue
+  // Worked out from each film's views × its price × the contract share; the
+  // backend's own totals are used only when that cannot be worked out.
+  const fromViews = totalEarningsFromViews(movies, filmmakerSplitPct);
+  const totalEarnings = fromViews ? fromViews.earnings : balance?.total_earnings;
+  const totalRevenue = fromViews ? fromViews.gross : balance?.total_revenue;
 
-  const totalViews = movies.reduce((acc, m) => {
-    const v = Number(m?.raw?.view_count ?? m?.raw?.views ?? m?.raw?.total_views ?? 0);
-    return acc + v;
-  }, 0);
+  const totalViews = movies.reduce((acc, m) => acc + viewsOf(m), 0);
 
   // Minimum Guarantee
   const mgAmount = contract?.minimum_guarantee;
@@ -180,9 +181,10 @@ export default function FilmmakerEarnings() {
                 <span>Your Earnings</span>
               </div>
               {movies.map((movie) => {
-                const views = Number(movie?.raw?.view_count ?? movie?.raw?.views ?? movie?.raw?.total_views ?? 0);
-                const backendGross = movie?.raw?.gross_revenue;
-                const backendEarnings = movie?.raw?.filmmaker_earnings;
+                const views = viewsOf(movie);
+                const calc = earningsFromViews(movie, filmmakerSplitPct);
+                const backendGross = calc ? calc.gross : movie?.raw?.gross_revenue;
+                const backendEarnings = calc ? calc.earnings : movie?.raw?.filmmaker_earnings;
                 
                 return (
                   <div key={movie.id} className="earnings-table-row">

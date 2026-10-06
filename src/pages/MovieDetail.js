@@ -15,6 +15,7 @@ import PaymentMethodModal from '../components/PaymentMethodModal';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
 import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime, showNoPoster, showNoBackdrop, isRealArtwork } from '../utils/mediaHelpers';
 import { clampQuality } from '../utils/quality';
+import { hasActiveSubscription } from '../utils/access';
 import usePlaybackQuality from '../hooks/usePlaybackQuality';
 import './MovieDetail.css';
 import { friendlyApiError } from '../utils/apiErrors';
@@ -306,7 +307,7 @@ const MovieDetail = () => {
   // Filmmakers can ALWAYS watch THEIR OWN uploaded movies without payment.
   const isFilmmaker = Boolean(user) && String(user.id) === String(movie.filmmakerId || movie.raw?.filmmaker_id);
   const hasPurchased = Array.isArray(purchasedMovies) && purchasedMovies.includes(String(movie.id));
-  const hasAccess = isFilmmaker || hasPurchased || (Boolean(user?.subscription?.active) && subscribeAllowed);
+  const hasAccess = isFilmmaker || hasPurchased || (hasActiveSubscription(user) && subscribeAllowed);
   const notPlayable = movie.is_playable === false;
   const notOnSale = !hasAccess && !subscribeAllowed && !ppvAllowed;
   const watchBlockedReason = notPlayable
@@ -328,7 +329,6 @@ const MovieDetail = () => {
     if (hasAccess) {
       // Authorized user bypass: navigate directly to Watch.js
       addToDownloads(movie.id);
-      sessionStorage.setItem(`playback_auth_${movie.id}`, 'true');
       // Open the player at the viewer's own quality (e.g. 480p on the Mobile plan).
       const playQuality = clampQuality(selectedQuality || '720p', maxPlaybackQuality);
       navigate(`/watch/${movie.id}?q=${encodeURIComponent(playQuality)}`);
@@ -598,7 +598,7 @@ const MovieDetail = () => {
                   <FaPlay />
                   {watchBlockedReason
                     ? tx(notPlayable ? 'Coming soon' : 'Not available yet')
-                    : tx(user?.subscription?.active ? 'Watch Now' : 'Watch')}
+                    : tx(hasActiveSubscription(user) ? 'Watch Now' : 'Watch')}
                 </button>
                 <button 
                   onClick={user ? handleWatchlistToggle : goToLogin}

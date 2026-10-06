@@ -14,6 +14,7 @@ import * as movieService from '../services/movieService';
 import * as seriesService from '../services/seriesService';
 import * as watchlistService from '../services/watchlistService';
 import * as paymentService from '../services/paymentService';
+import { isPaidPurchase } from '../utils/access';
 import {
   coerceMovieId,
   coerceArray,
@@ -135,7 +136,7 @@ export const MovieProvider = ({ children }) => {
                     Array.isArray(purchasesData)                  ? purchasesData :
                     [];
       // Safely extract movie IDs based on potential structures, supporting flat arrays
-      const ids = items.map(p => {
+      const ids = items.filter((p) => isPaidPurchase(p)).map(p => {
         if (typeof p === 'string' || typeof p === 'number') return String(p);
         return String(p?.movie_id || p?.movieId || p?.movie?.id || p?.id);
       }).filter(id => id && id !== 'undefined' && id !== 'null');
@@ -143,19 +144,17 @@ export const MovieProvider = ({ children }) => {
       const qualities = {};
       for (const p of items) {
         const mid = typeof p === 'object' && p ? String(p.movie_id || p.movieId || p.movie?.id || '') : '';
-        if (mid && p.quality) qualities[mid] = p.quality;
+        if (mid && p.quality && isPaidPurchase(p)) qualities[mid] = p.quality;
       }
       setPurchasedMovies(ids);
       setPurchaseQualities(qualities);
       return ids;
     } catch (err) {
       console.error('Failed to load purchases:', err);
-      // Temporary fallback: use user.purchasedMovies if API fails
-      if (user.purchasedMovies && Array.isArray(user.purchasedMovies)) {
-        const fallback = user.purchasedMovies.map(String);
-        setPurchasedMovies(fallback);
-        return fallback;
-      }
+      // Never fall back to a saved list: when the purchases cannot be read,
+      // nothing is treated as bought (the player asks the backend anyway).
+      setPurchasedMovies([]);
+      setPurchaseQualities({});
       return [];
     }
   }, [user]);

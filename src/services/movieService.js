@@ -3,6 +3,7 @@
  * Connects to backend endpoints for movies, trending, featured content, etc.
  */
 
+import { getFilmmakerShows } from './seriesService';
 import client from '../api/client';
 import { normalizeMovie, normalizePricing } from '../utils/mediaHelpers';
 // Keep mock data as fallback for development/testing
@@ -414,6 +415,26 @@ export async function getFilmmakerMovies() {
 }
 
 /**
+ * Everything the filmmaker has uploaded: movies and series together, newest
+ * first. A failure of one list does not hide the other; `failed` names what
+ * could not be loaded.
+ */
+export async function getFilmmakerTitles() {
+  const [movies, shows] = await Promise.allSettled([getFilmmakerMovies(), getFilmmakerShows()]);
+  if (movies.status === 'rejected' && shows.status === 'rejected') throw movies.reason;
+  const titles = [
+    ...(movies.status === 'fulfilled' ? movies.value || [] : []),
+    ...(shows.status === 'fulfilled' ? shows.value || [] : []),
+  ];
+  const created = (t) => new Date(t.createdAt || t.created_at || t.raw?.created_at || 0).getTime() || 0;
+  titles.sort((a, b) => created(b) - created(a));
+  return {
+    titles,
+    failed: [movies.status === 'rejected' && 'movies', shows.status === 'rejected' && 'series'].filter(Boolean),
+  };
+}
+
+/**
  * Create a new movie.
  * POST /movies
  */
@@ -513,6 +534,15 @@ export async function getMoviePricing(movieId) {
     console.error(`getMoviePricing(${movieId}):`, err?.message);
     return null;
   }
+}
+
+/**
+ * The filmmaker's movies with their pay-per-view price attached (the list
+ * payload has none), for working out earnings from views.
+ */
+export async function getFilmmakerMoviesWithPricing() {
+  const movies = await getFilmmakerMovies();
+  return Promise.all(movies.map(async (m) => (m.price ? m : { ...m, price: await getMoviePricing(m.id) })));
 }
 
 /**

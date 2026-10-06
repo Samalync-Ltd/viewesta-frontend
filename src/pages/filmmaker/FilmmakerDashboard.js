@@ -2,24 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocaleContext';
-import { getFilmmakerMovies } from '../../services/movieService';
+import { getFilmmakerTitles, getFilmmakerMoviesWithPricing } from '../../services/movieService';
+import { totalEarningsFromViews } from '../../utils/earnings';
 import { getContract, getPayoutBalance } from '../../services/earningsService';
-import { summarizeContract } from '../../utils/contract';
+import { summarizeContract, contractDuration } from '../../utils/contract';
 import { FaFilm, FaDollarSign, FaPlus, FaFileContract, FaCheckCircle, FaExclamationCircle, FaTimesCircle } from 'react-icons/fa';
 import './FilmmakerDashboard.css';
 
 /**
  * Filmmaker dashboard — integrated with translations and updated states.
  */
-// "2 years", "6 months" … from the two contract dates; '—' when either is missing.
-function durationLabel(start, end) {
-  if (!start || !end) return '—';
-  const months = Math.round((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24 * 30.44));
-  if (!Number.isFinite(months) || months <= 0) return '—';
-  if (months % 12 === 0) return `${months / 12} ${months === 12 ? 'year' : 'years'}`;
-  return `${months} ${months === 1 ? 'month' : 'months'}`;
-}
-
 function FilmmakerDashboard() {
   const { user } = useAuth();
   const userId = user?.id;
@@ -27,6 +19,7 @@ function FilmmakerDashboard() {
 
   const [movieCount, setMovieCount] = useState(0);
   const [loadingMovies, setLoadingMovies] = useState(true);
+  const [movies, setMovies] = useState([]); // with prices, for earnings
 
   // Contract and earnings come from their own endpoints (the profile payload has neither).
   const [contractRaw, setContractRaw] = useState(undefined); // undefined = loading
@@ -41,8 +34,16 @@ function FilmmakerDashboard() {
     });
     return () => { active = false; };
   }, [userId]);
+  useEffect(() => {
+    if (!userId) return undefined;
+    let active = true;
+    getFilmmakerMoviesWithPricing().then((m) => { if (active) setMovies(m); }).catch(() => {});
+    return () => { active = false; };
+  }, [userId]);
+  // Same working-out as the Earnings page: views × price × the contract share.
+  const fromViews = totalEarningsFromViews(movies, summarizeContract(contractRaw).split);
   const earnings = {
-    total: Number(balance?.total_earnings ?? balance?.balance ?? 0),
+    total: fromViews ? fromViews.earnings : Number(balance?.total_earnings ?? balance?.balance ?? 0),
     currency: balance?.currency || 'USD',
   };
 
@@ -50,8 +51,8 @@ function FilmmakerDashboard() {
     const fetchMovies = async () => {
       setLoadingMovies(true);
       try {
-        const movies = await getFilmmakerMovies();
-        setMovieCount(movies?.length || 0);
+        const { titles } = await getFilmmakerTitles();
+        setMovieCount(titles.length);
       } catch (err) {
         console.error('Error fetching filmmaker movies for dashboard:', err);
       } finally {
@@ -110,7 +111,7 @@ function FilmmakerDashboard() {
           </div>
           <div className="date-item">
              <span className="date-label">{t('contractDuration') || 'Duration'}</span>
-             <span className="date-value">{durationLabel(contract.startDate, contract.endDate)}</span>
+             <span className="date-value">{contractDuration(contract) || '—'}</span>
           </div>
           {contract.split !== null && (
             <div className="date-item">

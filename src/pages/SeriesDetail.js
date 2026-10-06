@@ -10,6 +10,7 @@ import * as seriesService from '../services/seriesService';
 import { updateEpisodeProgress, getEpisodeVideoFiles, buildSourcesMap, pickBestSource, sourcesExpireAt, videoErrorMessage } from '../services/videoService';
 import { capSources, clampQuality, qualityRank } from '../utils/quality';
 import usePlaybackQuality from '../hooks/usePlaybackQuality';
+import { hasActiveSubscription } from '../utils/access';
 import MovieCard from '../components/MovieCard';
 import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
@@ -49,6 +50,11 @@ const SeriesDetail = () => {
   const [episodeSourcesError, setEpisodeSourcesError] = useState('');
   // Quality the viewer is entitled to (the Mobile plan is 480p).
   const { maxQuality, planName, planMaxQuality } = usePlaybackQuality(seriesData);
+  // Episodes play for the series' own filmmaker or a viewer with a subscription
+  // in force; everyone else is sent to the plans (the backend enforces it too).
+  const isSeriesOwner = Boolean(user && seriesData) &&
+    String(user.id) === String(seriesData.filmmakerId || seriesData.raw?.filmmaker_id);
+  const canWatch = isSeriesOwner || hasActiveSubscription(user);
 
   // ─── Fetch seasons + episodes ───────────────────────────────────────────────
   // GET /shows/:id only reports season/episode counts, so the real lists load
@@ -134,7 +140,7 @@ const SeriesDetail = () => {
   }, []);
 
   useEffect(() => {
-    if (!watchEpisode) {
+    if (!watchEpisode || !canWatch) {
       setEpisodePlayback((prev) => ({ ...prev, map: {} }));
       return undefined;
     }
@@ -157,7 +163,7 @@ const SeriesDetail = () => {
       active = false;
       setEpisodePlayback((prev) => ({ ...prev, map: {} })); // Cleanup on unmount or episode change
     };
-  }, [watchEpisode, loadEpisodeSources]);
+  }, [watchEpisode, canWatch, loadEpisodeSources]);
 
   // Called by the player when the signed URLs have expired (long pause, or a
   // seek past the buffer). The player resumes from the same spot once they land.
@@ -213,6 +219,14 @@ const SeriesDetail = () => {
   };
 
   const handleWatchEpisode = (season, episode) => {
+    if (!user) {
+      goToLogin();
+      return;
+    }
+    if (!canWatch) {
+      navigate(`/subscription?return_to=${encodeURIComponent(`/series/${id}`)}`);
+      return;
+    }
     addToDownloads(seriesData.id);
     setWatchEpisode({ season, episode });
   };
@@ -536,7 +550,7 @@ const SeriesDetail = () => {
       )}
 
       {/* Episode Watch Modal */}
-      {watchEpisode && (
+      {watchEpisode && canWatch && (
         <div className="modal-overlay watch-modal" onClick={() => setWatchEpisode(null)}>
           <div className="watch-dialog" onClick={(e) => e.stopPropagation()}>
             {/* Header with navigation */}
@@ -575,6 +589,7 @@ const SeriesDetail = () => {
                   src={episodeVideoSrc || ''}
                   sources={episodeSources}
                   initialQuality={episodeQuality}
+                  maxQuality={maxQuality}
                   autoPlay
                   title={`S${watchEpisode.season.seasonNumber} E${watchEpisode.episode.episodeNumber}: ${watchEpisode.episode.title}`}
                   poster={seriesData.backdrop || seriesData.poster}

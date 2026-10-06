@@ -25,7 +25,7 @@ const Watch = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { getMovieById, purchasedMovies, refreshPurchases } = useMovies();
+  const { getMovieById, refreshPurchases } = useMovies();
   const { user, loading: authLoading } = useAuth();
   const { tx } = useLocale();
 
@@ -51,27 +51,20 @@ const Watch = () => {
     navigate(`/watch/${id}?q=${encodeURIComponent(quality)}`, { replace: true });
   }, [qualityReady, requestedQuality, quality, id, navigate]);
 
-  // ─── Authorization Check ───────────────────────────────────────────────
-  const checkAuthorization = useCallback((m) => {
-    if (!m) return false;
-    if (!user) return false;
-    const isFilmmaker = String(user.id) === String(m.filmmakerId || m.raw?.filmmaker_id);
-    const monetizationType = getMonetizationType(m);
-    const isSubscribed = user?.subscription?.active;
-    const isPurchased = Array.isArray(purchasedMovies) && purchasedMovies.includes(String(m.id));
-
-    if (isFilmmaker || isPurchased || (isSubscribed && (monetizationType === 'both' || monetizationType === 'subscription'))) {
-      return true;
-    }
-    return false;
-  }, [user, purchasedMovies]);
-
-  // The cached purchase list can lag behind a payment that has just completed
-  // (viewers land here straight from the payment page), so when the local check
-  // says "no" the backend is asked directly before access is refused.
-  // null = not answered yet.
+  // ─── Authorization ─────────────────────────────────────────────────────
+  // Only the title's own filmmaker is let in without asking the backend. For
+  // everyone else the backend decides on every visit (subscription, purchase,
+  // expiry, cancellation): what is saved in the browser — the stored
+  // subscription flag, the cached purchase list — can be stale or edited, so it
+  // never opens the player by itself. If the backend cannot be reached, the
+  // title stays locked. null = not answered yet.
   const [serverAccess, setServerAccess] = useState(null);
-  const locallyAuthorized = checkAuthorization(movie);
+  const userId = user?.id;
+  // The profile refreshes replace `user`/`refreshPurchases`; neither should re-ask the backend.
+  const refreshPurchasesRef = useRef(refreshPurchases);
+  refreshPurchasesRef.current = refreshPurchases;
+  const locallyAuthorized = Boolean(movie && user) &&
+    String(user.id) === String(movie.filmmakerId || movie.raw?.filmmaker_id);
   const isAuthorized = locallyAuthorized || serverAccess === true;
   const accessPending = Boolean(user) && Boolean(movie) && !locallyAuthorized && serverAccess === null;
   const needsAccess = Boolean(movie) && !authLoading && !accessPending && !isAuthorized;
@@ -124,21 +117,21 @@ const Watch = () => {
   useEffect(() => {
     setServerAccess(null);
     // Wait for the plan lookup so the check asks for the quality the viewer can use.
-    if (!movie?.id || !user || locallyAuthorized || !qualityReady) return undefined;
+    if (!movie?.id || !userId || locallyAuthorized || !qualityReady) return undefined;
 
     let active = true;
     checkMovieAccess(movie.id, quality)
       .then((result) => {
         if (!active) return;
-        const hasAccess = Boolean(result?.has_access);
+        const hasAccess = result?.has_access === true;
         setServerAccess(hasAccess);
         // Bring the cached purchase list up to date with what the backend knows.
-        if (hasAccess) refreshPurchases();
+        if (hasAccess && (result.purchase || /purchas/i.test(String(result.access_reason || '')))) refreshPurchasesRef.current();
       })
       .catch(() => { if (active) setServerAccess(false); });
     return () => { active = false; };
     // `locallyAuthorized` is a boolean, so this only reruns when it flips.
-  }, [movie?.id, user, locallyAuthorized, qualityReady, quality, refreshPurchases]);
+  }, [movie?.id, userId, locallyAuthorized, qualityReady, quality]);
 
   // ─── Fetch video files from backend ──────────────────────────────────────
   const loadSources = useCallback(async () => {
@@ -311,6 +304,7 @@ const Watch = () => {
             src={finalSrc}
             sources={playableSources}
             initialQuality={quality}
+            maxQuality={maxQuality}
             autoPlay
             title={movie.title}
             poster={movie.backdrop || movie.poster}

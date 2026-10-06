@@ -157,6 +157,7 @@
   "contractValid": "Valid",
   "contractExpired": "Expired",
   "contractTerminated": "Terminated",
+  "noContract": "No contract found",
   "totalMovies": "Total Content",
   "totalEarnings": "Total Earnings",
   "releaseDate": "Release Date",

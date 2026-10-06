@@ -61,6 +61,8 @@ const formatTime = (seconds) => {
  *   // DRM/Widevine-ready architecture:
  *   drmConfig     {object}   – { servers: { 'com.widevine.alpha': '...' }, ... }
  */
+const STANDARD_QUALITIES = ['480p', '720p', '1080p'];
+
 const VideoPlayer = ({
   src,
   sources = {},
@@ -68,6 +70,8 @@ const VideoPlayer = ({
   initialQuality = '720p',
   // Start playing as soon as the video is ready (the viewer already chose to watch).
   autoPlay = false,
+  // Highest quality this viewer's plan allows (e.g. '480p' on the Mobile plan); null = no limit.
+  maxQuality = null,
   title = '',
   poster = '',
   onEnded,
@@ -132,10 +136,17 @@ const VideoPlayer = ({
   }, []);
 
   // ─── Resolve active source URL ────────────────────────────────────────────
-  // Highest first; unknown labels keep their order at the end.
-  const availableQualities = Object.keys(sources).length > 0
-    ? Object.keys(sources).sort((a, b) => qualityRank(b) - qualityRank(a))
-    : (src ? ['default'] : []);
+  // The quality menu lists every standard tier, so the viewer sees what exists:
+  // a tier is a button when the film has that file and the plan allows it, and
+  // is greyed out (with the reason) when it does not.
+  const qualityMenu = [...new Set([...STANDARD_QUALITIES, ...Object.keys(sources)])]
+    .filter((q) => qualityRank(q) >= 0)
+    .sort((a, b) => qualityRank(a) - qualityRank(b))
+    .map((q) => {
+      if (sources[q]) return { q, state: 'available' };
+      const overPlan = maxQuality && qualityRank(maxQuality) >= 0 && qualityRank(q) > qualityRank(maxQuality);
+      return { q, state: overPlan ? 'plan' : 'missing' };
+    });
   const activeSrc = (() => {
     if (Object.keys(sources).length > 0) {
       // `src` is the parent's pick for this viewer (their quality, or the best
@@ -601,7 +612,7 @@ const VideoPlayer = ({
               </button>
 
               {/* Quality selector */}
-              {availableQualities.length > 1 && (
+              {Object.keys(sources).length > 0 && (
                 <div style={{ position: 'relative' }}>
                   <button
                     className="control-btn"
@@ -615,14 +626,19 @@ const VideoPlayer = ({
                       <div className="settings-group">
                         <div className="settings-label">Quality</div>
                         <div className="quality-options">
-                          {availableQualities.map((q) => (
+                          {qualityMenu.map(({ q, state }) => (
                             <button
                               key={q}
                               className={`quality-option${playingQuality === q ? ' active' : ''}`}
                               aria-pressed={playingQuality === q}
+                              disabled={state !== 'available'}
+                              title={state === 'plan' ? 'Not included in your plan' : state === 'missing' ? 'Not available for this title' : undefined}
                               onClick={() => { setQuality(q); setIsSettingsOpen(false); }}
                             >
                               {q}
+                              {state !== 'available' && (
+                                <small className="quality-note">{state === 'plan' ? 'Upgrade' : 'Unavailable'}</small>
+                              )}
                             </button>
                           ))}
                         </div>
