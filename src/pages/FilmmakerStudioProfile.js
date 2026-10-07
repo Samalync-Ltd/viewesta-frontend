@@ -4,10 +4,10 @@
  * Fields: first_name, last_name, bio, studio_name, avatar (passed through
  *         and stored locally; backend accepts first_name + last_name confirmed).
  */
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getFilmmakerMovies } from '../services/movieService';
+import useFilmmakerStats from '../hooks/useFilmmakerStats';
 import {
   FaCamera, FaSave, FaTimes, FaEdit,
   FaFilm, FaDollarSign, FaCheckCircle,
@@ -24,7 +24,6 @@ const DEFAULT_AVATAR =
 
 export default function FilmmakerStudioProfile() {
   const { user, updateProfile, changePassword, logout, loading, uploadAvatar } = useAuth();
-  const userId = user?.id;
   const navigate = useNavigate();
   const fileRef = useRef(null);
 
@@ -43,25 +42,8 @@ export default function FilmmakerStudioProfile() {
   const [saveError, setSaveError]     = useState('');
   const [avatarFile, setAvatarFile]   = useState(null);
 
-  const [movieCount, setMovieCount] = useState(0);
-  const [loadingCount, setLoadingCount] = useState(true);
-
-  /* ── Fetch actual movie count ── */
-  useEffect(() => {
-    const fetchCount = async () => {
-      try {
-        const movies = await getFilmmakerMovies();
-        setMovieCount(movies?.length || 0);
-      } catch (err) {
-        console.error('Failed to fetch movie count for studio profile:', err);
-      } finally {
-        setLoadingCount(false);
-      }
-    };
-    if (userId) {
-      fetchCount();
-    }
-  }, [userId]);
+  // Same upload count and earnings as the dashboard (movies + series; views × price × share).
+  const { titleCount, earnings } = useFilmmakerStats();
 
   /* ── derived values ── */
   const displayName =
@@ -73,9 +55,9 @@ export default function FilmmakerStudioProfile() {
     user?.avatar ||
     `${DEFAULT_AVATAR}${encodeURIComponent(displayName)}`;
 
-  const totalMovies    = loadingCount ? '...' : movieCount;
-  const totalEarnings  = Number(user?.earnings?.total ?? user?.total_earnings ?? 0);
-  const earningsCurrency = user?.earnings?.currency ?? 'USD';
+  const totalMovies    = titleCount === null ? '...' : titleCount;
+  const totalEarnings  = Number(earnings.total) || 0;
+  const earningsCurrency = earnings.currency;
 
   /* ── handlers ── */
   const handleEditStart = () => {
@@ -351,7 +333,7 @@ export default function FilmmakerStudioProfile() {
         <div className="fsp-stat-divider" />
         <div className="fsp-stat">
           <span className="fsp-stat-value" style={{ color: '#22c55e' }}>
-            {earningsCurrency} {totalEarnings.toFixed(0)}
+            {earningsCurrency} {totalEarnings.toFixed(2)}
           </span>
           <span className="fsp-stat-label">Earnings</span>
         </div>

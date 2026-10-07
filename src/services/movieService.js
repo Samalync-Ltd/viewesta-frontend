@@ -521,12 +521,21 @@ export async function rateMovie(id, rating) {
  * source of it. Resolves to a { quality: price } map, or null if the title
  * has no pricing configured (or the lookup fails).
  */
+const PPV_QUALITIES = ['480p', '720p', '1080p'];
+const singlePriceMap = (price) => Object.fromEntries(PPV_QUALITIES.map((q) => [q, price]));
+
 export async function getMoviePricing(movieId) {
   if (!movieId) return null;
   try {
     const response = await client.get(`/movies/${movieId}/pricing`);
     if (response.data?.success && response.data?.data) {
       const data = response.data.data;
+      // Current shape: one price per film for every quality —
+      // { price, is_free, unlocks_all_qualities, pricing: { price: "1.00", ... } }.
+      const single = data.price ?? (data.pricing && !Array.isArray(data.pricing) && data.pricing.quality === undefined ? data.pricing.price : undefined);
+      if (data.is_free === true || data.pricing?.is_free === true) return singlePriceMap(0);
+      if (single !== undefined && single !== null && Number.isFinite(Number(single))) return singlePriceMap(Number(single));
+      // Older shape: one row per quality.
       return normalizePricing(data.pricing ?? data.prices ?? null);
     }
     return null;

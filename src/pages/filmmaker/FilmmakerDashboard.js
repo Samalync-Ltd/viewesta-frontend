@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLocale } from '../../context/LocaleContext';
-import { getFilmmakerTitles, getFilmmakerMoviesWithPricing } from '../../services/movieService';
-import { totalEarningsFromViews } from '../../utils/earnings';
-import { getContract, getPayoutBalance } from '../../services/earningsService';
+import useFilmmakerStats from '../../hooks/useFilmmakerStats';
 import { summarizeContract, contractDuration } from '../../utils/contract';
 import { FaFilm, FaDollarSign, FaPlus, FaFileContract, FaCheckCircle, FaExclamationCircle, FaTimesCircle } from 'react-icons/fa';
 import './FilmmakerDashboard.css';
@@ -14,56 +12,10 @@ import './FilmmakerDashboard.css';
  */
 function FilmmakerDashboard() {
   const { user } = useAuth();
-  const userId = user?.id;
   const { t } = useLocale();
 
-  const [movieCount, setMovieCount] = useState(0);
-  const [loadingMovies, setLoadingMovies] = useState(true);
-  const [movies, setMovies] = useState([]); // with prices, for earnings
-
-  // Contract and earnings come from their own endpoints (the profile payload has neither).
-  const [contractRaw, setContractRaw] = useState(undefined); // undefined = loading
-  const [balance, setBalance] = useState(null);
-  useEffect(() => {
-    if (!userId) return undefined;
-    let active = true;
-    Promise.all([getContract(), getPayoutBalance()]).then(([c, b]) => {
-      if (!active) return;
-      setContractRaw(c);
-      setBalance(b);
-    });
-    return () => { active = false; };
-  }, [userId]);
-  useEffect(() => {
-    if (!userId) return undefined;
-    let active = true;
-    getFilmmakerMoviesWithPricing().then((m) => { if (active) setMovies(m); }).catch(() => {});
-    return () => { active = false; };
-  }, [userId]);
-  // Same working-out as the Earnings page: views × price × the contract share.
-  const fromViews = totalEarningsFromViews(movies, summarizeContract(contractRaw).split);
-  const earnings = {
-    total: fromViews ? fromViews.earnings : Number(balance?.total_earnings ?? balance?.balance ?? 0),
-    currency: balance?.currency || 'USD',
-  };
-
-  useEffect(() => {
-    const fetchMovies = async () => {
-      setLoadingMovies(true);
-      try {
-        const { titles } = await getFilmmakerTitles();
-        setMovieCount(titles.length);
-      } catch (err) {
-        console.error('Error fetching filmmaker movies for dashboard:', err);
-      } finally {
-        setLoadingMovies(false);
-      }
-    };
-
-    if (userId) {
-      fetchMovies();
-    }
-  }, [userId]);
+  // Upload count, contract and earnings: the same numbers as the studio profile.
+  const { titleCount, contractRaw, earnings } = useFilmmakerStats();
 
   // Try to use contract data from the backend user profile, otherwise show 'No Contract'
   const contract = summarizeContract(contractRaw);
@@ -132,7 +84,7 @@ function FilmmakerDashboard() {
         <div className="stat-card">
           <FaFilm className="stat-icon" />
           <div>
-            <span className="stat-value">{loadingMovies ? '...' : movieCount}</span>
+            <span className="stat-value">{titleCount === null ? '...' : titleCount}</span>
             <span className="stat-label">{t('myStudio')}</span>
           </div>
           <Link to="/filmmaker-studio/movies" className="stat-link">{t('seeAll')}</Link>
