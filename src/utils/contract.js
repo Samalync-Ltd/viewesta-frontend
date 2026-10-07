@@ -1,8 +1,9 @@
 /**
- * Reads GET /filmmaker/me/contract into what the dashboard shows. The payload
- * may be flat or nested one level (`contract`, `terms`, `agreement`), and the
- * field names vary, so every level is merged and keys are matched by what they
- * mean (…start…, …end/expir…) rather than by one exact spelling.
+ * Reads GET /filmmaker/me/contract into what the dashboard shows. The real
+ * payload keeps the dates in `data.filmmaker.content_partner_contract` and the
+ * split at the top level; other nestings (`contract`, `terms`, `agreement`) are
+ * merged too, and keys are matched by what they mean (…start…, …end/expir…)
+ * rather than by one exact spelling.
  */
 const present = (v) => v !== undefined && v !== null && v !== '';
 const pick = (...values) => values.find(present);
@@ -11,9 +12,12 @@ const isDateLike = (v) => (typeof v === 'string' || v instanceof Date) && Number
 function flatten(raw) {
   if (!raw || typeof raw !== 'object') return {};
   const merged = { ...raw };
-  ['contract', 'terms', 'agreement', 'current_contract', 'active_contract'].forEach((k) => {
-    if (raw[k] && typeof raw[k] === 'object' && !Array.isArray(raw[k])) Object.assign(merged, raw[k]);
-  });
+  const isObj = (v) => v && typeof v === 'object' && !Array.isArray(v);
+  const KEYS = ['contract', 'content_partner_contract', 'terms', 'agreement', 'current_contract', 'active_contract'];
+  KEYS.forEach((k) => { if (isObj(raw[k])) Object.assign(merged, raw[k]); });
+  // Real shape: { filmmaker: { …, content_partner_contract: { start_date, end_date, status } },
+  //               filmmaker_split, platform_split, currency }
+  if (isObj(raw.filmmaker)) KEYS.forEach((k) => { if (isObj(raw.filmmaker[k])) Object.assign(merged, raw.filmmaker[k]); });
   return merged;
 }
 

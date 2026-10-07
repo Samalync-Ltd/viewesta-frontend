@@ -335,10 +335,10 @@ const MovieDetail = () => {
       return;
     }
 
-    // Everyone else gets the unlock modal, opened on a tab they can actually use.
+    // Everyone else gets the unlock modal.
     setSelectedQuality('');
-    // Both ways in: the viewer picks first. Only one: go straight to it.
-    setPurchaseTab(subscribeAllowed && ppvAllowed ? '' : (subscribeAllowed ? 'subscribe' : 'ppv'));
+    // Always open on the choice: Subscription or Pay Per View (as in the mobile app).
+    setPurchaseTab('');
     setShowPurchaseModal(true);
   };
 
@@ -727,42 +727,22 @@ const MovieDetail = () => {
               {!purchaseTab && (
                 <div className="watch-choice">
                   <p className="watch-choice-lead">{tx('How would you like to watch?')}</p>
-                  {subscribeAllowed && (
-                    <button type="button" className="watch-choice-card" onClick={() => setPurchaseTab('subscribe')}>
-                      <strong>{tx('Subscription')}</strong>
-                      <span>{tx('Unlimited access to all movies with a monthly or yearly plan.')}</span>
-                    </button>
-                  )}
-                  {ppvAllowed && (
-                    <button type="button" className="watch-choice-card" onClick={() => setPurchaseTab('ppv')}>
-                      <strong>{tx('Pay Per View')}</strong>
-                      <span>{tx('Pay once for this movie only, in the quality you choose.')}</span>
-                    </button>
-                  )}
+                  {/* Both ways are always shown; one this title doesn't offer is greyed out with the reason. */}
+                  <button type="button" className="watch-choice-card" disabled={!subscribeAllowed} onClick={() => setPurchaseTab('subscribe')}>
+                    <strong>{tx('Subscription')}</strong>
+                    <span>{tx(subscribeAllowed ? 'Unlimited access to all movies with a monthly or yearly plan.' : 'This title is not included in subscriptions.')}</span>
+                  </button>
+                  <button type="button" className="watch-choice-card" disabled={!ppvAllowed} onClick={() => setPurchaseTab('ppv')}>
+                    <strong>{tx('Pay Per View')}</strong>
+                    <span>{tx(ppvAllowed ? 'Pay once for this movie only, in the quality you choose.' : 'Pay per view is not available for this title yet.')}</span>
+                  </button>
                 </div>
               )}
 
-              {purchaseTab && subscribeAllowed && ppvAllowed && (
-              <div className="watch-options-tabs">
-                {subscribeAllowed && (
-                  <button
-                    type="button"
-                    className={`option-tab ${purchaseTab === 'subscribe' ? 'active' : ''}`}
-                    onClick={() => setPurchaseTab('subscribe')}
-                  >
-                    {tx('Subscription')}
-                  </button>
-                )}
-                {ppvAllowed && (
-                  <button
-                    type="button"
-                    className={`option-tab ${purchaseTab === 'ppv' ? 'active' : ''}`}
-                    onClick={() => setPurchaseTab('ppv')}
-                  >
-                    {tx('Pay Per View')}
-                  </button>
-                )}
-              </div>
+              {purchaseTab && (
+                <button type="button" className="btn btn-ghost btn-small watch-choice-back" onClick={() => { setPurchaseTab(''); setSelectedQuality(''); }}>
+                  ← {tx('Back to watch options')}
+                </button>
               )}
 
               {purchaseTab === 'ppv' ? (
