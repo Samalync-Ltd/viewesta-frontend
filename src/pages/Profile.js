@@ -469,7 +469,7 @@ const Profile = () => {
               <div className="setting-item">
                 <label>{tx('Preferred Quality')}</label>
                 <select
-                  value={isEditing ? qualityPref : (user.preferences?.quality || '1080p')}
+                  value={isEditing ? qualityPref : (user.preferences?.quality || '720p')}
                   onChange={(e) => setQualityPref(e.target.value)}
                   disabled={!isEditing}
                 >
