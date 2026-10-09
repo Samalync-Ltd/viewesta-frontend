@@ -1,21 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getFilmmakerTitles, getFilmmakerMoviesWithPricing } from '../services/movieService';
+import { getFilmmakerTitles } from '../services/movieService';
 import { getContract, getPayoutBalance } from '../services/earningsService';
-import { summarizeContract } from '../utils/contract';
-import { totalEarningsFromViews } from '../utils/earnings';
 
 /**
- * The signed-in filmmaker's headline numbers, worked out the same way on every
- * screen (dashboard, studio profile): uploads = movies + series, and earnings =
- * each film's views × its price × the contract share (the backend balance is
- * used only when that cannot be worked out).
+ * The signed-in filmmaker's headline numbers, the same on every screen
+ * (dashboard, studio profile): uploads = movies + series, and earnings =
+ * `total_earnings` exactly as the backend reports it. The backend owns the
+ * earnings calculation; nothing is worked out here.
  */
 export default function useFilmmakerStats() {
   const { user } = useAuth();
   const userId = user?.id;
   const [titleCount, setTitleCount] = useState(null); // null = loading
-  const [movies, setMovies] = useState([]);
   const [contractRaw, setContractRaw] = useState(undefined); // undefined = loading
   const [balance, setBalance] = useState(null);
 
@@ -25,7 +22,6 @@ export default function useFilmmakerStats() {
     getFilmmakerTitles()
       .then(({ titles }) => { if (active) setTitleCount(titles.length); })
       .catch(() => { if (active) setTitleCount(0); });
-    getFilmmakerMoviesWithPricing().then((m) => { if (active) setMovies(m); }).catch(() => {});
     Promise.all([getContract(), getPayoutBalance()]).then(([c, b]) => {
       if (!active) return;
       setContractRaw(c);
@@ -34,12 +30,11 @@ export default function useFilmmakerStats() {
     return () => { active = false; };
   }, [userId]);
 
-  const fromViews = totalEarningsFromViews(movies, summarizeContract(contractRaw).split);
   return {
     titleCount,
     contractRaw,
     earnings: {
-      total: fromViews ? fromViews.earnings : Number(balance?.total_earnings ?? balance?.balance ?? 0),
+      total: Number(balance?.total_earnings ?? 0),
       currency: balance?.currency || 'USD',
     },
   };

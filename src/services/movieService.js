@@ -546,15 +546,6 @@ export async function getMoviePricing(movieId) {
 }
 
 /**
- * The filmmaker's movies with their pay-per-view price attached (the list
- * payload has none), for working out earnings from views.
- */
-export async function getFilmmakerMoviesWithPricing() {
-  const movies = await getFilmmakerMovies();
-  return Promise.all(movies.map(async (m) => (m.price ? m : { ...m, price: await getMoviePricing(m.id) })));
-}
-
-/**
  * Fetch all video files for a movie.
  * GET /movies/:movieId/video-files
  * Returns array of { quality, file_url, duration_seconds, is_processed }
