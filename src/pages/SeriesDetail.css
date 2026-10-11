@@ -892,3 +892,15 @@
   background: #0d0d0d;
   border-top: 1px solid rgba(255,255,255,0.07);
 }
+
+/* Pay-per-view / subscription options for the whole series */
+.series-buy-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+.series-buy-option { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--border-color, #333); border-radius: 12px; background: var(--bg-secondary, rgba(255,255,255,0.04)); }
+.series-buy-option strong { font-size: 15px; }
+.series-buy-option span { font-size: 13px; color: var(--text-muted, #aaa); }
+.series-buy-option .btn { align-self: flex-start; margin-top: 4px; }
+.series-access-note { margin-top: 12px; color: #22c55e; font-size: 14px; }
+.series-unlock-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+.series-unlock-dialog { width: 100%; max-width: 560px; background: var(--bg-primary, #141414); border-radius: 14px; padding: 20px; }
+.series-unlock-header { display: flex; justify-content: space-between; align-items: center; }
+.series-unlock-header h3 { margin: 0; }

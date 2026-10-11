@@ -24,6 +24,24 @@ export async function checkMovieAccess(movieId, quality) {
 }
 
 /**
+ * Can the viewer watch this series? GET /payments/series/:id/access
+ * → { has_access, access_reason: 'subscription'|'free'|'purchased'|null, price, is_purchasable, purchase: { expires_at } }
+ */
+export async function checkSeriesAccess(seriesId) {
+  const { data } = await client.get(`/payments/series/${seriesId}/access`);
+  return data?.data ?? data ?? {};
+}
+
+/**
+ * Buy a whole series (all episodes, 120 hours). POST /payments/purchase with `series_id`.
+ * Wallet completes at once; card returns `redirect_url` (Pesapal).
+ */
+export async function purchaseSeries({ series_id, payment_method = 'wallet' }) {
+  const { data } = await client.post('/payments/purchase', { series_id, payment_method });
+  return data;
+}
+
+/**
  * Fetch the current user's purchased movies.
  * @returns {Array} Array of purchased movie objects or IDs
  */

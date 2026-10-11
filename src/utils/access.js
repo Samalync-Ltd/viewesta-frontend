@@ -21,12 +21,25 @@ export function hasActiveSubscription(user, now = Date.now()) {
 
 const NOT_PAID = /pending|fail|cancel|refund|expire|reject|declin/i;
 
+/** When a pay-per-view purchase stops giving access (120 hours after buying), or null. */
+export const purchaseExpiry = (p) =>
+  (p && typeof p === 'object' && (p.access_expires_at || p.expires_at || p.expiresAt)) || null;
+
+const PLAN_LABELS = { monthly: 'Monthly', yearly: 'Yearly', annual: 'Yearly', mobile: 'Mobile Plan' };
+/** "Monthly" / "Yearly" / "Mobile Plan" for the viewer's subscription (or its own plan name). */
+export function subscriptionPlanLabel(user) {
+  const sub = user?.subscription;
+  const key = String(sub?.plan_type || sub?.type || sub?.planId || '').toLowerCase();
+  return PLAN_LABELS[key] || sub?.plan?.name || sub?.plan_name || (key ? key.charAt(0).toUpperCase() + key.slice(1) : '');
+}
+
 /** True for a purchase record that is paid for and not past its end date. */
 export function isPaidPurchase(purchase, now = Date.now()) {
   if (!purchase || typeof purchase !== 'object') return true; // a bare id from the purchases list
   const status = purchase.status || purchase.payment_status;
   if (status && NOT_PAID.test(String(status))) return false;
-  const end = purchase.expires_at || purchase.expiresAt;
+  if (purchase.is_active === false) return false;
+  const end = purchaseExpiry(purchase);
   if (end) {
     const t = new Date(end).getTime();
     if (Number.isFinite(t) && t <= now) return false;

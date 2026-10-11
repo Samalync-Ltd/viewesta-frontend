@@ -87,3 +87,15 @@
     font-size: 24px;
   }
 }
+
+/* Access rules note + per-title access type */
+.downloads-rules { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; margin-bottom: 24px; border: 1px solid var(--border-color, #333); border-left: 4px solid var(--primary, #ff6b00); border-radius: 10px; background: var(--bg-secondary, rgba(255,255,255,0.04)); }
+.downloads-rules-icon { margin-top: 3px; color: var(--primary, #ff6b00); flex-shrink: 0; }
+.downloads-rules ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; color: var(--text-secondary, #ccc); }
+.download-item { display: flex; flex-direction: column; gap: 8px; }
+.download-access { display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.download-access-label { align-self: flex-start; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+.download-access--ppv .download-access-label { background: rgba(255,107,0,0.15); color: #ff8a3d; }
+.download-access--subscription .download-access-label { background: rgba(34,197,94,0.15); color: #22c55e; }
+.download-access--none .download-access-label { background: rgba(255,255,255,0.08); color: #aaa; }
+.download-access-detail { color: var(--text-muted, #999); }

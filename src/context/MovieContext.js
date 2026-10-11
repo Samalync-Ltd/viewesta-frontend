@@ -14,7 +14,7 @@ import * as movieService from '../services/movieService';
 import * as seriesService from '../services/seriesService';
 import * as watchlistService from '../services/watchlistService';
 import * as paymentService from '../services/paymentService';
-import { isPaidPurchase } from '../utils/access';
+import { isPaidPurchase, purchaseExpiry } from '../utils/access';
 import {
   coerceMovieId,
   coerceArray,
@@ -47,6 +47,7 @@ export const MovieProvider = ({ children }) => {
   const [favorites, setFavorites] = useState([]);
   const [purchasedMovies, setPurchasedMovies] = useState([]);
   const [purchaseQualities, setPurchaseQualities] = useState({}); // { movieId: '1080p' }
+  const [purchaseRecords, setPurchaseRecords] = useState([]); // [{ id, type: 'Movie'|'Series', title, expiresAt }]
   const [isSyncingLists] = useState(false);
   const [userRatings, setUserRatings] = useState(() => {
     try {
@@ -123,6 +124,7 @@ export const MovieProvider = ({ children }) => {
     if (!user) {
       setPurchasedMovies([]);
       setPurchaseQualities({});
+      setPurchaseRecords([]);
       return [];
     }
     try {
@@ -146,6 +148,17 @@ export const MovieProvider = ({ children }) => {
         const mid = typeof p === 'object' && p ? String(p.movie_id || p.movieId || p.movie?.id || '') : '';
         if (mid && p.quality && isPaidPurchase(p)) qualities[mid] = p.quality;
       }
+      // Every active pay-per-view title (films + whole series) with its expiry,
+      // for the library / downloads list.
+      const seriesItems = Array.isArray(purchasesData?.data?.series_purchases) ? purchasesData.data.series_purchases : [];
+      setPurchaseRecords([
+        ...items.filter((p) => p && typeof p === 'object' && isPaidPurchase(p)).map((p) => ({
+          id: String(p.movie_id || p.movieId || p.movie?.id || p.id), type: 'Movie', title: p.movie_title || p.title || '', expiresAt: purchaseExpiry(p),
+        })),
+        ...seriesItems.filter((p) => isPaidPurchase(p)).map((p) => ({
+          id: String(p.series_id || p.show_id), type: 'Series', title: p.series_title || '', expiresAt: purchaseExpiry(p),
+        })),
+      ].filter((r) => r.id && r.id !== 'undefined'));
       setPurchasedMovies(ids);
       setPurchaseQualities(qualities);
       return ids;
@@ -155,6 +168,7 @@ export const MovieProvider = ({ children }) => {
       // nothing is treated as bought (the player asks the backend anyway).
       setPurchasedMovies([]);
       setPurchaseQualities({});
+      setPurchaseRecords([]);
       return [];
     }
   }, [user]);
@@ -411,6 +425,7 @@ export const MovieProvider = ({ children }) => {
       favorites,
       purchasedMovies,
       purchaseQualities,
+      purchaseRecords,
       isSyncingLists,
       userRatings,
       downloads,
@@ -453,6 +468,7 @@ export const MovieProvider = ({ children }) => {
       favorites,
       purchasedMovies,
       purchaseQualities,
+      purchaseRecords,
       isSyncingLists,
       userRatings,
       downloads,

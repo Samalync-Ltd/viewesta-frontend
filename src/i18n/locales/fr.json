@@ -597,6 +597,18 @@
     "Zero Ads": "Zéro publicité",
     "{{n}} Seasons": "{{n}} saisons",
     "{{n}} titles": "{{n}} titres",
-    "{{n}} titles saved": "{{n}} titres enregistrés"
+    "{{n}} titles saved": "{{n}} titres enregistrés",
+    "Purchased — all episodes unlocked until {{date}}": "Acheté — tous les épisodes débloqués jusqu’au {{date}}",
+    "Unlimited access to all movies and series with a plan.": "Accès illimité à tous les films et séries avec une offre.",
+    "Unlocks every episode for 5 days (120 hours).": "Débloque tous les épisodes pendant 5 jours (120 heures).",
+    "Buy series": "Acheter la série",
+    "Pay-Per-View": "Paiement à l’unité",
+    "Available until {{date}}": "Disponible jusqu’au {{date}}",
+    "No active access": "Aucun accès actif",
+    "Access rules": "Règles d’accès",
+    "Movies are available for 5 days from the date of purchase.": "Les films sont disponibles pendant 5 jours à partir de la date d’achat.",
+    "Access depends on the subscription plan selected and its validity.": "L’accès dépend de l’abonnement choisi et de sa validité.",
+    "Monthly": "Mensuel",
+    "Yearly": "Annuel"
   }
 }

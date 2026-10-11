@@ -11,6 +11,9 @@ import { updateEpisodeProgress, getEpisodeVideoFiles, buildSourcesMap, pickBestS
 import { capSources, clampQuality, qualityRank } from '../utils/quality';
 import usePlaybackQuality from '../hooks/usePlaybackQuality';
 import { hasActiveSubscription } from '../utils/access';
+import { checkSeriesAccess, purchaseSeries } from '../services/paymentService';
+import { friendlyApiError } from '../utils/apiErrors';
+import PaymentMethodModal from '../components/PaymentMethodModal';
 import MovieCard from '../components/MovieCard';
 import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
@@ -27,7 +30,7 @@ const SeriesDetail = () => {
   const location = useLocation();
   // Sign-in brings the viewer back to this page afterwards.
   const goToLogin = () => navigate('/login', { state: { from: location } });
-  const { addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating, seriesList, addToDownloads } = useMovies();
+  const { addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating, seriesList, addToDownloads, refreshPurchases } = useMovies();
   const episodesRef = useRef(null);
   const { user, loading: authLoading } = useAuth();
   const userId = user?.id;
@@ -54,7 +57,72 @@ const SeriesDetail = () => {
   // in force; everyone else is sent to the plans (the backend enforces it too).
   const isSeriesOwner = Boolean(user && seriesData) &&
     String(user.id) === String(seriesData.filmmakerId || seriesData.raw?.filmmaker_id);
-  const canWatch = isSeriesOwner || hasActiveSubscription(user);
+
+  // ─── Pay-per-view for the whole series ───────────────────────────────────
+  // One price unlocks every episode for 120 hours. The backend's access check
+  // is the authority (subscription / free / purchased).
+  const [seriesPricing, setSeriesPricing] = useState(undefined); // undefined = loading, null = not on sale
+  const [seriesAccess, setSeriesAccess] = useState(null);
+  const [showUnlock, setShowUnlock] = useState(false);
+  const [showSeriesPayment, setShowSeriesPayment] = useState(false);
+  const [seriesBuying, setSeriesBuying] = useState(false);
+  const [seriesBuyError, setSeriesBuyError] = useState('');
+  useEffect(() => {
+    if (!id) return undefined;
+    let active = true;
+    setSeriesPricing(undefined);
+    seriesService.getSeriesPricing(id).then((p) => { if (active) setSeriesPricing(p); });
+    return () => { active = false; };
+  }, [id]);
+  const loadSeriesAccess = useCallback(async () => {
+    if (!id || !userId) { setSeriesAccess(null); return null; }
+    try {
+      const a = await checkSeriesAccess(id);
+      setSeriesAccess(a);
+      return a;
+    } catch {
+      setSeriesAccess(null);
+      return null;
+    }
+  }, [id, userId]);
+  useEffect(() => { loadSeriesAccess(); }, [loadSeriesAccess]);
+
+  const ppvOnly = (seriesAccess?.access_type || seriesData?.raw?.access_type) === 'ppv_only';
+  const subscribed = hasActiveSubscription(user) && !ppvOnly;
+  const purchasedUntil = seriesAccess?.access_reason === 'purchased' ? seriesAccess?.purchase?.expires_at || seriesAccess?.purchase?.access_expires_at : null;
+  const canWatch = isSeriesOwner || subscribed || seriesAccess?.has_access === true;
+  const seriesPrice = seriesPricing?.price ?? (seriesAccess?.is_purchasable ? seriesAccess?.price : null);
+  // Subscribers never see the pay-per-view option: their plan already unlocks the series.
+  const offerPpv = !canWatch && !subscribed && Number.isFinite(Number(seriesPrice)) && seriesPrice !== null && seriesPrice > 0;
+  const offerSubscribe = !canWatch && !ppvOnly;
+
+  const handleBuySeries = async (paymentMethod) => {
+    setSeriesBuying(true);
+    setSeriesBuyError('');
+    try {
+      const response = await purchaseSeries({ series_id: id, payment_method: paymentMethod });
+      const redirectUrl = response?.data?.redirect_url;
+      if (redirectUrl) {
+        sessionStorage.setItem('vw_payment_return_to', `/series/${id}`);
+        window.location.href = redirectUrl;
+        return;
+      }
+      // Wallet: paid at once — every episode opens now.
+      await Promise.all([loadSeriesAccess(), refreshPurchases()]);
+      setShowSeriesPayment(false);
+      setShowUnlock(false);
+    } catch (err) {
+      if (err?.response?.status === 409 && err?.response?.data?.data?.purchase) {
+        await Promise.all([loadSeriesAccess(), refreshPurchases()]); // already bought
+        setShowSeriesPayment(false);
+        setShowUnlock(false);
+      } else {
+        setSeriesBuyError(friendlyApiError(err, tx("We couldn't complete the purchase. Please try again.")));
+      }
+    } finally {
+      setSeriesBuying(false);
+    }
+  };
 
   // ─── Fetch seasons + episodes ───────────────────────────────────────────────
   // GET /shows/:id only reports season/episode counts, so the real lists load
@@ -224,7 +292,9 @@ const SeriesDetail = () => {
       return;
     }
     if (!canWatch) {
-      navigate(`/subscription?return_to=${encodeURIComponent(`/series/${id}`)}`);
+      // Offer the ways in: subscribe, or buy the whole series (when on sale).
+      if (offerPpv) setShowUnlock(true);
+      else navigate(`/subscription?return_to=${encodeURIComponent(`/series/${id}`)}`);
       return;
     }
     addToDownloads(seriesData.id);
@@ -453,6 +523,35 @@ const SeriesDetail = () => {
                 <FaShareAlt /> {tx('Share')}
               </button>
             </div>
+
+            {/* How to watch: subscription, or pay-per-view for the whole series */}
+            {purchasedUntil && (
+              <p className="series-access-note">
+                {tx('Purchased — all episodes unlocked until {{date}}', { date: new Date(purchasedUntil).toLocaleString() })}
+              </p>
+            )}
+            {(offerPpv || (offerSubscribe && seriesPricing !== undefined)) && (
+              <div className="series-buy-options">
+                {offerSubscribe && (
+                  <div className="series-buy-option">
+                    <strong>{tx('Subscription')}</strong>
+                    <span>{tx('Unlimited access to all movies and series with a plan.')}</span>
+                    <button type="button" className="btn btn-secondary btn-small" onClick={() => (user ? navigate(`/subscription?return_to=${encodeURIComponent(`/series/${id}`)}`) : goToLogin())}>
+                      {tx('View Plans')}
+                    </button>
+                  </div>
+                )}
+                {offerPpv && (
+                  <div className="series-buy-option">
+                    <strong>{tx('Pay Per View')} · ${Number(seriesPrice).toFixed(2)}</strong>
+                    <span>{tx('Unlocks every episode for 5 days (120 hours).')}</span>
+                    <button type="button" className="btn btn-primary btn-small" onClick={() => (user ? setShowSeriesPayment(true) : goToLogin())}>
+                      {tx('Buy series')}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -550,6 +649,46 @@ const SeriesDetail = () => {
       )}
 
       {/* Episode Watch Modal */}
+      {/* Episode clicked without access: the two ways in */}
+      {showUnlock && !canWatch && (
+        <div className="modal-overlay series-unlock-overlay" onClick={() => setShowUnlock(false)}>
+          <div className="series-unlock-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="series-unlock-header">
+              <h3>{tx('Watch Options')}</h3>
+              <button type="button" className="modal-close" onClick={() => setShowUnlock(false)}>×</button>
+            </div>
+            <div className="series-buy-options">
+              {offerSubscribe && (
+                <div className="series-buy-option">
+                  <strong>{tx('Subscription')}</strong>
+                  <span>{tx('Unlimited access to all movies and series with a plan.')}</span>
+                  <button type="button" className="btn btn-secondary btn-small" onClick={() => navigate(`/subscription?return_to=${encodeURIComponent(`/series/${id}`)}`)}>
+                    {tx('View Plans')}
+                  </button>
+                </div>
+              )}
+              <div className="series-buy-option">
+                <strong>{tx('Pay Per View')} · ${Number(seriesPrice).toFixed(2)}</strong>
+                <span>{tx('Unlocks every episode for 5 days (120 hours).')}</span>
+                <button type="button" className="btn btn-primary btn-small" onClick={() => setShowSeriesPayment(true)}>
+                  {tx('Buy series')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <PaymentMethodModal
+        isOpen={showSeriesPayment}
+        onClose={() => { if (!seriesBuying) { setShowSeriesPayment(false); setSeriesBuyError(''); } }}
+        onContinue={handleBuySeries}
+        amount={Number(seriesPrice) || 0}
+        title={tx('Purchase {{title}}', { title: seriesData.title })}
+        busy={seriesBuying}
+        error={seriesBuyError}
+      />
+
       {watchEpisode && canWatch && (
         <div className="modal-overlay watch-modal" onClick={() => setWatchEpisode(null)}>
           <div className="watch-dialog" onClick={(e) => e.stopPropagation()}>

@@ -269,6 +269,28 @@ export async function addEpisodeVideoFile(episodeId, payload, onUploadProgress) 
   }
 }
 
+/**
+ * The series' single pay-per-view price. GET /series/:id/pricing
+ * → { price: number|null, is_free, currency, access_hours }. null when not on sale (or no pricing yet).
+ */
+export async function getSeriesPricing(seriesId) {
+  try {
+    const response = await client.get(`/series/${seriesId}/pricing`);
+    const d = response.data?.data;
+    if (!d) return null;
+    const price = d.price ?? d.pricing?.price;
+    return {
+      price: price === null || price === undefined ? null : Number(price),
+      isFree: Boolean(d.is_free ?? d.pricing?.is_free),
+      currency: d.currency || 'USD',
+      accessHours: Number(d.access_hours) || 120,
+    };
+  } catch (err) {
+    if (err?.response?.status !== 404) console.error(`getSeriesPricing(${seriesId}):`, err?.message);
+    return null;
+  }
+}
+
 export async function getFilmmakerShows(params = {}) {
   try {
     const response = await client.get('/filmmaker/shows', { params });
