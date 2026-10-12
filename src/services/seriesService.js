@@ -291,6 +291,20 @@ export async function getSeriesPricing(seriesId) {
   }
 }
 
+/**
+ * Set the series' single pay-per-view price. PUT /series/:id/pricing { price }
+ * (owner or admin). The price is read back, so a backend that answers "ok"
+ * without storing it is reported instead of looking like a success.
+ */
+export async function setSeriesPricing(seriesId, price) {
+  await client.put(`/series/${seriesId}/pricing`, { price: Number(price) });
+  const stored = await getSeriesPricing(seriesId);
+  if (!stored || stored.price === null || Math.abs(stored.price - Number(price)) > 0.005) {
+    throw new Error(`The price was accepted but not stored by the server (GET /series/${seriesId}/pricing returns ${stored?.price ?? 'no price'}).`);
+  }
+  return stored;
+}
+
 export async function getFilmmakerShows(params = {}) {
   try {
     const response = await client.get('/filmmaker/shows', { params });

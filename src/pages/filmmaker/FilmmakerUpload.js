@@ -11,7 +11,7 @@ import { validateUploadForm } from '../../utils/uploadValidation';
 import uploadService from '../../services/uploadService';
 import { createMovie, addMovieVideoFile } from '../../services/movieService';
 import { submitForReview } from '../../services/approvalService';
-import { createShow, createSeason, createEpisode, addEpisodeVideoFile } from '../../services/seriesService';
+import { createShow, createSeason, createEpisode, addEpisodeVideoFile, setSeriesPricing } from '../../services/seriesService';
 import MediaUploadZone from '../../components/MediaUploadZone';
 import EpisodeBuilder from '../../components/EpisodeBuilder';
 import AgeRatingBadge from '../../components/AgeRatingBadge';
@@ -61,7 +61,7 @@ const initialForm = {
   mediaType: MEDIA_TYPES.MOVIE,
   title: '', description: '', director: '', producer: '',
   releaseDate: '', duration: '', language: '', country: '',
-  age_rating: '', genres: [], monetization_type: 'both',
+  age_rating: '', genres: [], monetization_type: 'both', ppv_price: '',
   poster_url: '', poster_file: null,
   cover_url: '', cover_file: null,
   trailer_url: '', trailer_file: null,
@@ -95,7 +95,7 @@ const FilmmakerUpload = () => {
   const [submitError, setSubmitError] = useState('');
   const [uploadStatus, setUploadStatus] = useState('');
   // What has already been created for the series being submitted (see handleSubmit).
-  const seriesProgressRef = useRef({ seriesId: null, seasons: {}, episodes: {} });
+  const seriesProgressRef = useRef({ seriesId: null, seasons: {}, episodes: {}, priceDone: false });
   const [success, setSuccess] = useState(false);
   // The genres are the platform's own categories (GET /categories), the same
   // list the viewer's Genres page uses, with the ids the backend expects.
@@ -296,6 +296,14 @@ const FilmmakerUpload = () => {
            progress.seriesId = seriesId;
          }
 
+         // One pay-per-view price for the whole series (unlocks every episode for 120 hours).
+         if (Number(form.ppv_price) > 0 && form.monetization_type !== 'subscription' && !progress.priceDone) {
+           currentStep = 'the pay-per-view price';
+           setUploadStatus('Saving the pay-per-view price…');
+           await setSeriesPricing(seriesId, form.ppv_price);
+           progress.priceDone = true;
+         }
+
          for (const season of form.seasons) {
            let seasonId = progress.seasons[season.season_number];
            if (!seasonId) {
@@ -429,7 +437,7 @@ const FilmmakerUpload = () => {
          }
       }
       
-      seriesProgressRef.current = { seriesId: null, seasons: {}, episodes: {} };
+      seriesProgressRef.current = { seriesId: null, seasons: {}, episodes: {}, priceDone: false };
       setSuccess(true);
     } catch (err) {
       console.error('Upload Error:', err);
@@ -722,6 +730,24 @@ const FilmmakerUpload = () => {
                 </label>
               </div>
             </div>
+
+            {/* One price for the whole series: a purchase unlocks every episode for 5 days */}
+            {form.mediaType === MEDIA_TYPES.SERIES && form.monetization_type !== 'subscription' && (
+              <div className="fu-field">
+                <label className="fu-label" htmlFor="fu-ppv-price">Pay-per-view price (USD)</label>
+                <input
+                  id="fu-ppv-price"
+                  className="fu-input"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="e.g. 3.00"
+                  value={form.ppv_price}
+                  onChange={(e) => setField('ppv_price', e.target.value)}
+                />
+                <p className="fu-hint">One price for the whole series. A purchase unlocks every episode for 5 days (120 hours). Leave empty to not sell it pay-per-view.</p>
+              </div>
+            )}
           </div>
         )}
 
