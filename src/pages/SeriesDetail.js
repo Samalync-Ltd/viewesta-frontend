@@ -14,6 +14,7 @@ import { hasActiveSubscription } from '../utils/access';
 import { checkSeriesAccess, purchaseSeries } from '../services/paymentService';
 import { friendlyApiError } from '../utils/apiErrors';
 import PaymentMethodModal from '../components/PaymentMethodModal';
+import PlanOptions from '../components/PlanOptions';
 import MovieCard from '../components/MovieCard';
 import CastCrewSection from '../components/CastCrewSection';
 import MovieGallery from '../components/MovieGallery';
@@ -64,6 +65,7 @@ const SeriesDetail = () => {
   const [seriesPricing, setSeriesPricing] = useState(undefined); // undefined = loading, null = not on sale
   const [seriesAccess, setSeriesAccess] = useState(null);
   const [showUnlock, setShowUnlock] = useState(false);
+  const [unlockTab, setUnlockTab] = useState(''); // '' (choosing) | 'subscribe' | 'ppv'
   const [showSeriesPayment, setShowSeriesPayment] = useState(false);
   const [seriesBuying, setSeriesBuying] = useState(false);
   const [seriesBuyError, setSeriesBuyError] = useState('');
@@ -93,8 +95,9 @@ const SeriesDetail = () => {
   const canWatch = isSeriesOwner || subscribed || seriesAccess?.has_access === true;
   const seriesPrice = seriesPricing?.price ?? (seriesAccess?.is_purchasable ? seriesAccess?.price : null);
   // Subscribers never see the pay-per-view option: their plan already unlocks the series.
-  const offerPpv = !canWatch && !subscribed && Number.isFinite(Number(seriesPrice)) && seriesPrice !== null && seriesPrice > 0;
-  const offerSubscribe = !canWatch && !ppvOnly;
+  // What this series supports: subscription unless it is pay-per-view only; pay-per-view when it has a price.
+  const ppvAllowed = Number.isFinite(Number(seriesPrice)) && seriesPrice !== null && seriesPrice > 0;
+  const subscribeAllowed = !ppvOnly;
 
   const handleBuySeries = async (paymentMethod) => {
     setSeriesBuying(true);
@@ -286,15 +289,16 @@ const SeriesDetail = () => {
     }
   };
 
+  // No access: the same "Watch Options" popup as a movie - Subscription or Pay Per View.
+  const openUnlock = () => { setUnlockTab(''); setShowUnlock(true); };
+
   const handleWatchEpisode = (season, episode) => {
     if (!user) {
       goToLogin();
       return;
     }
     if (!canWatch) {
-      // Offer the ways in: subscribe, or buy the whole series (when on sale).
-      if (offerPpv) setShowUnlock(true);
-      else navigate(`/subscription?return_to=${encodeURIComponent(`/series/${id}`)}`);
+      openUnlock();
       return;
     }
     addToDownloads(seriesData.id);
@@ -354,6 +358,8 @@ const SeriesDetail = () => {
   }
 
   const handleStartWatching = () => {
+    if (!user) { goToLogin(); return; }
+    if (!canWatch) { openUnlock(); return; }
     if (episodesRef.current) episodesRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
@@ -524,33 +530,10 @@ const SeriesDetail = () => {
               </button>
             </div>
 
-            {/* How to watch: subscription, or pay-per-view for the whole series */}
             {purchasedUntil && (
               <p className="series-access-note">
                 {tx('Purchased — all episodes unlocked until {{date}}', { date: new Date(purchasedUntil).toLocaleString() })}
               </p>
-            )}
-            {(offerPpv || (offerSubscribe && seriesPricing !== undefined)) && (
-              <div className="series-buy-options">
-                {offerSubscribe && (
-                  <div className="series-buy-option">
-                    <strong>{tx('Subscription')}</strong>
-                    <span>{tx('Unlimited access to all movies and series with a plan.')}</span>
-                    <button type="button" className="btn btn-secondary btn-small" onClick={() => (user ? navigate(`/subscription?return_to=${encodeURIComponent(`/series/${id}`)}`) : goToLogin())}>
-                      {tx('View Plans')}
-                    </button>
-                  </div>
-                )}
-                {offerPpv && (
-                  <div className="series-buy-option">
-                    <strong>{tx('Pay Per View')} · ${Number(seriesPrice).toFixed(2)}</strong>
-                    <span>{tx('Unlocks every episode for 5 days (120 hours).')}</span>
-                    <button type="button" className="btn btn-primary btn-small" onClick={() => (user ? setShowSeriesPayment(true) : goToLogin())}>
-                      {tx('Buy series')}
-                    </button>
-                  </div>
-                )}
-              </div>
             )}
           </div>
         </div>
@@ -657,23 +640,51 @@ const SeriesDetail = () => {
               <h3>{tx('Watch Options')}</h3>
               <button type="button" className="modal-close" onClick={() => setShowUnlock(false)}>×</button>
             </div>
-            <div className="series-buy-options">
-              {offerSubscribe && (
-                <div className="series-buy-option">
-                  <strong>{tx('Subscription')}</strong>
-                  <span>{tx('Unlimited access to all movies and series with a plan.')}</span>
-                  <button type="button" className="btn btn-secondary btn-small" onClick={() => navigate(`/subscription?return_to=${encodeURIComponent(`/series/${id}`)}`)}>
+            <div className="series-unlock-body">
+              {!unlockTab && (
+                <div className="watch-choice">
+                  <p className="watch-choice-lead">{tx('How would you like to watch?')}</p>
+                  {/* Both ways are always listed; one this series does not offer is greyed out with the reason. */}
+                  <button type="button" className="watch-choice-card" disabled={!subscribeAllowed} onClick={() => setUnlockTab('subscribe')}>
+                    <strong>{tx('Subscription')}</strong>
+                    <span>{tx(subscribeAllowed ? 'Unlimited access to all movies and series with a plan.' : 'This title is not included in subscriptions.')}</span>
+                  </button>
+                  <button type="button" className="watch-choice-card" disabled={!ppvAllowed} onClick={() => setUnlockTab('ppv')}>
+                    <strong>{tx('Pay Per View')}</strong>
+                    <span>{tx(ppvAllowed ? 'Unlocks every episode for 5 days (120 hours).' : seriesPricing === undefined ? 'Loading prices…' : 'Pay per view is not available for this title yet.')}</span>
+                  </button>
+                </div>
+              )}
+
+              {unlockTab && (
+                <button type="button" className="btn btn-ghost btn-small watch-choice-back" onClick={() => setUnlockTab('')}>
+                  ← {tx('Back to watch options')}
+                </button>
+              )}
+
+              {unlockTab === 'subscribe' && (
+                <div className="subscribe-option">
+                  <p>{tx('Unlimited access to all movies and series with a plan.')}</p>
+                  <PlanOptions />
+                  <button type="button" className="btn btn-primary" onClick={() => navigate(`/subscription?return_to=${encodeURIComponent(`/series/${id}`)}`)}>
                     {tx('View Plans')}
                   </button>
                 </div>
               )}
-              <div className="series-buy-option">
-                <strong>{tx('Pay Per View')} · ${Number(seriesPrice).toFixed(2)}</strong>
-                <span>{tx('Unlocks every episode for 5 days (120 hours).')}</span>
-                <button type="button" className="btn btn-primary btn-small" onClick={() => setShowSeriesPayment(true)}>
-                  {tx('Buy series')}
-                </button>
-              </div>
+
+              {unlockTab === 'ppv' && (
+                <div className="purchase-summary">
+                  <div className="summary-item"><span>{tx('Series')}</span><span>{seriesData.title}</span></div>
+                  <div className="summary-item"><span>{tx('Unlocks every episode for 5 days (120 hours).')}</span><span /></div>
+                  <div className="summary-item total"><span>{tx('Total:')}</span><span>${Number(seriesPrice).toFixed(2)}</span></div>
+                </div>
+              )}
+            </div>
+            <div className="series-unlock-actions">
+              <button type="button" onClick={() => setShowUnlock(false)} className="btn btn-ghost">{tx('Cancel')}</button>
+              {unlockTab === 'ppv' && (
+                <button type="button" onClick={() => setShowSeriesPayment(true)} className="btn btn-primary">{tx('Buy series')}</button>
+              )}
             </div>
           </div>
         </div>

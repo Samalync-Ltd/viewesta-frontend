@@ -893,14 +893,24 @@
   border-top: 1px solid rgba(255,255,255,0.07);
 }
 
-/* Pay-per-view / subscription options for the whole series */
-.series-buy-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
-.series-buy-option { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--border-color, #333); border-radius: 12px; background: var(--bg-secondary, rgba(255,255,255,0.04)); }
-.series-buy-option strong { font-size: 15px; }
-.series-buy-option span { font-size: 13px; color: var(--text-muted, #aaa); }
-.series-buy-option .btn { align-self: flex-start; margin-top: 4px; }
+/* Watch Options popup for a series - same look as the movie popup */
 .series-access-note { margin-top: 12px; color: #22c55e; font-size: 14px; }
-.series-unlock-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
-.series-unlock-dialog { width: 100%; max-width: 560px; background: var(--bg-primary, #141414); border-radius: 14px; padding: 20px; }
-.series-unlock-header { display: flex; justify-content: space-between; align-items: center; }
-.series-unlock-header h3 { margin: 0; }
+.series-unlock-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+.series-unlock-dialog { width: 100%; max-width: 500px; max-height: 90vh; overflow-y: auto; background: var(--bg-secondary, #141414); border: 1px solid var(--border-color, #333); border-radius: 16px; }
+.series-unlock-header { display: flex; justify-content: space-between; align-items: center; padding: 24px 24px 0; border-bottom: 1px solid var(--border-color, #333); margin-bottom: 24px; }
+.series-unlock-header h3 { color: var(--text-primary, #fff); font-size: 24px; margin: 0 0 16px; }
+.series-unlock-body { padding: 0 24px; }
+.series-unlock-actions { display: flex; gap: 12px; padding: 24px; justify-content: flex-end; }
+.series-unlock-dialog .watch-choice { display: grid; gap: 12px; }
+.series-unlock-dialog .watch-choice-lead { margin: 0; color: var(--text-secondary, #ccc); text-align: center; }
+.series-unlock-dialog .watch-choice-card { display: grid; gap: 4px; text-align: left; padding: 16px 18px; border: 1px solid var(--border-color, #333); border-radius: 12px; background: var(--bg-primary, #0b0b0b); color: var(--text-primary, #fff); cursor: pointer; font: inherit; }
+.series-unlock-dialog .watch-choice-card:hover:not(:disabled) { border-color: var(--primary, #ff6b00); }
+.series-unlock-dialog .watch-choice-card:disabled { opacity: 0.5; cursor: not-allowed; }
+.series-unlock-dialog .watch-choice-card strong { font-size: 16px; }
+.series-unlock-dialog .watch-choice-card span { font-size: 13px; color: var(--text-muted, #aaa); }
+.series-unlock-dialog .watch-choice-back { margin-bottom: 12px; }
+.series-unlock-dialog .subscribe-option { padding: 12px 0 0; text-align: center; }
+.series-unlock-dialog .subscribe-option p { margin-bottom: 16px; color: var(--text-muted, #aaa); }
+.series-unlock-dialog .purchase-summary { display: grid; gap: 8px; padding: 16px; border: 1px solid var(--border-color, #333); border-radius: 12px; }
+.series-unlock-dialog .summary-item { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.series-unlock-dialog .summary-item.total { font-weight: 700; font-size: 16px; }
