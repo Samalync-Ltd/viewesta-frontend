@@ -53,7 +53,7 @@ const SeriesDetail = () => {
   const [episodeSourcesLoading, setEpisodeSourcesLoading] = useState(false);
   const [episodeSourcesError, setEpisodeSourcesError] = useState('');
   // Quality the viewer is entitled to (the Mobile plan is 480p).
-  const { maxQuality, planName, planMaxQuality } = usePlaybackQuality(seriesData);
+  const { maxQuality: planCap, planName, planMaxQuality } = usePlaybackQuality(seriesData);
   // Episodes play for the series' own filmmaker or a viewer with a subscription
   // in force; everyone else is sent to the plans (the backend enforces it too).
   const isSeriesOwner = Boolean(user && seriesData) &&
@@ -64,6 +64,8 @@ const SeriesDetail = () => {
   // is the authority (subscription / free / purchased).
   const [seriesPricing, setSeriesPricing] = useState(undefined); // undefined = loading, null = not on sale
   const [seriesAccess, setSeriesAccess] = useState(null);
+  // Trailer: the series' real trailer video, in a popup like on a movie page.
+  const [trailer, setTrailer] = useState({ open: false, loading: false, src: '', error: '' });
   const [showUnlock, setShowUnlock] = useState(false);
   const [unlockTab, setUnlockTab] = useState(''); // '' (choosing) | 'subscribe' | 'ppv'
   const [showSeriesPayment, setShowSeriesPayment] = useState(false);
@@ -93,6 +95,8 @@ const SeriesDetail = () => {
   const subscribed = hasActiveSubscription(user) && !ppvOnly;
   const purchasedUntil = seriesAccess?.access_reason === 'purchased' ? seriesAccess?.purchase?.expires_at || seriesAccess?.purchase?.access_expires_at : null;
   const canWatch = isSeriesOwner || subscribed || seriesAccess?.has_access === true;
+  // A pay-per-view purchase unlocks every quality; otherwise the plan's limit applies.
+  const maxQuality = purchasedUntil ? null : planCap;
   const seriesPrice = seriesPricing?.price ?? (seriesAccess?.is_purchasable ? seriesAccess?.price : null);
   // Subscribers never see the pay-per-view option: their plan already unlocks the series.
   // What this series supports: subscription unless it is pay-per-view only; pay-per-view when it has a price.
@@ -357,6 +361,18 @@ const SeriesDetail = () => {
     );
   }
 
+  const hasTrailer = Boolean(seriesData?.trailer || seriesData?.raw?.trailer_url || seriesData?.raw?.trailer_video);
+  const openTrailer = async () => {
+    // Start from the address already loaded, then ask for a fresh one (they expire after an hour).
+    setTrailer({ open: true, loading: true, src: seriesData.trailer || '', error: '' });
+    try {
+      const fresh = await seriesService.getSeriesTrailerUrl(id);
+      setTrailer({ open: true, loading: false, src: fresh || seriesData.trailer || '', error: fresh || seriesData.trailer ? '' : 'This series has no trailer yet.' });
+    } catch {
+      setTrailer((t) => ({ ...t, loading: false, error: t.src ? '' : 'The trailer could not be loaded. Please try again.' }));
+    }
+  };
+
   const handleStartWatching = () => {
     if (!user) { goToLogin(); return; }
     if (!canWatch) { openUnlock(); return; }
@@ -455,6 +471,12 @@ const SeriesDetail = () => {
           <div className="series-info">
             <h1 className="series-title">{seriesData.title}</h1>
             <div className="detail-badges">
+              {hasTrailer && (
+                <button type="button" onClick={openTrailer} className="badge badge-ghost">
+                  <FaPlay />
+                  {tx('Watch Trailer')}
+                </button>
+              )}
               {seriesData.age_rating && (
                 <div className="series-age-rating">
                   <AgeRatingBadge rating={seriesData.age_rating} size="sm" showTooltip />
@@ -632,6 +654,33 @@ const SeriesDetail = () => {
       )}
 
       {/* Episode Watch Modal */}
+      {trailer.open && (
+        <div className="modal-overlay trailer-modal" onClick={() => setTrailer({ open: false, loading: false, src: '', error: '' })}>
+          <div className="trailer-dialog" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-close" onClick={() => setTrailer({ open: false, loading: false, src: '', error: '' })}>×</button>
+            <div className="trailer-frame-wrap">
+              {trailer.loading && !trailer.src ? (
+                <div className="trailer-message"><div className="loading" /></div>
+              ) : trailer.error ? (
+                <div className="trailer-message">{tx(trailer.error)}</div>
+              ) : (
+                <video
+                  key={trailer.src}
+                  src={trailer.src}
+                  controls
+                  autoPlay
+                  playsInline
+                  className="trailer-video-player"
+                  onError={() => setTrailer((t) => ({ ...t, error: 'The trailer could not be loaded. Please try again.' }))}
+                >
+                  {tx('Your browser does not support the video tag.')}
+                </video>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Episode clicked without access: the two ways in */}
       {showUnlock && !canWatch && (
         <div className="modal-overlay series-unlock-overlay" onClick={() => setShowUnlock(false)}>

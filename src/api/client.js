@@ -16,7 +16,8 @@ const client = axios.create({
 
 client.interceptors.request.use((config) => {
   const token = localStorage.getItem('viewesta_token') || localStorage.getItem('viewesta_access_token');
-  if (token) {
+  // `skipAuth` marks public endpoints (e.g. pricing): no token is sent, so an expired one cannot cause a 401.
+  if (token && !config.skipAuth) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   FaFilm, FaUsers, FaEye, FaCheck, FaArrowLeft, FaArrowRight,
   FaPlus, FaTimes, FaUser, FaExclamationTriangle, FaInfoCircle,
-  FaFileUpload, FaUserShield, FaCloudUploadAlt, FaTv, FaBolt
+  FaTv, FaBolt
 } from 'react-icons/fa';
 import { MEDIA_TYPES, SHORT_FILM_THRESHOLD_MINUTES } from '../../types';
 import { useLocale } from '../../context/LocaleContext';
@@ -39,7 +39,6 @@ const ROLE_OPTIONS = [
 // 
 
 const STEPS = [
-  { label: 'Mode', icon: <FaCloudUploadAlt /> },
   { label: 'Info', icon: <FaInfoCircle /> },
   { label: 'Media', icon: <FaFilm /> },
   { label: 'Cast', icon: <FaUsers /> },
@@ -130,11 +129,7 @@ const FilmmakerUpload = () => {
     setForm((prev) => ({ ...prev, cast_crew: prev.cast_crew.filter((m) => m.id !== id) }));
 
   const validateStep = (s) => {
-    // If Mode Select step
-    if (s === 0) return true;
-
-    // Shift steps logic because we added Step 0
-    const formStep = s - 1;
+    const formStep = s;
     
     // Step 1: Info (was 0)
     // Step 2: Media (was 1)
@@ -516,36 +511,8 @@ const FilmmakerUpload = () => {
 
       <div className="fu-form">
 
-        {/* â”€â”€ STEP 0: MODE SELECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {step === 0 && (
-          <div className="fu-step-content">
-            <h2 className="fu-step-title">Select Upload Method</h2>
-            <p className="fu-step-desc">Would you like to upload the video file yourself, or request an admin upload?</p>
-            <div className="upload-mode-grid">
-              <div
-                className={`upload-mode-card ${form.mode === MODES.DIRECT ? 'active' : ''}`}
-                onClick={() => setField('mode', MODES.DIRECT)}
-              >
-                <div className="mode-icon"><FaFileUpload /></div>
-                <h3>Direct Upload</h3>
-                <p>I have the video file ready (max 5GB). I will upload it now.</p>
-                <div className="mode-badge">Standard</div>
-              </div>
-              <div
-                className={`upload-mode-card ${form.mode === MODES.ADMIN_REQUEST ? 'active' : ''}`}
-                onClick={() => setField('mode', MODES.ADMIN_REQUEST)}
-              >
-                <div className="mode-icon"><FaUserShield /></div>
-                <h3>Request Admin Upload</h3>
-                <p>I will submit metadata and artwork. An admin will contact me to retrieve the video master.</p>
-                <div className="mode-badge">Pro Service</div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* â”€â”€ STEP 1: INFO â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {step === 1 && (
+        {step === 0 && (
           <div className="fu-step-content">
             <h2 className="fu-step-title">Content Information</h2>
             <p className="fu-step-desc">Start with the basics — type, title, and key details.</p>
@@ -752,7 +719,7 @@ const FilmmakerUpload = () => {
         )}
 
         {/* â”€â”€ STEP 2: MEDIA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {step === 2 && (
+        {step === 1 && (
           <div className="fu-step-content">
             <h2 className="fu-step-title">Media Files</h2>
             <p className="fu-step-desc">Upload or paste URLs for your poster, cover, trailer, and video.</p>
@@ -804,7 +771,7 @@ const FilmmakerUpload = () => {
         )}
 
         {/* â”€â”€ STEP 3: CAST â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {step === 3 && (
+        {step === 2 && (
           <div className="fu-step-content">
             <h2 className="fu-step-title">Cast &amp; Crew</h2>
             <p className="fu-step-desc">Add the people behind and in front of the camera (optional).</p>
@@ -868,7 +835,7 @@ const FilmmakerUpload = () => {
         )}
 
         {/* â”€â”€ STEP 4: REVIEW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-        {step === 4 && (
+        {step === 3 && (
           <div className="fu-step-content">
             <h2 className="fu-step-title">Review &amp; Submit</h2>
             <p className="fu-step-desc">Confirm everything looks right before submitting for admin review.</p>

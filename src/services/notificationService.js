@@ -8,6 +8,7 @@
  */
 
 import client, { baseURL } from '../api/client';
+import { resolveNotificationRoute as resolveRoute } from '../utils/notificationRoute';
 import { getToken, onMessage } from 'firebase/messaging';
 import { initializeMessaging } from '../firebase/config';
 
@@ -148,45 +149,13 @@ export async function updateNotificationPreferences(prefs) {
 
 // ─── Deep Linking ─────────────────────────────────────────────────────────────
 
-const pick = (...values) => values.find((v) => v !== undefined && v !== null && String(v).trim() !== '');
-const UUID_OR_ID = '([^/?#]+)';
-
 /**
- * Where a notification should open: the movie or show it is about.
- * Order: the ids in `data` (movie_id / show_id / series_id / content_id with a
- * type), then `action_url`. The backend's plural paths (/movies/ID, /shows/ID)
- * have no page of their own, so they are mapped to the real detail pages
- * (/movie/ID, /series/ID). Returns null when nothing usable is found.
+ * Where a notification opens: the movie or series it is about (see
+ * utils/notificationRoute.js for the payload shapes it understands).
+ * Returns null when nothing usable is found.
  */
 export function resolveNotificationRoute(notification) {
-  const data = notification?.data && typeof notification.data === 'object' ? notification.data : {};
-
-  const showId = pick(data.show_id, data.showId, data.series_id, data.seriesId);
-  if (showId) return `/series/${encodeURIComponent(showId)}`;
-  const movieId = pick(data.movie_id, data.movieId);
-  if (movieId) return `/movie/${encodeURIComponent(movieId)}`;
-  const contentId = pick(data.content_id, data.contentId, data.target_id, data.entity_id);
-  if (contentId) {
-    const kind = String(pick(data.content_type, data.contentType, data.entity_type, data.type, '')).toLowerCase();
-    return `${/show|series/.test(kind) ? '/series' : '/movie'}/${encodeURIComponent(contentId)}`;
-  }
-
-  const raw = pick(data.action_url, notification?.action_url);
-  if (typeof raw !== 'string') return null;
-  let path = raw.trim();
-  // A full address of this site is fine; anything else is not an internal route.
-  try {
-    const url = new URL(path, window.location.origin);
-    if (url.origin !== window.location.origin) return null;
-    path = `${url.pathname}${url.search}`;
-  } catch { return null; }
-  if (!path.startsWith('/') || path.startsWith('//')) return null;
-
-  const detail = path.match(new RegExp(`^/(?:movies?|film|films)/${UUID_OR_ID}/?$`));
-  if (detail) return `/movie/${detail[1]}`;
-  const show = path.match(new RegExp(`^/(?:shows?|series)/${UUID_OR_ID}/?$`));
-  if (show) return `/series/${show[1]}`;
-  return path;
+  return resolveRoute(notification, window.location.origin);
 }
 
 /**

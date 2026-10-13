@@ -6,14 +6,15 @@ import { getFilmmakerTitles } from '../../services/movieService';
 import MovieCard from '../../components/MovieCard';
 import { SkeletonCard } from '../../components/Skeleton';
 import './FilmmakerMyMovies.css';
-import { FaEye } from 'react-icons/fa';
+import { FaEye, FaChartLine } from 'react-icons/fa';
+import { viewsOf } from '../../utils/earnings';
 
 /**
  * Filmmaker — list of my uploaded movies fetched from backend API.
  */
 function FilmmakerMyMovies() {
   const { user } = useAuth();
-  const { t } = useLocale();
+  const { t, tx } = useLocale();
   
   const [myMovies, setMyMovies] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -92,9 +93,15 @@ function FilmmakerMyMovies() {
                    {getStatusBadge(movie.status || movie.approvalStatus)}
                 </div>
               </div>
-              <div className="movie-actions-bar">
-                <Link to={movie.type === 'Series' ? `/series/${movie.id}` : `/movie/${movie.id}`} className="action-btn view" title="View Public Page">
-                  <FaEye /> View
+              {/* One compact bar under the card: views (backend count) on the left, View on the right. */}
+              <div className="movie-footer">
+                <span className="movie-views" title={tx('Total views')}>
+                  <FaChartLine />
+                  <strong>{viewsOf(movie).toLocaleString()}</strong>
+                  <span className="movie-views-label">{tx(viewsOf(movie) === 1 ? 'view' : 'views')}</span>
+                </span>
+                <Link to={movie.type === 'Series' ? `/series/${movie.id}` : `/movie/${movie.id}`} className="movie-view-link" title={tx('View Public Page')}>
+                  <FaEye /> {tx('View')}
                 </Link>
               </div>
             </div>

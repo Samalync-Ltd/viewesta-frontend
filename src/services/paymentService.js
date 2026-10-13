@@ -55,8 +55,9 @@ export async function getPurchases() {
  * @param {{ movie_id: string, quality?: string, payment_method?: string }} payload
  * @returns {object} Result of the purchase
  */
-export async function purchaseMovie({ movie_id, quality = '1080p', payment_method = 'wallet', payment_provider = 'pesapal' }) {
-  const { data } = await client.post('/payments/purchase', { movie_id, quality, payment_method, payment_provider });
+export async function purchaseMovie({ movie_id, payment_method = 'wallet', payment_provider = 'pesapal' }) {
+  // One price unlocks every quality, so no quality is sent.
+  const { data } = await client.post('/payments/purchase', { movie_id, payment_method, payment_provider });
   return data;
 }
 

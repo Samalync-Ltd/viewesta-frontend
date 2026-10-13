@@ -28,8 +28,9 @@
 
 .movies-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fill, 170px);
+  gap: 2rem 1.75rem;
+  align-items: start;
 }
 
 .empty-state {
@@ -44,7 +45,8 @@
 .movie-item-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  width: 170px; /* the same width as the card, so the bar sits under it */
+  gap: 0;
 }
 
 .movie-card-container {
@@ -92,41 +94,28 @@
   border: 1px solid #f87171;
 }
 
-.movie-actions-bar {
+/* Views + View on one line, attached to the card */
+.movie-footer {
   display: flex;
-  gap: 0.5rem;
-}
-
-.action-btn {
-  flex: 1;
-  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.5rem;
-  background: rgba(255,255,255,0.1);
-  border-radius: 6px;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;            /* sits right under the card's own details */
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color, rgba(255,255,255,0.1));
+}
+.movie-views { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary, #bbb); white-space: nowrap; }
+.movie-views svg { color: var(--primary, #ff6b00); font-size: 12px; }
+.movie-views strong { color: var(--text-primary, #fff); font-weight: 700; font-size: 13px; }
+.movie-view-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--border-color, rgba(255,255,255,0.18));
+  border-radius: 999px;
+  font-size: 12px; font-weight: 600;
   color: var(--text-primary, #fff);
   text-decoration: none;
-  font-size: 0.8rem;
-  font-weight: 600;
-  transition: background 0.2s;
+  transition: background 0.2s, border-color 0.2s;
 }
-
-.action-btn:hover {
-  background: rgba(255,255,255,0.2);
-}
-
-.action-btn.edit {
-  border: 1px solid rgba(255,255,255,0.1);
-}
-
-.action-btn.view {
-  background: transparent;
-  color: var(--text-muted, #9ca3af);
-}
-
-.action-btn.view:hover {
-  color: white;
-}
-
+.movie-view-link:hover { background: rgba(255,255,255,0.1); border-color: var(--primary, #ff6b00); }
+.movie-view-link svg { font-size: 12px; }

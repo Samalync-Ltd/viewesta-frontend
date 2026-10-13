@@ -72,6 +72,18 @@ export async function getSeriesById(id) {
 }
 
 /**
+ * The series' trailer video address, freshly fetched (the backend signs it for
+ * one hour, so a page left open for a while needs a new one). '' when the
+ * series has no trailer.
+ */
+export async function getSeriesTrailerUrl(seriesId) {
+  const response = await client.get(`/shows/${seriesId}`);
+  const d = response.data?.data;
+  const show = d?.show || d?.series || d || {};
+  return show.trailer_url || show.trailer_video?.file_url || show.trailer || '';
+}
+
+/**
  * Fetch a show's seasons with their episodes.
  * GET /shows/:showId/seasons            → { data: { seasons: [...] } }
  * GET /seasons/:seasonId/episodes       → { data: { episodes: [...] } }
@@ -275,7 +287,7 @@ export async function addEpisodeVideoFile(episodeId, payload, onUploadProgress) 
  */
 export async function getSeriesPricing(seriesId) {
   try {
-    const response = await client.get(`/series/${seriesId}/pricing`);
+    const response = await client.get(`/series/${seriesId}/pricing`, { skipAuth: true }); // public endpoint
     const d = response.data?.data;
     if (!d) return null;
     const price = d.price ?? d.pricing?.price;

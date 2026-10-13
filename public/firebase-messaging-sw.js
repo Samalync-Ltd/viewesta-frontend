@@ -72,11 +72,31 @@ if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'undefined') {
 
     // Firebase's default notification handler wraps the data inside FCM_MSG
     const fcmData = event.notification.data?.FCM_MSG?.data || event.notification.data || {};
-    const actionUrl = fcmData.action_url || null;
 
-    const targetUrl = actionUrl && actionUrl.startsWith('/')
-      ? self.location.origin + actionUrl
-      : self.location.origin + '/notifications';
+    // The page for the content the notification is about. The backend's addresses
+    // (/movies/ID, /shows/ID) are not pages of this app, so they are mapped to
+    // /movie/ID and /series/ID; ids sent as data fields work too.
+    const targetPath = (() => {
+      const id = (v) => (v !== undefined && v !== null && typeof v !== 'object' && String(v).trim() ? encodeURIComponent(String(v).trim()) : '');
+      const show = id(fcmData.show_id || fcmData.showId || fcmData.series_id || fcmData.seriesId);
+      if (show) return '/series/' + show;
+      const movie = id(fcmData.movie_id || fcmData.movieId);
+      if (movie) return '/movie/' + movie;
+      const generic = id(fcmData.content_id || fcmData.contentId || fcmData.target_id || fcmData.entity_id || fcmData.related_id);
+      if (generic) {
+        const kind = String(fcmData.content_type || fcmData.contentType || fcmData.entity_type || fcmData.type || '');
+        return (/show|series|episode|season/i.test(kind) ? '/series/' : '/movie/') + generic;
+      }
+      const raw = String(fcmData.action_url || fcmData.url || fcmData.link || '').trim();
+      const text = raw.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '/').replace(/^https?:\/\/[^/]+/i, '').split(/[?#]/)[0];
+      const series = text.match(/(?:^|\/)(?:shows?|series)\/([^/]+)\/?$/i);
+      if (series) return '/series/' + series[1];
+      const film = text.match(/(?:^|\/)(?:movies?|films?)\/([^/]+)\/?$/i);
+      if (film) return '/movie/' + film[1];
+      return raw.startsWith('/') && !raw.startsWith('//') ? raw : null;
+    })();
+
+    const targetUrl = self.location.origin + (targetPath || '/notifications');
 
     event.waitUntil(
       clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

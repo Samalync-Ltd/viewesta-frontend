@@ -13,7 +13,7 @@ import MovieGallery from '../components/MovieGallery';
 import PlanOptions from '../components/PlanOptions';
 import PaymentMethodModal from '../components/PaymentMethodModal';
 import { submitVirtualPayForm } from '../utils/virtualPayHelper';
-import { getAvailableQualities, getMonetizationType, formatRating, formatRuntime, showNoPoster, showNoBackdrop, isRealArtwork } from '../utils/mediaHelpers';
+import { getMonetizationType, formatRating, formatRuntime, showNoPoster, showNoBackdrop, isRealArtwork } from '../utils/mediaHelpers';
 import { clampQuality } from '../utils/quality';
 import { hasActiveSubscription } from '../utils/access';
 import usePlaybackQuality from '../hooks/usePlaybackQuality';
@@ -31,7 +31,6 @@ const MovieDetail = () => {
   const { getMovieById, movies, addToWatchlist, removeFromWatchlist, watchlist, rateContent, syncUserRating, getUserRating, addToDownloads, purchasedMovies, refreshPurchases } = useMovies();
   const { user, refreshProfile, loading: authLoading } = useAuth();
   const userId = user?.id;
-  const [selectedQuality, setSelectedQuality] = useState('');
   // Which tab of the "Watch Options" modal is open. Kept apart from
   // `selectedQuality`: that is '' both for "Subscribe tab" and for "Pay-per-view
   // tab on a title with no prices", which made the PPV tab impossible to open.
@@ -122,25 +121,21 @@ const MovieDetail = () => {
   const pricing = pricingState.movieId === movie?.id ? pricingState.prices : undefined;
   // Prices from the pricing endpoint, else whatever the title itself carried.
   const priceMap = pricing || movie?.price || null;
+  // Pay-per-view is ONE price for the film and it unlocks every quality
+  // (the pricing endpoint reports it as `unlocks_all_qualities`).
+  const ppvPrice = (() => {
+    const values = Object.values(priceMap || {}).map(Number).filter((n) => Number.isFinite(n) && n >= 0);
+    return values.length ? Math.max(...values) : null;
+  })();
 
   // A different title starts from a clean purchase / rating state.
   useEffect(() => {
-    setSelectedQuality('');
     setPurchaseTab('');
     setShowPurchaseModal(false);
     setShowPaymentMethodModal(false);
     setPurchaseError('');
     setRatingMessage(null);
   }, [id]);
-
-  // Keep the chosen quality valid for the tab that is open.
-  useEffect(() => {
-    if (purchaseTab !== 'ppv') return;
-    const qualities = getAvailableQualities(priceMap);
-    if (qualities.length > 0 && !qualities.includes(selectedQuality)) {
-      setSelectedQuality(qualities[0]);
-    }
-  }, [purchaseTab, priceMap, selectedQuality]);
 
   // The genre-matching fallback reads the latest catalog/movie through refs, so
   // the related request depends on the title id alone. (It used to depend on the
@@ -330,13 +325,12 @@ const MovieDetail = () => {
       // Authorized user bypass: navigate directly to Watch.js
       addToDownloads(movie.id);
       // Open the player at the viewer's own quality (e.g. 480p on the Mobile plan).
-      const playQuality = clampQuality(selectedQuality || '720p', maxPlaybackQuality);
+      const playQuality = clampQuality('720p', maxPlaybackQuality);
       navigate(`/watch/${movie.id}?q=${encodeURIComponent(playQuality)}`);
       return;
     }
 
     // Everyone else gets the unlock modal.
-    setSelectedQuality('');
     // Always open on the choice: Subscription or Pay Per View (as in the mobile app).
     setPurchaseTab('');
     setShowPurchaseModal(true);
@@ -358,7 +352,6 @@ const MovieDetail = () => {
       try {
         const response = await paymentService.purchaseMovie({
           movie_id: movie.id,
-          quality: selectedQuality,
           payment_method: paymentMethod
         });
 
@@ -366,11 +359,11 @@ const MovieDetail = () => {
         const paymentForm = response?.data?.payment_form || response?.payment_form;
 
         if (paymentForm) {
-          const returnUrl = `/watch/${movie.id}?q=${encodeURIComponent(selectedQuality)}`;
+          const returnUrl = `/watch/${movie.id}?q=720p`;
           sessionStorage.setItem('vw_payment_return_to', returnUrl);
           submitVirtualPayForm(paymentForm);
         } else if (redirectUrl) {
-          const returnUrl = `/watch/${movie.id}?q=${encodeURIComponent(selectedQuality)}`;
+          const returnUrl = `/watch/${movie.id}?q=720p`;
           sessionStorage.setItem('vw_payment_return_to', returnUrl);
           window.location.href = redirectUrl;
         } else if (response && (response.success || response.status === 'completed')) {
@@ -381,7 +374,7 @@ const MovieDetail = () => {
             refreshPurchases(),
           ]);
           setShowPaymentMethodModal(false);
-          navigate(`/watch/${movie.id}?q=${encodeURIComponent(selectedQuality)}`);
+          navigate(`/watch/${movie.id}?q=720p`);
         } else {
           setPurchaseError(tx("We couldn't start the payment. Please try again."));
         }
@@ -740,64 +733,36 @@ const MovieDetail = () => {
               )}
 
               {purchaseTab && (
-                <button type="button" className="btn btn-ghost btn-small watch-choice-back" onClick={() => { setPurchaseTab(''); setSelectedQuality(''); }}>
+                <button type="button" className="btn btn-ghost btn-small watch-choice-back" onClick={() => setPurchaseTab('')}>
                   ← {tx('Back to watch options')}
                 </button>
               )}
 
               {purchaseTab === 'ppv' ? (
-                (() => {
-                  const availableQualities = getAvailableQualities(priceMap);
-                  if (availableQualities.length === 0) {
-                    return (
-                      <div className="quality-options">
-                        <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '1rem 0' }}>
-                          {pricing === undefined
-                            ? tx('Loading prices…')
-                            : tx('Pay-per-view prices are not available for this movie right now. Please try again later or contact support.')}
-                        </p>
-                      </div>
-                    );
-                  }
-                  return (
-                    <>
-                      <div className="quality-options">
-                        {availableQualities.map((quality) => (
-                          <label
-                            key={quality}
-                            className={`quality-option ${selectedQuality === quality ? 'selected' : ''}`}
-                          >
-                            <input
-                              type="radio"
-                              name="quality"
-                              value={quality}
-                              checked={selectedQuality === quality}
-                              onChange={(e) => setSelectedQuality(e.target.value)}
-                            />
-                            <div className="quality-info">
-                              <span className="quality-name">{quality}</span>
-                              <span className="quality-price">${Number(priceMap[quality]).toFixed(2)}</span>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                      <div className="purchase-summary">
-                        <div className="summary-item">
-                          <span>{tx('Movie:')}</span>
-                          <span>{movie.title}</span>
-                        </div>
-                        <div className="summary-item">
-                          <span>{tx('Quality:')}</span>
-                          <span>{selectedQuality}</span>
-                        </div>
-                        <div className="summary-item total">
-                          <span>{tx('Total:')}</span>
-                          <span>${Number(priceMap[selectedQuality] ?? 0).toFixed(2)}</span>
-                        </div>
-                      </div>
-                    </>
-                  );
-                })()
+                ppvPrice === null ? (
+                  <div className="quality-options">
+                    <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '1rem 0' }}>
+                      {pricing === undefined
+                        ? tx('Loading prices…')
+                        : tx('Pay-per-view prices are not available for this movie right now. Please try again later or contact support.')}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="purchase-summary">
+                    <div className="summary-item">
+                      <span>{tx('Movie:')}</span>
+                      <span>{movie.title}</span>
+                    </div>
+                    <div className="summary-item">
+                      <span>{tx('Quality:')}</span>
+                      <span>{tx('All qualities (480p, 720p, 1080p)')}</span>
+                    </div>
+                    <div className="summary-item total">
+                      <span>{tx('Total:')}</span>
+                      <span>${Number(ppvPrice).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )
               ) : purchaseTab === 'subscribe' ? (
                 <div className="subscribe-option">
                   <p>{tx('Get unlimited access to all movies with a monthly subscription.')}</p>
@@ -805,7 +770,7 @@ const MovieDetail = () => {
                   <button
                     type="button"
                     className="btn btn-primary"
-                    onClick={() => navigate(`/subscription?return_to=${encodeURIComponent(`/watch/${movie.id}?q=${selectedQuality || '1080p'}`)}&movie_id=${movie.id}`)}
+                    onClick={() => navigate(`/subscription?return_to=${encodeURIComponent(`/watch/${movie.id}?q=720p`)}&movie_id=${movie.id}`)}
                   >
                     {tx('View Plans')}
                   </button>
@@ -820,7 +785,7 @@ const MovieDetail = () => {
               >
                 {tx('Cancel')}
               </button>
-              {purchaseTab === 'ppv' && selectedQuality ? (
+              {purchaseTab === 'ppv' && ppvPrice !== null ? (
                 <button
                   onClick={handleInitiatePurchase}
                   className="btn btn-primary"
@@ -873,7 +838,7 @@ const MovieDetail = () => {
         isOpen={showPaymentMethodModal}
         onClose={() => { if (!purchasing) { setShowPaymentMethodModal(false); setPurchaseError(''); } }}
         onContinue={handleConfirmPurchase}
-        amount={Number((priceMap || {})[selectedQuality] ?? 0)}
+        amount={Number(ppvPrice) || 0}
         title={tx('Purchase {{title}}', { title: movie.title })}
         busy={purchasing}
         error={purchaseError}

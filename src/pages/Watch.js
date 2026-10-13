@@ -120,7 +120,7 @@ const Watch = () => {
     if (!movie?.id || !userId || locallyAuthorized || !qualityReady) return undefined;
 
     let active = true;
-    checkMovieAccess(movie.id, quality)
+    checkMovieAccess(movie.id)
       .then((result) => {
         if (!active) return;
         const hasAccess = result?.has_access === true;
@@ -131,7 +131,7 @@ const Watch = () => {
       .catch(() => { if (active) setServerAccess(false); });
     return () => { active = false; };
     // `locallyAuthorized` is a boolean, so this only reruns when it flips.
-  }, [movie?.id, userId, locallyAuthorized, qualityReady, quality]);
+  }, [movie?.id, userId, locallyAuthorized, qualityReady]);
 
   // ─── Fetch video files from backend ──────────────────────────────────────
   const loadSources = useCallback(async () => {

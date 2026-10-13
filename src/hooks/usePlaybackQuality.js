@@ -9,8 +9,8 @@ import { hasActiveSubscription } from '../utils/access';
  * The highest quality the signed-in viewer may stream for a title.
  *
  * - Subscribers: the plan's `max_quality` (e.g. the Mobile plan is 480p).
- * - Pay-per-view buyers: the quality they bought.
- * - Both: whichever is higher. The title's own filmmaker: no limit.
+ * - Pay-per-view buyers: every quality (one price unlocks them all).
+ * - The title's own filmmaker: no limit.
  *
  * @param {object|null} title normalized movie/show (for ownership + purchase lookup)
  * @returns {{ maxQuality: string|null, planName: string|null, planMaxQuality: string|null, ready: boolean }}
@@ -18,7 +18,7 @@ import { hasActiveSubscription } from '../utils/access';
  */
 export default function usePlaybackQuality(title) {
   const { user } = useAuth();
-  const { purchaseQualities } = useMovies();
+  const { purchasedMovies } = useMovies();
 
   const sub = user?.subscription;
   const subscribed = hasActiveSubscription(user);
@@ -42,13 +42,11 @@ export default function usePlaybackQuality(title) {
 
   const isOwner = Boolean(user && title) &&
     String(user.id) === String(title.filmmakerId || title.raw?.filmmaker_id);
-  const purchasedQuality = title ? purchaseQualities?.[String(title.id)] || null : null;
+  // Pay-per-view is one price for every quality: a purchase lifts the plan's limit.
+  const hasPurchase = Boolean(title) && Array.isArray(purchasedMovies) && purchasedMovies.includes(String(title.id));
 
   let maxQuality = null;
-  if (!isOwner) {
-    const caps = [planMaxQuality, purchasedQuality].filter((q) => qualityRank(q) >= 0);
-    if (caps.length) maxQuality = caps.reduce((a, b) => (qualityRank(a) >= qualityRank(b) ? a : b));
-  }
+  if (!isOwner && !hasPurchase && qualityRank(planMaxQuality) >= 0) maxQuality = planMaxQuality;
 
   return { maxQuality, planName, planMaxQuality, ready: planLoaded };
 }

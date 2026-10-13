@@ -237,7 +237,7 @@ export const normalizeMovie = (input = {}) => {
     rawMovie.backdropUrl ||
     rawMovie.hero_image ||
     '';
-  const trailerUrl = rawMovie.trailer || rawMovie.trailer_url || rawMovie.trailerUrl || '';
+  const trailerUrl = rawMovie.trailer || rawMovie.trailer_url || rawMovie.trailerUrl || rawMovie.trailer_video?.file_url || '';
   const approvalStatus = rawMovie.approval_status || rawMovie.approvalStatus || rawMovie.status || '';
 
   // Standardize the content type
@@ -300,7 +300,7 @@ export const normalizeMovie = (input = {}) => {
     director: rawMovie.director_name || personNames(rawMovie.director) || personNames(rawMovie.directed_by) || personNames(rawMovie.filmmaker) ||
               (rawMovie.filmmaker_first_name ? `${rawMovie.filmmaker_first_name} ${rawMovie.filmmaker_last_name || ''}`.trim() : 'Unknown Director'),
     cast: cast.length ? cast : ['Unknown Cast'],
-    quality: rawMovie.default_quality || '1080p',
+    quality: rawMovie.default_quality || '720p',
     price: normalizePricing(rawMovie.pricing),
     trending: Boolean(rawMovie.trending || rawMovie.is_trending || rawMovie.isTrending),
     featured: Boolean(rawMovie.featured || rawMovie.is_featured || rawMovie.isFeatured),

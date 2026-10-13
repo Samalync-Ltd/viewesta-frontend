@@ -527,7 +527,7 @@ const singlePriceMap = (price) => Object.fromEntries(PPV_QUALITIES.map((q) => [q
 export async function getMoviePricing(movieId) {
   if (!movieId) return null;
   try {
-    const response = await client.get(`/movies/${movieId}/pricing`);
+    const response = await client.get(`/movies/${movieId}/pricing`, { skipAuth: true }); // public endpoint
     if (response.data?.success && response.data?.data) {
       const data = response.data.data;
       // Current shape: one price per film for every quality —

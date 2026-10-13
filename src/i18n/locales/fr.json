@@ -609,6 +609,15 @@
     "Movies are available for 5 days from the date of purchase.": "Les films sont disponibles pendant 5 jours à partir de la date d’achat.",
     "Access depends on the subscription plan selected and its validity.": "L’accès dépend de l’abonnement choisi et de sa validité.",
     "Monthly": "Mensuel",
-    "Yearly": "Annuel"
+    "Yearly": "Annuel",
+    "Total views": "Vues totales",
+    "view": "vue",
+    "views": "vues",
+    "This series has no trailer yet.": "Cette série n'a pas encore de bande-annonce.",
+    "The trailer could not be loaded. Please try again.": "La bande-annonce n'a pas pu être chargée. Veuillez réessayer.",
+    "Your browser does not support the video tag.": "Votre navigateur ne prend pas en charge la lecture vidéo.",
+    "All qualities (480p, 720p, 1080p)": "Toutes les qualités (480p, 720p, 1080p)",
+    "View": "Voir",
+    "View Public Page": "Voir la page publique"
   }
 }
