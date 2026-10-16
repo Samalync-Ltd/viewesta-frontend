@@ -433,6 +433,8 @@
     "Remove from wishlist": "Retirer de ma liste",
     "Renews on": "Renouvellement le",
     "Request new link": "Demander un nouveau lien",
+    "This reset link has expired or has already been used. Request a new one below.": "Ce lien de réinitialisation a expiré ou a déjà été utilisé. Demandez-en un nouveau ci-dessous.",
+    "Unable to connect to the server. Please check your internet connection and try again.": "Impossible de se connecter au serveur. Vérifiez votre connexion internet et réessayez.",
     "Reset Password": "Réinitialiser le mot de passe",
     "Resetting…": "Réinitialisation…",
     "Restricted": "Public averti",
