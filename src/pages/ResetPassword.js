@@ -7,7 +7,8 @@ import { useLocale } from '../context/LocaleContext';
 export default function ResetPassword() {
   const { tx } = useLocale();
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') || '';
+  // Some mail clients wrap long links or append punctuation; the backend needs a clean GUID.
+  const token = (searchParams.get('token') || '').trim();
   const navigate = useNavigate();
 
   const [password, setPassword] = useState('');
@@ -15,6 +16,8 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  // The link itself is dead (expired, used, or mangled): only a new one helps.
+  const [linkInvalid, setLinkInvalid] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -36,7 +39,18 @@ export default function ResetPassword() {
       setSuccess(true);
       setTimeout(() => navigate('/login'), 2500);
     } catch (err) {
-      setError(err.message || tx('Failed to reset password. The link may have expired.'));
+      const details = err.data?.error?.details;
+      const tokenProblem = Array.isArray(details) && details.some((d) => d.field === 'token');
+      if (tokenProblem || /invalid or expired/i.test(err.data?.message || '')) {
+        setLinkInvalid(true);
+        setError(tx('This reset link has expired or has already been used. Request a new one below.'));
+      } else if (Array.isArray(details) && details.length > 0) {
+        setError(details.map((d) => d.message?.replace(/"/g, '')).join(' '));
+      } else if (!err.status) {
+        setError(tx('Unable to connect to the server. Please check your internet connection and try again.'));
+      } else {
+        setError(err.message || tx('Failed to reset password. The link may have expired.'));
+      }
     } finally {
       setLoading(false);
     }
@@ -71,7 +85,10 @@ export default function ResetPassword() {
           <>
             <p className="forgot-password-desc">{tx('Enter your new password below.')}</p>
             <form onSubmit={handleSubmit} className="forgot-form">
-              {error && <p className="forgot-password-error">{error}</p>}
+              {error && <p className="forgot-password-error" role="alert">{error}</p>}
+              {linkInvalid && (
+                <Link to="/forgot-password" className="btn btn-primary btn-full">{tx('Request new link')}</Link>
+              )}
               <div className="form-group">
                 <label htmlFor="reset-password">{tx('New Password')}</label>
                 <input

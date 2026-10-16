@@ -4,7 +4,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { registerUser } from '../utils/apiClient.js';
 import { loginUser } from '../utils/apiClient';
-import { getCurrentUser, updateUserProfile, changePassword as apiChangePassword } from '../utils/apiClient.js';
+import {
+  getCurrentUser,
+  updateUserProfile,
+  changePassword as apiChangePassword,
+  verifyEmailCode as apiVerifyEmailCode,
+  resendVerificationCode as apiResendVerificationCode,
+} from '../utils/apiClient.js';
 import { getMySubscription } from '../services/subscriptionService.js';
 import axios from 'axios';
 import client from '../api/client';
@@ -145,22 +151,30 @@ const signInWithSubscription = async (baseUser) => {
   return provisional;
 };
 
+// Saves the tokens from a login-shaped response and returns its user. Login and
+// a correct verification code both answer with
+// { data: { user, access_token, refresh_token, token } }.
+const storeSession = (resData) => {
+  const user = resData?.data?.user || resData?.data || resData?.user || resData;
+  const tokens = resData?.data?.tokens || resData?.tokens || {};
+  const token = tokens.accessToken || tokens.token || resData?.data?.access_token || resData?.data?.token || resData?.token || resData?.accessToken;
+  const refreshToken = tokens.refreshToken || resData?.data?.refresh_token || resData?.refresh_token;
+
+  if (token) {
+    localStorage.setItem('viewesta_token', token);
+  }
+  if (refreshToken) {
+    localStorage.setItem('viewesta_refresh_token', refreshToken);
+  }
+  return user;
+};
+
 // I edited the login function to use the apiclient insted of Mock loing of authService
 const login = async (email, password) => {
   try {
     const res = await loginUser({ email, password });
 
-    const resData = res.data;
-    const user = resData?.data?.user || resData?.data || resData?.user || resData;
-    const tokens = resData?.data?.tokens || resData?.tokens || {};
-    const token = tokens.accessToken || tokens.token || resData?.data?.token || resData?.token || resData?.accessToken;
-
-    if (token) {
-      localStorage.setItem('viewesta_token', token);
-    }
-    if (tokens.refreshToken || resData?.refresh_token) {
-      localStorage.setItem('viewesta_refresh_token', tokens.refreshToken || resData?.refresh_token);
-    }
+    const user = storeSession(res.data);
 
     const signedInUser = await signInWithSubscription(user);
 
@@ -181,6 +195,14 @@ const login = async (email, password) => {
       // apiClient only sets `status` from error.response.status, so this
       // branch is a network failure / timeout, not an auth failure.
       safeMessage = 'Unable to connect to the server. Please check your internet connection and try again.';
+    } else if (err.status === 403 && err.data?.code === 'EMAIL_NOT_VERIFIED') {
+      // Only sent after a correct password. Check the code, not the message text.
+      return {
+        success: false,
+        code: 'EMAIL_NOT_VERIFIED',
+        email: err.data?.data?.email || email,
+        error: 'Your email isn’t verified yet. Enter the 6-digit code we emailed you, or send a new one.',
+      };
     } else if (err.status === 401) {
       safeMessage = 'Invalid email or password.';
     } else if (err.status === 400) {
@@ -206,18 +228,20 @@ const login = async (email, password) => {
 const register = async (data) => {
   try {
     const res = await registerUser(data);
-
     const resData = res.data;
-    const user = resData?.data?.user || resData?.data || resData?.user || resData;
-    const tokens = resData?.data?.tokens || resData?.tokens || {};
-    const token = tokens.accessToken || tokens.token || resData?.data?.token || resData?.token || resData?.accessToken;
 
-    if (token) {
-      localStorage.setItem('viewesta_token', token);
+    // New accounts get no token: the user must enter the emailed 6-digit code
+    // first, so nobody is signed in yet.
+    if (resData?.data?.verification_required) {
+      return {
+        success: true,
+        verificationRequired: true,
+        email: resData.data.user?.email || data.email,
+        expiresInMinutes: resData.data.expires_in_minutes ?? null,
+      };
     }
-    if (tokens.refreshToken || resData?.refresh_token) {
-      localStorage.setItem('viewesta_refresh_token', tokens.refreshToken || resData?.refresh_token);
-    }
+
+    const user = storeSession(resData);
 
     // A brand-new account has no subscription yet.
     const registeredUser = persistUser({ ...user, subscription: { ...NO_SUBSCRIPTION } });
@@ -238,6 +262,48 @@ const register = async (data) => {
   }
 };
 
+
+// A correct code verifies the account and signs the user in, with the same
+// response shape as login.
+const verifyEmail = async (email, code) => {
+  try {
+    const res = await apiVerifyEmailCode({ email, code });
+    const user = storeSession(res.data);
+    const signedInUser = await signInWithSubscription(user);
+
+    registerPushNotifications().catch(err => {
+      console.warn('Push notification registration failed silently', err);
+    });
+
+    return { success: true, user: signedInUser };
+  } catch (err) {
+    if (!err.status) {
+      return { success: false, reason: 'error', error: 'Unable to connect to the server. Please check your internet connection and try again.' };
+    }
+    if (err.status === 400) {
+      // A wrong code carries attempts_left. Expired, already used, or locked
+      // after 5 wrong tries comes back without it (or at 0): only a new code helps.
+      const attemptsLeft = err.data?.data?.attempts_left;
+      if (typeof attemptsLeft === 'number' && attemptsLeft > 0) {
+        return { success: false, reason: 'wrong_code', attemptsLeft, error: 'Invalid code' };
+      }
+      return { success: false, reason: 'expired', error: 'Invalid or expired code' };
+    }
+    return { success: false, reason: 'error', error: 'Something went wrong, please try again.' };
+  }
+};
+
+const resendVerificationCode = async (email) => {
+  try {
+    const res = await apiResendVerificationCode({ email });
+    return { success: true, expiresInMinutes: res.data?.data?.expires_in_minutes ?? null };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.status ? 'Could not send a new code. Please try again.' : 'Unable to connect to the server. Please check your internet connection and try again.',
+    };
+  }
+};
 
   const logout = () => {
     const accessToken = localStorage.getItem('viewesta_token') || localStorage.getItem('viewesta_access_token');
@@ -340,6 +406,8 @@ const register = async (data) => {
     loading,
     login,
     register,
+    verifyEmail,
+    resendVerificationCode,
     logout,
     updateProfile,
     uploadAvatar,

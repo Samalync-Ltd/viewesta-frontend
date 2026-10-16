@@ -410,6 +410,117 @@
   line-height: 1.5;
 }
 
+/* Earnings by source (pay-per-view / subscription) */
+.earnings-source-header,
+.earnings-source-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.earnings-source-header {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #666;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.earnings-title-block {
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.earnings-title-block .earnings-film-cell {
+  margin-bottom: 0.5rem;
+}
+
+.earnings-title-block .earnings-source-row {
+  padding: 0.375rem 0;
+}
+
+.earnings-source-row--title {
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.earnings-source-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #bbb;
+  padding-left: calc(40px + 0.75rem); /* align under the title, past the poster */
+}
+
+.earnings-source-cell {
+  font-size: 0.9rem;
+  color: #ddd;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.earnings-status {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+}
+
+.earnings-status--pending {
+  color: #fcd34d;
+  background: rgba(252, 211, 77, 0.1);
+  border-color: rgba(252, 211, 77, 0.3);
+}
+
+.earnings-status--paid {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.earnings-status--unknown {
+  color: #888;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 0;
+}
+
+.earnings-missing {
+  font-size: 16px;
+  font-weight: 500;
+  color: #888;
+}
+
+.earnings-missing--small {
+  font-size: 12px;
+}
+
+.earnings-missing-block {
+  color: #888;
+  margin-top: 12px;
+}
+
+.earnings-empty,
+.earnings-tab-note {
+  padding: 1rem 1.25rem;
+  margin: 0;
+  color: #888;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.earnings-tab-note {
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .earnings-page {
@@ -433,5 +544,24 @@
   .earnings-month-amount {
     text-align: left;
     margin-left: calc(60px + 1rem); /* Align with bar */
+  }
+
+  .earnings-source-header {
+    display: none;
+  }
+
+  .earnings-source-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+
+  .earnings-source-label {
+    padding-left: 0;
+  }
+
+  .earnings-source-cell::before {
+    content: attr(data-label) ": ";
+    color: #777;
+    font-size: 0.8rem;
   }
 }

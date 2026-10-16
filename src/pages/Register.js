@@ -88,7 +88,11 @@ const Register = () => {
         user_type: formData.user_type || 'viewer',
       });
 
-      if (result.success) {
+      if (result.success && result.verificationRequired) {
+        navigate('/verify-email', {
+          state: { email: result.email, expiresInMinutes: result.expiresInMinutes, reason: 'signup' },
+        });
+      } else if (result.success) {
         const isFilmmaker =
           (result.user?.role || result.user?.user_type || '').toLowerCase() === 'filmmaker';
 

@@ -28,6 +28,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import VerifyEmail from './pages/VerifyEmail';
 import Contact from './pages/Contact';
 import Help from './pages/Help';
 import TermsOfService from './pages/TermsOfService';
@@ -256,6 +257,7 @@ function AppRoutes() {
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
           <Route element={<ViewerLayout />}>
             <Route path="/" element={<RedirectFilmmakerToStudio><Home /></RedirectFilmmakerToStudio>} />

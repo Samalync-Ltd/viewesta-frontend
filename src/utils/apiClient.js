@@ -95,6 +95,13 @@ export const requestPasswordReset = (data) =>
 export const resetPassword = (data) =>
   post('/auth/reset', data);
 
+// Email verification by 6-digit code. All three are public (no auth header).
+export const verifyEmailCode = (data) =>
+  post('/auth/verify-email-code', data);
+
+export const resendVerificationCode = (data) =>
+  post('/auth/resend-verification-code', data);
+
 export const getAvatarUploadUrl = (data) =>
   post('/auth/profile/avatar/upload-url', data);
 

@@ -42,6 +42,8 @@ const Login = () => {
       if (result.success) {
         const isFilmmaker = (result.user?.role || result.user?.user_type || '').toLowerCase() === 'filmmaker';
         navigate(returnTo || (isFilmmaker ? '/filmmaker-studio' : '/'), { replace: Boolean(returnTo) });
+      } else if (result.code === 'EMAIL_NOT_VERIFIED') {
+        navigate('/verify-email', { state: { email: result.email, reason: 'login' } });
       } else {
         setError(result.error || tx('Login failed'));
       }
