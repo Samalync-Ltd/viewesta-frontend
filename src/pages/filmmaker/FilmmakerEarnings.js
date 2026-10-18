@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getFilmmakerMovies } from '../../services/movieService';
 import { getFilmmakerShows } from '../../services/seriesService';
 import { getContract, getEarningsBreakdown } from '../../services/earningsService';
+import { summarizeContract } from '../../utils/contract';
 import { FaArrowLeft } from 'react-icons/fa';
 // Reuse existing styles where possible. We'll rely on the existing layout.
 import '../EarningsDetail.css';
@@ -143,9 +144,11 @@ export default function FilmmakerEarnings() {
   const platformSplitPct = hasSplit ? 100 - contractSplit : null;
   const earningsHeading = `Your earnings (${filmmakerSharePct}%)`;
 
-  // Minimum Guarantee, from the contract.
-  const mgAmount = contract?.minimum_guarantee;
-  const hasMG = mgAmount !== undefined && mgAmount !== null;
+  // Minimum Guarantee, from the contract. The contract response nests its terms
+  // (e.g. filmmaker.content_partner_contract), so it is read the same way the
+  // dashboard reads it rather than from the top level only.
+  const mgAmount = summarizeContract(contract).minimumGuarantee;
+  const hasMG = mgAmount !== null;
 
   // One entry per film or series from the breakdown; poster and name fall back to the lists.
   const titles = (breakdown?.titles || []).map((t, index) => {

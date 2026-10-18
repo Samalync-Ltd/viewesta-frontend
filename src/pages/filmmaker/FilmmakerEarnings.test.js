@@ -102,3 +102,22 @@ test('says it could not load when the request fails', async () => {
   renderPage();
   await waitFor(() => expect(screen.getByText(/Unable to load your earnings data/)).toBeInTheDocument());
 });
+
+test('Minimum Guarantee is read from the nested contract, like the dashboard', async () => {
+  getEarningsBreakdown.mockResolvedValue(readBreakdown(data));
+  getContract.mockResolvedValue({
+    filmmaker_split: 70,
+    filmmaker: { content_partner_contract: { status: 'active', minimum_guarantee: '500.00' } },
+  });
+  renderPage();
+  const label = await screen.findByText('Minimum Guarantee');
+  expect(within(label.parentElement).getByText(/\$500\.00/)).toBeInTheDocument();
+});
+
+test('Minimum Guarantee says not available when the contract has none', async () => {
+  getEarningsBreakdown.mockResolvedValue(readBreakdown(data));
+  getContract.mockResolvedValue({ filmmaker_split: 70 });
+  renderPage();
+  const label = await screen.findByText('Minimum Guarantee');
+  expect(within(label.parentElement).getByText('Not available yet.')).toBeInTheDocument();
+});
