@@ -36,3 +36,18 @@ describe('readEarningsSummary', () => {
     });
   });
 });
+
+describe('getPayouts', () => {
+  const client = require('../api/client');
+  const { getPayouts } = require('./earningsService');
+
+  it('unwraps data.payouts from the real response', async () => {
+    client.get = jest.fn().mockResolvedValue({ data: { success: true, data: { payouts: [{ id: 1 }], pagination: { count: 1 } } } });
+    expect(await getPayouts()).toEqual([{ id: 1 }]);
+  });
+
+  it('returns an empty list when there are no payout requests', async () => {
+    client.get = jest.fn().mockResolvedValue({ data: { success: true, data: { payouts: [], pagination: { count: 0 } } } });
+    expect(await getPayouts()).toEqual([]);
+  });
+});

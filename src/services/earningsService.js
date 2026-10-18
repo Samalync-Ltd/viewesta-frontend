@@ -22,7 +22,9 @@ export async function getPayoutBalance() {
 export async function getPayouts() {
   try {
     const response = await client.get('/filmmaker/payouts');
-    return response.data?.data || [];
+    // Real shape: { data: { payouts: [...], pagination: {...} } } — the list of payout requests.
+    const data = response.data?.data;
+    return Array.isArray(data) ? data : (data?.payouts || []);
   } catch (err) {
     console.error('Failed to fetch payouts:', err);
     return [];
