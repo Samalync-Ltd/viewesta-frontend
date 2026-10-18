@@ -527,6 +527,48 @@
   margin: 0.25rem 0 0;
 }
 
+/* Overview: one line per film or series */
+.earnings-title-head,
+.earnings-title-row {
+  display: grid;
+  grid-template-columns: 2fr repeat(6, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.earnings-title-head {
+  padding: 0.75rem 1.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #666;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.earnings-title-row {
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.earnings-source-cell--stack {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+}
+
+.earnings-subline {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #888;
+  line-height: 1.35;
+}
+
+.earnings-subline--block {
+  margin: 0 0 0.5rem;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .earnings-page {
@@ -569,5 +611,14 @@
     content: attr(data-label) ": ";
     color: #777;
     font-size: 0.8rem;
+  }
+
+  .earnings-title-head {
+    display: none;
+  }
+
+  .earnings-title-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
   }
 }

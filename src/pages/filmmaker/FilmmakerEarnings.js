@@ -3,25 +3,27 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getFilmmakerMovies } from '../../services/movieService';
 import { getFilmmakerShows } from '../../services/seriesService';
-import {
-  getContract,
-  getPayoutBalance,
-  getPayouts,
-  readEarningsSummary,
-  readTitleEarnings,
-} from '../../services/earningsService';
+import { getContract, getEarningsBreakdown } from '../../services/earningsService';
 import { FaArrowLeft } from 'react-icons/fa';
 // Reuse existing styles where possible. We'll rely on the existing layout.
 import '../EarningsDetail.css';
 
+/*
+ * Every figure here is shown exactly as GET /filmmaker/earnings/breakdown
+ * returns it (see earningsService.js): nothing is added up, split or worked
+ * out on the page, and a value the backend doesn't send reads "Not available yet".
+ */
+
 const NOT_AVAILABLE = 'Not available yet';
 // Product rule for the filmmaker share; the contract's own split wins when the backend sends it.
 const DEFAULT_FILMMAKER_SHARE = 70;
+const PENDING_NOTE = 'Pending amounts are estimates until the payout date.';
 
 const TABS = [
   { key: 'overview', label: 'Overview' },
   { key: 'per-view', label: 'Per View' },
   { key: 'subscription', label: 'Subscription' },
+  { key: 'monthly', label: 'Monthly' },
 ];
 
 function fmt(amount, currency = 'USD') {
@@ -31,6 +33,14 @@ function fmt(amount, currency = 'USD') {
 
 function plural(n, one, many) {
   return `${n.toLocaleString()} ${n === 1 ? one : many}`;
+}
+
+function formatDate(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime())
+    ? String(value)
+    : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function Missing({ small = false }) {
@@ -45,10 +55,19 @@ function Count({ value, one, many }) {
   return value === null ? <Missing small /> : plural(value, one, many);
 }
 
-function PayoutStatus({ status }) {
-  if (status === 'paid') return <span className="earnings-status earnings-status--paid">Paid</span>;
-  if (status === 'pending') return <span className="earnings-status earnings-status--pending">Pending</span>;
-  return <span className="earnings-status earnings-status--unknown">Status {NOT_AVAILABLE.toLowerCase()}</span>;
+/** A figure that counts as activity for a payment model: a count, gross or earnings above zero. */
+const isActive = (...values) => values.some((v) => v !== null && v > 0);
+
+/** "Paid $x · Pending $y (est.)" under an earnings amount, only for the parts the backend sent. */
+function PaidPending({ paid, pending, currency }) {
+  if (paid === null && pending === null) return null;
+  return (
+    <span className="earnings-subline">
+      {paid !== null && <>Paid {fmt(paid, currency)}</>}
+      {paid !== null && pending !== null && ' · '}
+      {pending !== null && <>Pending {fmt(pending, currency)} (est.)</>}
+    </span>
+  );
 }
 
 function TitleHeader({ title }) {
@@ -63,13 +82,21 @@ function TitleHeader({ title }) {
   );
 }
 
+function StatCard({ label, children, highlight = false }) {
+  return (
+    <div className="earnings-summary-card">
+      <div className="earnings-card-label">{label}</div>
+      <div className={`earnings-card-value${highlight ? ' earnings-card-value--highlight' : ''}`}>{children}</div>
+    </div>
+  );
+}
+
 export default function FilmmakerEarnings() {
   const { user } = useAuth();
 
-  const [titles, setTitles] = useState([]);
+  const [breakdown, setBreakdown] = useState(null);
+  const [meta, setMeta] = useState({}); // id -> { title, poster, kind } from the film and series lists
   const [contract, setContract] = useState(null);
-  const [balance, setBalance] = useState(null);
-  const [payouts, setPayouts] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -79,38 +106,24 @@ export default function FilmmakerEarnings() {
     setLoading(true);
     setError('');
     try {
-      const [moviesRes, showsRes, contractData, balanceData, payoutsData] = await Promise.all([
-        getFilmmakerMovies().then((d) => ({ ok: true, d }), () => ({ ok: false, d: [] })),
-        getFilmmakerShows().then((d) => ({ ok: true, d }), () => ({ ok: false, d: [] })),
+      const [breakdownData, contractData, movies, shows] = await Promise.all([
+        getEarningsBreakdown(),
         getContract(),
-        getPayoutBalance(),
-        getPayouts(),
+        // Only used for posters and names; the page works without them.
+        getFilmmakerMovies().catch(() => []),
+        getFilmmakerShows().catch(() => []),
       ]);
 
-      if (!moviesRes.ok && !showsRes.ok) {
-        throw new Error('Could not load titles');
-      }
-      // The service calls return null on failure; with nothing at all, say so rather than show empty cards.
-      if (!contractData && !balanceData && !(payoutsData || []).length
-        && !(moviesRes.d || []).length && !(showsRes.d || []).length) {
-        throw new Error('no earnings data');
-      }
+      // null = the request failed (an empty breakdown is still an object).
+      if (!breakdownData) throw new Error('no earnings data');
 
-      const toTitle = (kind) => (item) => ({
-        id: `${kind}-${item.id}`,
-        kind,
-        title: item.title,
-        poster: item.poster,
-        earnings: readTitleEarnings(item.raw || item),
-      });
+      const lookup = {};
+      (movies || []).forEach((m) => { lookup[String(m.id)] = { title: m.title, poster: m.poster, kind: 'film' }; });
+      (shows || []).forEach((s) => { lookup[String(s.id)] = { title: s.title, poster: s.poster, kind: 'series' }; });
 
-      setTitles([
-        ...(moviesRes.d || []).map(toTitle('film')),
-        ...(showsRes.d || []).map(toTitle('series')),
-      ]);
+      setMeta(lookup);
+      setBreakdown(breakdownData);
       setContract(contractData);
-      setBalance(balanceData);
-      setPayouts(Array.isArray(payoutsData) ? payoutsData : []);
     } catch (err) {
       setError('Unable to load your earnings data. Please try again.');
     } finally {
@@ -120,34 +133,44 @@ export default function FilmmakerEarnings() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const currency = contract?.currency || balance?.currency || user?.wallet?.currency || 'USD';
-  const summary = readEarningsSummary(balance);
+  const currency = contract?.currency || breakdown?.currency || user?.wallet?.currency || 'USD';
+  const totals = breakdown?.totals;
 
   // Revenue split, straight from the contract.
   const contractSplit = contract?.filmmaker_split ?? contract?.split_percentage ?? null;
   const hasSplit = contractSplit !== null;
   const filmmakerSharePct = hasSplit ? contractSplit : DEFAULT_FILMMAKER_SHARE;
   const platformSplitPct = hasSplit ? 100 - contractSplit : null;
-
-  // Minimum Guarantee
-  const mgAmount = contract?.minimum_guarantee;
-  const hasMG = mgAmount !== undefined && mgAmount !== null;
-  const mgRecouped = balance?.mg_recouped;
-  const mgRemaining = balance?.mg_remaining;
-
   const earningsHeading = `Your earnings (${filmmakerSharePct}%)`;
 
-  // Which tab a title belongs on is decided by the backend's own count for that
-  // payment model: purchases for Per View, views for Subscription. A title with
-  // none of that model stays off its tab; one with both appears on both, each
-  // tab showing only its own figures. No amounts are added up here.
-  const byModel = (countKey) => {
-    const known = titles.filter((t) => t.earnings[countKey] !== null);
-    if (known.length === 0) return { state: 'unavailable', rows: [] };
-    return { state: 'ok', rows: known.filter((t) => t.earnings[countKey] > 0) };
-  };
-  const perViewTitles = byModel('ppvPurchases');
-  const subscriptionTitles = byModel('subscriptionViews');
+  // Minimum Guarantee, from the contract.
+  const mgAmount = contract?.minimum_guarantee;
+  const hasMG = mgAmount !== undefined && mgAmount !== null;
+
+  // One entry per film or series from the breakdown; poster and name fall back to the lists.
+  const titles = (breakdown?.titles || []).map((t, index) => {
+    const known = meta[String(t.id)] || {};
+    return {
+      ...t,
+      key: `${t.id ?? 'title'}-${index}`,
+      title: t.title || known.title || 'Untitled',
+      poster: known.poster || null,
+      kind: known.kind || t.kind,
+    };
+  });
+
+  // A title is on Per View only when the backend reports pay-per-view activity
+  // for it, and on Subscription (with only the plans that have activity) only
+  // when it reports subscription activity. A title with both appears on both,
+  // each tab showing only its own figures.
+  const perViewTitles = titles.filter((t) => t.payPerView
+    && isActive(t.payPerView.purchases, t.payPerView.grossRevenue, t.payPerView.earnings));
+  const perViewReported = titles.some((t) => t.payPerView);
+
+  const subscriptionTitles = titles
+    .map((t) => ({ ...t, activePlans: t.plans.filter((p) => isActive(p.views, p.earningViews, p.grossRevenue, p.earnings)) }))
+    .filter((t) => t.activePlans.length > 0);
+  const subscriptionReported = titles.some((t) => t.plans.length > 0);
 
   return (
     <div className="earnings-page layout-container">
@@ -189,7 +212,7 @@ export default function FilmmakerEarnings() {
             ))}
           </div>
 
-          {/* Overview: general statistics, all straight from the backend */}
+          {/* Overview: totals, then one line per film or series */}
           {activeTab === 'overview' && (
             <div className="earnings-overview">
               <div className="earnings-split-card">
@@ -214,63 +237,75 @@ export default function FilmmakerEarnings() {
               </div>
 
               <div className="earnings-summary-grid">
-                <div className="earnings-summary-card">
-                  <div className="earnings-card-label">Total Earnings</div>
-                  <div className="earnings-card-value earnings-card-value--highlight">
-                    {summary.totalEarnings !== null ? fmt(summary.totalEarnings, currency) : <Missing />}
-                  </div>
-                </div>
-                <div className="earnings-summary-card">
-                  <div className="earnings-card-label">Gross Revenue</div>
-                  <div className="earnings-card-value">
-                    {summary.grossRevenue !== null ? fmt(summary.grossRevenue, currency) : <Missing />}
-                  </div>
-                </div>
-                <div className="earnings-summary-card">
-                  <div className="earnings-card-label">Subscription Views</div>
-                  <div className="earnings-card-value">
-                    {summary.subscriptionViews !== null ? summary.subscriptionViews.toLocaleString() : <Missing />}
-                  </div>
-                </div>
-                <div className="earnings-summary-card">
-                  <div className="earnings-card-label">Per View (Purchases)</div>
-                  <div className="earnings-card-value">
-                    {summary.ppvPurchases !== null ? summary.ppvPurchases.toLocaleString() : <Missing />}
-                  </div>
-                </div>
+                <StatCard label="Total Earnings" highlight>
+                  {totals.earnings !== null ? fmt(totals.earnings, currency) : <Missing />}
+                </StatCard>
+                <StatCard label="Gross Revenue">
+                  {totals.grossRevenue !== null ? fmt(totals.grossRevenue, currency) : <Missing />}
+                </StatCard>
+                <StatCard label="Paid">
+                  {totals.paidEarnings !== null ? fmt(totals.paidEarnings, currency) : <Missing />}
+                </StatCard>
+                <StatCard label="Pending (estimate)">
+                  {totals.pendingEarnings !== null ? fmt(totals.pendingEarnings, currency) : <Missing />}
+                </StatCard>
+                <StatCard label="Views">
+                  {totals.views !== null ? totals.views.toLocaleString() : <Missing />}
+                </StatCard>
+                <StatCard label="Earning Views">
+                  {totals.earningViews !== null ? totals.earningViews.toLocaleString() : <Missing />}
+                </StatCard>
+                <StatCard label="Purchases">
+                  {totals.purchases !== null ? totals.purchases.toLocaleString() : <Missing />}
+                </StatCard>
               </div>
               <p className="earnings-tab-note earnings-tab-note--plain">
-                Earnings include pay-per-view purchases and subscription views.
+                Total earnings are paid plus pending. {PENDING_NOTE} Views count once a viewer has watched 20% or more.
               </p>
+
+              <div className="earnings-films-table">
+                <div className="earnings-title-head">
+                  <span>Film / series</span>
+                  <span>Gross revenue</span>
+                  <span>Earnings</span>
+                  <span>Paid</span>
+                  <span>Pending (est.)</span>
+                  <span>Views</span>
+                  <span>Purchases</span>
+                </div>
+                {titles.length === 0 ? (
+                  <p className="earnings-empty">You have no earnings on any film or series yet.</p>
+                ) : titles.map((title) => {
+                  const t = title.totals;
+                  const payoutDate = formatDate(title.nextPayoutAt);
+                  return (
+                    <div key={title.key} className="earnings-title-row">
+                      <TitleHeader title={title} />
+                      <span className="earnings-source-cell" data-label="Gross revenue"><Money value={t.grossRevenue} currency={currency} /></span>
+                      <span className="earnings-source-cell earnings-amount-highlight" data-label="Earnings"><Money value={t.earnings} currency={currency} /></span>
+                      <span className="earnings-source-cell" data-label="Paid"><Money value={t.paidEarnings} currency={currency} /></span>
+                      <span className="earnings-source-cell earnings-source-cell--stack" data-label="Pending (est.)">
+                        <Money value={t.pendingEarnings} currency={currency} />
+                        {payoutDate && <span className="earnings-subline">Paid on {payoutDate}</span>}
+                      </span>
+                      <span className="earnings-source-cell earnings-source-cell--stack" data-label="Views">
+                        {t.views === null ? <Missing small /> : t.views.toLocaleString()}
+                        {t.earningViews !== null && <span className="earnings-subline">{t.earningViews.toLocaleString()} earning</span>}
+                      </span>
+                      <span className="earnings-source-cell" data-label="Purchases">
+                        {t.purchases === null ? <Missing small /> : t.purchases.toLocaleString()}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
 
               <div className="earnings-split-card">
                 <div className="earnings-split-label">Minimum Guarantee</div>
                 {hasMG ? (
                   <div style={{ marginTop: 12 }}>
                     <p><strong>Total Guarantee:</strong> {fmt(mgAmount, currency)}</p>
-                    {mgRemaining !== undefined && <p><strong>Remaining:</strong> {fmt(mgRemaining, currency)}</p>}
-                    <p><strong>Status:</strong> {mgRecouped ? 'Recouped' : 'Remaining'}</p>
                   </div>
-                ) : (
-                  <p className="earnings-missing-block">{NOT_AVAILABLE}.</p>
-                )}
-              </div>
-
-              <div className="earnings-chart-card">
-                <h3 className="earnings-section-title">Payout History</h3>
-                {payouts.length > 0 ? (
-                  payouts.map((payout, idx) => (
-                    <div key={payout.id || idx} className="earnings-month-row">
-                      <div className="earnings-month-label">
-                        {payout.month || payout.period || (payout.created_at
-                          ? new Date(payout.created_at).toLocaleString('default', { month: 'short', year: 'numeric' })
-                          : '—')}
-                      </div>
-                      <div className="earnings-month-amount">
-                        {fmt(payout.amount ?? payout.earnings, currency) ?? <Missing small />}
-                      </div>
-                    </div>
-                  ))
                 ) : (
                   <p className="earnings-missing-block">{NOT_AVAILABLE}.</p>
                 )}
@@ -278,7 +313,7 @@ export default function FilmmakerEarnings() {
             </div>
           )}
 
-          {/* Per View: only titles that were bought pay-per-view */}
+          {/* Per View: only titles bought pay-per-view */}
           {activeTab === 'per-view' && (
             <div className="earnings-films-table">
               <p className="earnings-tab-note">
@@ -290,23 +325,24 @@ export default function FilmmakerEarnings() {
                 <span>Gross revenue</span>
                 <span>{earningsHeading}</span>
               </div>
-              {perViewTitles.state === 'unavailable' ? (
+              {!perViewReported ? (
                 <p className="earnings-empty"><Missing /></p>
-              ) : perViewTitles.rows.length === 0 ? (
+              ) : perViewTitles.length === 0 ? (
                 <p className="earnings-empty">None of your titles has been bought pay-per-view yet.</p>
-              ) : perViewTitles.rows.map((title) => {
-                const e = title.earnings;
+              ) : perViewTitles.map((title) => {
+                const p = title.payPerView;
                 return (
-                  <div key={title.id} className="earnings-source-row earnings-source-row--title">
+                  <div key={title.key} className="earnings-source-row earnings-source-row--title">
                     <TitleHeader title={title} />
                     <span className="earnings-source-cell" data-label="Purchases">
-                      <Count value={e.ppvPurchases} one="purchase" many="purchases" />
+                      <Count value={p.purchases} one="purchase" many="purchases" />
                     </span>
                     <span className="earnings-source-cell" data-label="Gross revenue">
-                      <Money value={e.ppvGrossRevenue} currency={currency} />
+                      <Money value={p.grossRevenue} currency={currency} />
                     </span>
-                    <span className="earnings-source-cell earnings-amount-highlight" data-label="Your earnings">
-                      <Money value={e.ppvEarnings} currency={currency} />
+                    <span className="earnings-source-cell earnings-source-cell--stack" data-label="Your earnings">
+                      <span className="earnings-amount-highlight"><Money value={p.earnings} currency={currency} /></span>
+                      <PaidPending paid={p.paidEarnings} pending={p.pendingEarnings} currency={currency} />
                     </span>
                   </div>
                 );
@@ -314,41 +350,71 @@ export default function FilmmakerEarnings() {
             </div>
           )}
 
-          {/* Subscription: only titles watched through an active subscription (all plans together) */}
+          {/* Subscription: only titles watched through a subscription, one line per plan */}
           {activeTab === 'subscription' && (
             <div className="earnings-films-table">
               <p className="earnings-tab-note">
-                Films and series watched through a subscription: Monthly, Yearly and Mobile plans together.
-                Earnings stay Pending until the 30-day cycle closes, then show as Paid.
+                Films and series watched through a subscription, with Monthly, Yearly and Mobile plans listed together.
+                {' '}{PENDING_NOTE}
               </p>
               <div className="earnings-source-header">
-                <span>Film / series</span>
+                <span>Film / series · plan</span>
                 <span>Views</span>
                 <span>Gross revenue</span>
                 <span>{earningsHeading}</span>
               </div>
-              {subscriptionTitles.state === 'unavailable' ? (
+              {!subscriptionReported ? (
                 <p className="earnings-empty"><Missing /></p>
-              ) : subscriptionTitles.rows.length === 0 ? (
+              ) : subscriptionTitles.length === 0 ? (
                 <p className="earnings-empty">None of your titles has been watched through a subscription yet.</p>
-              ) : subscriptionTitles.rows.map((title) => {
-                const e = title.earnings;
+              ) : subscriptionTitles.map((title) => {
+                const payoutDate = formatDate(title.nextPayoutAt);
                 return (
-                  <div key={title.id} className="earnings-source-row earnings-source-row--title">
+                  <div key={title.key} className="earnings-title-block">
                     <TitleHeader title={title} />
-                    <span className="earnings-source-cell" data-label="Views">
-                      <Count value={e.subscriptionViews} one="view" many="views" />
-                    </span>
-                    <span className="earnings-source-cell" data-label="Gross revenue">
-                      <Money value={e.subscriptionGrossRevenue} currency={currency} />
-                    </span>
-                    <span className="earnings-source-cell earnings-amount-highlight" data-label="Your earnings">
-                      <Money value={e.subscriptionEarnings} currency={currency} />
-                      <PayoutStatus status={e.subscriptionStatus} />
-                    </span>
+                    {payoutDate && <p className="earnings-subline earnings-subline--block">Pending earnings are paid on {payoutDate}</p>}
+                    {title.activePlans.map((plan) => (
+                      <div key={plan.key} className="earnings-source-row">
+                        <span className="earnings-source-label">{plan.label}</span>
+                        <span className="earnings-source-cell earnings-source-cell--stack" data-label="Views">
+                          <Count value={plan.views} one="view" many="views" />
+                          {plan.earningViews !== null && <span className="earnings-subline">{plan.earningViews.toLocaleString()} earning</span>}
+                        </span>
+                        <span className="earnings-source-cell" data-label="Gross revenue">
+                          <Money value={plan.grossRevenue} currency={currency} />
+                        </span>
+                        <span className="earnings-source-cell earnings-source-cell--stack" data-label="Your earnings">
+                          <span className="earnings-amount-highlight"><Money value={plan.earnings} currency={currency} /></span>
+                          <PaidPending paid={plan.paidEarnings} pending={plan.pendingEarnings} currency={currency} />
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Monthly: the backend's own month-by-month figures */}
+          {activeTab === 'monthly' && (
+            <div className="earnings-films-table">
+              <p className="earnings-tab-note">{PENDING_NOTE}</p>
+              <div className="earnings-source-header">
+                <span>Month</span>
+                <span>Earnings</span>
+                <span>Paid</span>
+                <span>Pending (est.)</span>
+              </div>
+              {breakdown.monthly.length === 0 ? (
+                <p className="earnings-empty">No monthly earnings yet.</p>
+              ) : breakdown.monthly.map((m, index) => (
+                <div key={m.month ?? index} className="earnings-source-row earnings-source-row--title">
+                  <span className="earnings-film-title">{m.month ?? <Missing small />}</span>
+                  <span className="earnings-source-cell earnings-amount-highlight" data-label="Earnings"><Money value={m.earnings} currency={currency} /></span>
+                  <span className="earnings-source-cell" data-label="Paid"><Money value={m.paidEarnings} currency={currency} /></span>
+                  <span className="earnings-source-cell" data-label="Pending (est.)"><Money value={m.pendingEarnings} currency={currency} /></span>
+                </div>
+              ))}
             </div>
           )}
         </>

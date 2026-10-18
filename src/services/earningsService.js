@@ -46,72 +46,112 @@ export async function getContract() {
 }
 
 /*
- * Earnings fields — the ONE place that knows the backend's field names.
+ * Earnings breakdown — GET /filmmaker/earnings/breakdown.
  *
- * The page only displays what the backend returns: nothing is added up,
- * split or derived on the frontend. A field the backend doesn't send yet
- * comes back as null and the page shows "Not available yet".
+ * Unlike /filmmaker/payouts/balance (paid totals only) this has pending
+ * amounts, views, purchases, a per-title list and the monthly history. This is
+ * the ONE place that knows its field names. Everything is read as returned:
+ * nothing is added up, split or derived on the frontend, and a field the
+ * backend doesn't send comes back as null, which the page shows as
+ * "Not available yet".
  *
- * PREDICTED NAMES: these follow the backend's snake_case style and still need
- * to be checked against Nancy's endpoint list. When it arrives, only the
- * lists below should need editing. The first field that is present wins.
+ *   data.totals              earnings (paid + pending), gross_revenue, paid_earnings,
+ *                            pending_earnings, views (valid, 20%+), earning_views, purchases
+ *   data.titles[].totals     the same seven fields for one film or series
+ *   data.titles[].pay_per_view
+ *   data.titles[].subscription.next_payout_at / .by_plan.{monthly, yearly, mobile}
+ *   data.monthly[]           month, earnings, paid_earnings, pending_earnings
+ *
+ * ASSUMPTION: the inner shape of `pay_per_view` and of each `by_plan` entry is
+ * not documented; they are read with the same field names as `totals`
+ * (purchases / views, gross_revenue, earnings, paid_earnings, pending_earnings).
+ * If the backend names them differently, only readPayPerView / readPlan change.
+ * `earning_views` and `purchases` arrive with backend PR #68.
  */
-const SUMMARY_FIELDS = {
-  totalEarnings: ['total_earnings', 'filmmaker_earnings'],
-  grossRevenue: ['gross_revenue', 'total_revenue'],
-  // Overview cards: subscription views and pay-per-view purchases.
-  subscriptionViews: ['subscription_views', 'total_subscription_views'],
-  ppvPurchases: ['ppv_purchases', 'total_ppv_purchases', 'pay_per_view_purchases', 'total_purchases', 'purchases'],
-};
+const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 
-// Per film / series, read from the title object the filmmaker listings return.
-const TITLE_FIELDS = {
-  ppvPurchases: ['ppv_purchases', 'earnings.pay_per_view.purchases'],
-  ppvGrossRevenue: ['ppv_gross_revenue', 'earnings.pay_per_view.gross_revenue'],
-  ppvEarnings: ['ppv_filmmaker_earnings', 'earnings.pay_per_view.filmmaker_earnings'],
-  // Subscription = every plan together (Monthly, Yearly and Mobile).
-  subscriptionViews: ['subscription_views', 'earnings.subscription.views'],
-  subscriptionGrossRevenue: ['subscription_gross_revenue', 'earnings.subscription.gross_revenue'],
-  subscriptionEarnings: ['subscription_filmmaker_earnings', 'earnings.subscription.filmmaker_earnings'],
-  // 'pending' until the 30-day cycle closes, then 'paid'.
-  subscriptionStatus: ['subscription_payout_status', 'earnings.subscription.status'],
-};
-
-function readPath(obj, path) {
-  return path.split('.').reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
-}
-
-function pick(obj, candidates) {
-  for (const path of candidates) {
-    const value = readPath(obj, path);
-    if (value !== undefined && value !== null && value !== '') return value;
-  }
-  return null;
-}
-
-// Money/count fields may arrive as numeric strings (Postgres NUMERIC). This
-// only parses them for display; it never changes the value.
-function asNumber(value) {
-  if (value === null) return null;
+// Postgres NUMERIC can arrive as a string; this only parses it for display.
+function num(value) {
+  if (value === undefined || value === null || value === '') return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
-function mapFields(obj, fields, { text = [] } = {}) {
-  return Object.fromEntries(
-    Object.entries(fields).map(([key, candidates]) => {
-      const value = pick(obj || {}, candidates);
-      return [key, text.includes(key) ? (value === null ? null : String(value).toLowerCase()) : asNumber(value)];
-    })
-  );
+const readTotals = (o) => ({
+  earnings: num(o?.earnings),
+  grossRevenue: num(o?.gross_revenue),
+  paidEarnings: num(o?.paid_earnings),
+  pendingEarnings: num(o?.pending_earnings),
+  views: num(o?.views),
+  earningViews: num(o?.earning_views),
+  purchases: num(o?.purchases),
+});
+
+const readPayPerView = (o) => (isObject(o) ? {
+  purchases: num(o.purchases),
+  grossRevenue: num(o.gross_revenue),
+  earnings: num(o.earnings),
+  paidEarnings: num(o.paid_earnings),
+  pendingEarnings: num(o.pending_earnings),
+} : null);
+
+const PLANS = [
+  { key: 'monthly', label: 'Monthly' },
+  { key: 'yearly', label: 'Yearly' },
+  { key: 'mobile', label: 'Mobile' },
+];
+
+const readPlan = ({ key, label }, o) => (isObject(o) ? {
+  key,
+  label,
+  views: num(o.views),
+  earningViews: num(o.earning_views),
+  grossRevenue: num(o.gross_revenue),
+  earnings: num(o.earnings),
+  paidEarnings: num(o.paid_earnings),
+  pendingEarnings: num(o.pending_earnings),
+} : null);
+
+/** Reads the `data` object of the breakdown response into the shape the page uses. */
+export function readBreakdown(data) {
+  const titles = Array.isArray(data?.titles) ? data.titles : [];
+  const monthly = Array.isArray(data?.monthly) ? data.monthly : [];
+  return {
+    currency: data?.currency || null,
+    totals: readTotals(data?.totals),
+    monthly: monthly.map((m) => ({
+      month: m?.month ?? null,
+      earnings: num(m?.earnings),
+      paidEarnings: num(m?.paid_earnings),
+      pendingEarnings: num(m?.pending_earnings),
+    })),
+    titles: titles.map((t) => {
+      const type = String(t?.content_type ?? t?.type ?? '').toLowerCase();
+      return {
+        id: t?.id ?? t?.content_id ?? t?.movie_id ?? t?.show_id ?? null,
+        title: t?.title ?? t?.name ?? null,
+        kind: type === 'series' || type === 'show' ? 'series' : 'film',
+        totals: readTotals(t?.totals),
+        nextPayoutAt: t?.subscription?.next_payout_at ?? null,
+        payPerView: readPayPerView(t?.pay_per_view),
+        plans: PLANS.map((plan) => readPlan(plan, t?.subscription?.by_plan?.[plan.key])).filter(Boolean),
+      };
+    }),
+  };
 }
 
-/** Top-of-page totals from the payout balance response. */
-export function readEarningsSummary(balance) {
-  return mapFields(balance, SUMMARY_FIELDS);
-}
-
-/** Pay-per-view and subscription figures for one film or series (its raw API object). */
-export function readTitleEarnings(rawTitle) {
-  return mapFields(rawTitle, TITLE_FIELDS, { text: ['subscriptionStatus'] });
+/**
+ * The filmmaker's earnings, as the backend reports them.
+ * Returns null when the request fails, so the page can tell "could not load"
+ * from "loaded, nothing earned yet".
+ */
+export async function getEarningsBreakdown() {
+  try {
+    const response = await client.get('/filmmaker/earnings/breakdown');
+    const data = response.data?.data;
+    return isObject(data) ? readBreakdown(data) : null;
+  } catch (err) {
+    console.error('Failed to fetch earnings breakdown:', err);
+    return null;
+  }
 }
