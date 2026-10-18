@@ -57,7 +57,9 @@ export async function getContract() {
 const SUMMARY_FIELDS = {
   totalEarnings: ['total_earnings', 'filmmaker_earnings'],
   grossRevenue: ['gross_revenue', 'total_revenue'],
-  totalViews: ['total_views', 'views'],
+  // Overview cards: subscription views and pay-per-view purchases.
+  subscriptionViews: ['subscription_views', 'total_subscription_views'],
+  ppvPurchases: ['ppv_purchases', 'total_ppv_purchases', 'pay_per_view_purchases', 'total_purchases', 'purchases'],
 };
 
 // Per film / series, read from the title object the filmmaker listings return.

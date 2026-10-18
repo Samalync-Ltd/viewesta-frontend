@@ -54,18 +54,22 @@
   /* Ensure the movie card fits nicely */
 }
 
+/* The card already draws its own FILM / SERIES pill at top: 4px; right: 4px
+   (MovieCard.css), so the approval status sits directly under it instead of
+   on top of it. */
 .approval-overlay {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 10;
+  top: 30px;
+  right: 4px;
+  z-index: 16; /* above the card's own badges, which are 10-15 */
   pointer-events: none; /* Let clicks pass through to card */
 }
 
 .status-badge {
-  padding: 0.25rem 0.6rem;
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   font-weight: 700;
   text-transform: uppercase;
   color: white;
