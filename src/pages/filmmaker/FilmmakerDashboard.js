@@ -92,7 +92,9 @@ function FilmmakerDashboard() {
         <div className="stat-card">
           <FaDollarSign className="stat-icon" />
           <div>
-            <span className="stat-value">{earnings.currency} {Number(earnings.total).toFixed(2)}</span>
+            <span className="stat-value">
+              {earnings.loading ? '...' : earnings.total === null ? 'Not available yet' : `${earnings.currency} ${earnings.total.toFixed(2)}`}
+            </span>
             <span className="stat-label">{t('totalEarnings')}</span>
           </div>
           <Link to="/filmmaker-studio/earnings" className="stat-link">{t('earningsDetail')}</Link>

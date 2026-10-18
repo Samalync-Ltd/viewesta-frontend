@@ -42,7 +42,7 @@ export default function FilmmakerStudioProfile() {
   const [saveError, setSaveError]     = useState('');
   const [avatarFile, setAvatarFile]   = useState(null);
 
-  // Same upload count and earnings as the dashboard (movies + series; views × price × share).
+  // Same upload count and earnings as the dashboard: movies + series, and total_earnings from the backend.
   const { titleCount, earnings } = useFilmmakerStats();
 
   /* ── derived values ── */
@@ -56,8 +56,9 @@ export default function FilmmakerStudioProfile() {
     `${DEFAULT_AVATAR}${encodeURIComponent(displayName)}`;
 
   const totalMovies    = titleCount === null ? '...' : titleCount;
-  const totalEarnings  = Number(earnings.total) || 0;
-  const earningsCurrency = earnings.currency;
+  const earningsText = earnings.loading
+    ? '...'
+    : earnings.total === null ? 'Not available yet' : `${earnings.currency} ${earnings.total.toFixed(2)}`;
 
   /* ── handlers ── */
   const handleEditStart = () => {
@@ -333,7 +334,7 @@ export default function FilmmakerStudioProfile() {
         <div className="fsp-stat-divider" />
         <div className="fsp-stat">
           <span className="fsp-stat-value" style={{ color: '#22c55e' }}>
-            {earningsCurrency} {totalEarnings.toFixed(2)}
+            {earningsText}
           </span>
           <span className="fsp-stat-label">Earnings</span>
         </div>
