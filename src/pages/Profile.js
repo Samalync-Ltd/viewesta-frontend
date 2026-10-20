@@ -21,6 +21,7 @@ import {
 import MovieCard from '../components/MovieCard';
 import { getWatchHistory } from '../services/videoService';
 import { titlesFromHistory } from '../utils/watchHistory';
+import useWalletBalance from '../hooks/useWalletBalance';
 import './Profile.css';
 import { useLocale } from '../context/LocaleContext';
 
@@ -28,6 +29,9 @@ const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?background=D06224&color=fff&
 
 const Profile = () => {
   const { tx } = useLocale();
+  // Live balance from GET /wallet (same as the Wallet page). The copy saved in
+  // the user at sign-in is only a fallback if the wallet can't be reached.
+  const wallet = useWalletBalance();
   const { user, updateProfile, changePassword, loading, uploadAvatar, logout } = useAuth();
   const navigate = useNavigate();
   // Navigate on the next tick, like the header: /profile is protected, and its
@@ -200,6 +204,13 @@ const Profile = () => {
       </div>
     );
   }
+
+  // "$1.00" from the live wallet; "..." until it answers; the sign-in copy only if it can't be reached.
+  const walletText = (decimals) => {
+    if (wallet.balance !== null) return `$${wallet.balance.toFixed(decimals)}`;
+    if (wallet.loading) return '...';
+    return `$${Number(user.wallet_balance ?? 0).toFixed(decimals)}`;
+  };
 
   return (
     <div className="profile-page">
@@ -377,7 +388,7 @@ const Profile = () => {
           <div className="pstat-divider" />
           <div className="pstat">
             <span className="pstat-value" style={{ color: '#22c55e' }}>
-              ${Number(user.wallet_balance ?? 0).toFixed(0)}
+              {walletText(2)}
             </span>
             <span className="pstat-label">{tx('Balance')}</span>
           </div>
@@ -391,9 +402,9 @@ const Profile = () => {
             <div className="wallet-info">
               <div className="balance">
                 <span className="amount" style={{ color: '#22c55e' }}>
-                  ${Number(user.wallet_balance ?? 0).toFixed(2)}
+                  {walletText(2)}
                 </span>
-                <span className="currency">{user.currency || 'USD'}</span>
+                <span className="currency">{wallet.currency || user.currency || 'USD'}</span>
               </div>
               <Link to="/wallet" className="btn btn-primary">{tx('Top Up')}</Link>
             </div>

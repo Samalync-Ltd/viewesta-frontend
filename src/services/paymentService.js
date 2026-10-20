@@ -7,6 +7,7 @@
  */
 
 import client from '../api/client';
+import { notifyWalletChanged } from './walletService';
 
 /**
  * Ask the backend whether the signed-in viewer can watch a movie (purchased,
@@ -38,6 +39,7 @@ export async function checkSeriesAccess(seriesId) {
  */
 export async function purchaseSeries({ series_id, payment_method = 'wallet' }) {
   const { data } = await client.post('/payments/purchase', { series_id, payment_method });
+  notifyWalletChanged();
   return data;
 }
 
@@ -58,6 +60,7 @@ export async function getPurchases() {
 export async function purchaseMovie({ movie_id, payment_method = 'wallet', payment_provider = 'pesapal' }) {
   // One price unlocks every quality, so no quality is sent.
   const { data } = await client.post('/payments/purchase', { movie_id, payment_method, payment_provider });
+  notifyWalletChanged();
   return data;
 }
 
@@ -72,6 +75,8 @@ export async function verifyPayment({ transaction_id, order_tracking_id, merchan
     merchant_reference: merchant_reference || transaction_id,
     payment_provider
   });
+  // A confirmed card payment can be a top-up or a purchase: either moves the balance.
+  notifyWalletChanged();
   return data;
 }
 

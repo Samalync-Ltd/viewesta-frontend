@@ -19,6 +19,17 @@
 
 import client from '../api/client';
 
+/**
+ * Fired on `window` whenever something in the app changes the wallet balance
+ * (a top-up, a purchase, a confirmed payment), so every screen showing the
+ * balance can re-read it from the server instead of keeping an old copy.
+ */
+export const WALLET_CHANGED_EVENT = 'viewesta:wallet-changed';
+
+export function notifyWalletChanged() {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(WALLET_CHANGED_EVENT));
+}
+
 // Returns the first key in `obj` (from `keys`, in order) that is present and
 // not null/undefined — used where a response field's exact name isn't
 // confirmed yet, so a naming mismatch doesn't get treated as "value is 0".
@@ -149,5 +160,6 @@ async function fetchWalletSummary() {
  */
 export async function topUpWallet({ amount, payment_provider = 'pesapal', payment_method = 'card' }) {
   const { data } = await client.post('/wallet/topup', { amount, payment_provider, payment_method });
+  notifyWalletChanged();
   return data;
 }
