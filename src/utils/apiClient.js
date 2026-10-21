@@ -92,6 +92,13 @@ export const changePassword = (data) =>
 export const requestPasswordReset = (data) =>
   post('/auth/request-reset', data);
 
+// Password reset by emailed code, in two steps (the same flow as the mobile app):
+// 1. POST /auth/verify-reset-code { email, code }  → a one-time reset token
+// 2. POST /auth/reset { token, password }          → the password is changed
+// /auth/reset itself only accepts the token (a GUID), never the 6-digit code.
+export const verifyResetCode = (data) =>
+  post('/auth/verify-reset-code', data);
+
 export const resetPassword = (data) =>
   post('/auth/reset', data);
 

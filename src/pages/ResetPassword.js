@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useLocale } from '../context/LocaleContext';
-import { requestPasswordReset, resetPassword } from '../utils/apiClient';
+import { requestPasswordReset, resetPassword, verifyResetCode } from '../utils/apiClient';
 import CodeInput, { CODE_LENGTH } from '../components/CodeInput';
 import './ForgotPassword.css';
 import './VerifyEmail.css';
@@ -9,6 +9,23 @@ import './VerifyEmail.css';
 const MIN_PASSWORD_LENGTH = 8;
 const RESEND_COOLDOWN_SECONDS = 30;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const GUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The reset token in a successful POST /auth/verify-reset-code answer.
+ * /auth/reset requires a GUID token, so only a GUID counts. The usual names
+ * are tried first, then any `*token*` field one level down, never an id.
+ */
+export function extractResetToken(body) {
+  const data = body?.data ?? body;
+  const named = [data?.reset_token, data?.token, data?.resetToken, body?.reset_token, body?.token];
+  const hit = named.find((v) => typeof v === 'string' && GUID_REGEX.test(v));
+  if (hit) return hit;
+  const tokenLike = (obj) => (obj && typeof obj === 'object'
+    ? Object.entries(obj).find(([k, v]) => /token/i.test(k) && typeof v === 'string' && GUID_REGEX.test(v))?.[1]
+    : undefined);
+  return tokenLike(data) ?? Object.values(data || {}).map(tokenLike).find(Boolean) ?? null;
+}
 
 /**
  * Second step of "Forgot password": the user enters the 6-digit code emailed
@@ -40,6 +57,9 @@ export default function ResetPassword() {
   const [cooldown, setCooldown] = useState(0);
 
   const codeRef = useRef(null);
+  // Set once the code is accepted, so a retry (e.g. after the server rejects
+  // the password) does not need a new code. Cleared when a new code is sent.
+  const resetTokenRef = useRef(null);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -72,33 +92,61 @@ export default function ResetPassword() {
     }
 
     setLoading(true);
+
+    // Step 1: exchange the emailed code for a reset token.
+    if (!resetTokenRef.current) {
+      try {
+        // The code is sent as a string so leading zeros survive.
+        const res = await verifyResetCode({ email: email.trim(), code });
+        resetTokenRef.current = extractResetToken(res.data);
+      } catch (err) {
+        setLoading(false);
+        const attemptsLeft = err.data?.data?.attempts_left;
+        if (!err.status) {
+          setError(tx('Unable to connect to the server. Please check your internet connection and try again.'));
+        } else if (err.status === 400 || err.status === 404) {
+          setCode('');
+          if (typeof attemptsLeft === 'number' && attemptsLeft > 0) {
+            setNeedsNewCode(false);
+            setError(tx('That code isn’t right. {{n}} attempts left.', { n: attemptsLeft }));
+            codeRef.current?.focus();
+          } else {
+            setNeedsNewCode(true);
+            setError(tx('This code is wrong or has expired. Send a new code to try again.'));
+          }
+        } else {
+          setError(tx('Something went wrong. Please try again.'));
+        }
+        return;
+      }
+      if (!resetTokenRef.current) {
+        setLoading(false);
+        console.error('[ResetPassword] /auth/verify-reset-code succeeded but returned no reset token');
+        setError(tx('Something went wrong. Please try again.'));
+        return;
+      }
+    }
+
+    // Step 2: set the new password with that token.
     try {
-      // The code is sent as a string so leading zeros survive.
-      await resetPassword({ email: email.trim(), code, password });
+      await resetPassword({ token: resetTokenRef.current, password });
       setSuccess(true);
     } catch (err) {
       const details = err.data?.error?.details;
       const fields = Array.isArray(details) ? details : [];
       const passwordProblem = fields.find((d) => d.field === 'password');
-      const attemptsLeft = err.data?.data?.attempts_left;
 
       if (!err.status) {
         setError(tx('Unable to connect to the server. Please check your internet connection and try again.'));
       } else if (passwordProblem) {
+        // The token is still good: fixing the password and resubmitting is enough.
         setError(passwordProblem.message?.replace(/"/g, ''));
-      } else if (fields.some((d) => d.field === 'token' && /required/i.test(d.message || ''))) {
-        // The server is still on the old link-based reset and cannot take a code.
-        setError(tx('Password reset is not available right now. Please try again later.'));
       } else if (err.status === 400 || err.status === 404) {
+        // The token was rejected (expired or already used): start again with a new code.
+        resetTokenRef.current = null;
         setCode('');
-        if (typeof attemptsLeft === 'number' && attemptsLeft > 0) {
-          setNeedsNewCode(false);
-          setError(tx('That code isn’t right. {{n}} attempts left.', { n: attemptsLeft }));
-          codeRef.current?.focus();
-        } else {
-          setNeedsNewCode(true);
-          setError(tx('This code is wrong or has expired. Send a new code to try again.'));
-        }
+        setNeedsNewCode(true);
+        setError(tx('This code is wrong or has expired. Send a new code to try again.'));
       } else {
         setError(tx('Something went wrong. Please try again.'));
       }
@@ -118,6 +166,7 @@ export default function ResetPassword() {
       if (minutes) setExpiresInMinutes(minutes);
       setNeedsNewCode(false);
       setCode('');
+      resetTokenRef.current = null;
       setResendInfo(tx('A new code is on its way. It replaces any code we sent before.'));
       setCooldown(RESEND_COOLDOWN_SECONDS);
       codeRef.current?.focus();
